@@ -1,0 +1,1749 @@
+{
+  "schema": "pmrs.required-test-inventory/1",
+  "product_version": "4.0.0",
+  "cases": [
+    {
+      "case_id": "K01",
+      "required": true,
+      "assertion_ids": [
+        "K01.a1"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "K02",
+      "required": true,
+      "assertion_ids": [
+        "K02.a1"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "K03",
+      "required": true,
+      "assertion_ids": [
+        "K03.a1"
+      ],
+      "first_required_gate": "M1",
+      "phase_gate": "M1"
+    },
+    {
+      "case_id": "K04",
+      "required": true,
+      "assertion_ids": [
+        "K04.a1"
+      ],
+      "first_required_gate": "M1",
+      "phase_gate": "M1"
+    },
+    {
+      "case_id": "K05",
+      "required": true,
+      "assertion_ids": [
+        "K05.a1"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "K06",
+      "required": true,
+      "assertion_ids": [
+        "K06.a1"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "K07",
+      "required": true,
+      "assertion_ids": [
+        "K07.a1",
+        "K07.a2"
+      ],
+      "first_required_gate": "M1",
+      "phase_gate": "M1"
+    },
+    {
+      "case_id": "K08",
+      "required": true,
+      "assertion_ids": [
+        "K08.a1"
+      ],
+      "first_required_gate": "M1",
+      "phase_gate": "M1"
+    },
+    {
+      "case_id": "S01",
+      "required": true,
+      "assertion_ids": [
+        "S01.a1"
+      ],
+      "first_required_gate": "M4",
+      "phase_gate": "M4"
+    },
+    {
+      "case_id": "S02",
+      "required": true,
+      "assertion_ids": [
+        "S02.a1"
+      ],
+      "first_required_gate": "M4",
+      "phase_gate": "M4"
+    },
+    {
+      "case_id": "S03",
+      "required": true,
+      "assertion_ids": [
+        "S03.a1"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "S04",
+      "required": true,
+      "assertion_ids": [
+        "S04.a1"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "S05",
+      "required": true,
+      "assertion_ids": [
+        "S05.a1"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "S06",
+      "required": true,
+      "assertion_ids": [
+        "S06.a1"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "S07",
+      "required": true,
+      "assertion_ids": [
+        "S07.a1"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "S08",
+      "required": true,
+      "assertion_ids": [
+        "S08.a1"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "W01",
+      "required": true,
+      "assertion_ids": [
+        "W01.a1"
+      ],
+      "first_required_gate": "M3",
+      "phase_gate": "M3"
+    },
+    {
+      "case_id": "W02",
+      "required": true,
+      "assertion_ids": [
+        "W02.a1"
+      ],
+      "first_required_gate": "M3",
+      "phase_gate": "M3"
+    },
+    {
+      "case_id": "W03",
+      "required": true,
+      "assertion_ids": [
+        "W03.a1"
+      ],
+      "first_required_gate": "M3",
+      "phase_gate": "M3"
+    },
+    {
+      "case_id": "W04",
+      "required": true,
+      "assertion_ids": [
+        "W04.a1",
+        "W04.a2",
+        "W04.a3"
+      ],
+      "first_required_gate": "M3",
+      "phase_gate": "M3"
+    },
+    {
+      "case_id": "W05",
+      "required": true,
+      "assertion_ids": [
+        "W05.a1"
+      ],
+      "first_required_gate": "M3",
+      "phase_gate": "M3"
+    },
+    {
+      "case_id": "W06",
+      "required": true,
+      "assertion_ids": [
+        "W06.a1"
+      ],
+      "first_required_gate": "M3",
+      "phase_gate": "M3"
+    },
+    {
+      "case_id": "W07",
+      "required": true,
+      "assertion_ids": [
+        "W07.a1"
+      ],
+      "first_required_gate": "M3",
+      "phase_gate": "M3"
+    },
+    {
+      "case_id": "W08",
+      "required": true,
+      "assertion_ids": [
+        "W08.a1"
+      ],
+      "first_required_gate": "M3",
+      "phase_gate": "M3"
+    },
+    {
+      "case_id": "W09",
+      "required": true,
+      "assertion_ids": [
+        "W09.a1"
+      ],
+      "first_required_gate": "M3",
+      "phase_gate": "M3"
+    },
+    {
+      "case_id": "W10",
+      "required": true,
+      "assertion_ids": [
+        "W10.a1"
+      ],
+      "first_required_gate": "M3",
+      "phase_gate": "M3"
+    },
+    {
+      "case_id": "W11",
+      "required": true,
+      "assertion_ids": [
+        "W11.a1"
+      ],
+      "first_required_gate": "M4",
+      "phase_gate": "M4"
+    },
+    {
+      "case_id": "W12",
+      "required": true,
+      "assertion_ids": [
+        "W12.a1"
+      ],
+      "first_required_gate": "M4",
+      "phase_gate": "M4"
+    },
+    {
+      "case_id": "W13",
+      "required": true,
+      "assertion_ids": [
+        "W13.a1",
+        "W13.a2"
+      ],
+      "first_required_gate": "M4",
+      "phase_gate": "M4"
+    },
+    {
+      "case_id": "R01",
+      "required": true,
+      "assertion_ids": [
+        "R01.a1"
+      ],
+      "first_required_gate": "M7",
+      "phase_gate": "M7"
+    },
+    {
+      "case_id": "R02",
+      "required": true,
+      "assertion_ids": [
+        "R02.a1"
+      ],
+      "first_required_gate": "M7",
+      "phase_gate": "M7"
+    },
+    {
+      "case_id": "R03",
+      "required": true,
+      "assertion_ids": [
+        "R03.a1"
+      ],
+      "first_required_gate": "M6",
+      "phase_gate": "M6"
+    },
+    {
+      "case_id": "R04",
+      "required": true,
+      "assertion_ids": [
+        "R04.a1"
+      ],
+      "first_required_gate": "M6",
+      "phase_gate": "M6"
+    },
+    {
+      "case_id": "R05",
+      "required": true,
+      "assertion_ids": [
+        "R05.a1"
+      ],
+      "first_required_gate": "M6",
+      "phase_gate": "M6"
+    },
+    {
+      "case_id": "R06",
+      "required": true,
+      "assertion_ids": [
+        "R06.a1"
+      ],
+      "first_required_gate": "M6",
+      "phase_gate": "M6"
+    },
+    {
+      "case_id": "R07",
+      "required": true,
+      "assertion_ids": [
+        "R07.a1"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "R11",
+      "required": true,
+      "assertion_ids": [
+        "R11.a1"
+      ],
+      "first_required_gate": "M1",
+      "phase_gate": "M1"
+    },
+    {
+      "case_id": "R12",
+      "required": true,
+      "assertion_ids": [
+        "R12.a1"
+      ],
+      "first_required_gate": "M1",
+      "phase_gate": "M1"
+    },
+    {
+      "case_id": "N01",
+      "required": true,
+      "assertion_ids": [
+        "N01.a1"
+      ],
+      "first_required_gate": "M3",
+      "phase_gate": "M3"
+    },
+    {
+      "case_id": "N02",
+      "required": true,
+      "assertion_ids": [
+        "N02.a1"
+      ],
+      "first_required_gate": "M1",
+      "phase_gate": "M1"
+    },
+    {
+      "case_id": "N03",
+      "required": true,
+      "assertion_ids": [
+        "N03.a1"
+      ],
+      "first_required_gate": "M1",
+      "phase_gate": "M1"
+    },
+    {
+      "case_id": "N04",
+      "required": true,
+      "assertion_ids": [
+        "N04.a1"
+      ],
+      "first_required_gate": "M1",
+      "phase_gate": "M1"
+    },
+    {
+      "case_id": "N05",
+      "required": true,
+      "assertion_ids": [
+        "N05.a1",
+        "N05.a2"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "N06",
+      "required": true,
+      "assertion_ids": [
+        "N06.a1",
+        "N06.a2",
+        "N06.a3"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "N07",
+      "required": true,
+      "assertion_ids": [
+        "N07.a1",
+        "N07.a2"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "N08",
+      "required": true,
+      "assertion_ids": [
+        "N08.a1"
+      ],
+      "first_required_gate": "M1",
+      "phase_gate": "M1"
+    },
+    {
+      "case_id": "N09",
+      "required": true,
+      "assertion_ids": [
+        "N09.a1"
+      ],
+      "first_required_gate": "M1",
+      "phase_gate": "M1"
+    },
+    {
+      "case_id": "N10",
+      "required": true,
+      "assertion_ids": [
+        "N10.a1"
+      ],
+      "first_required_gate": "M1",
+      "phase_gate": "M1"
+    },
+    {
+      "case_id": "N11",
+      "required": true,
+      "assertion_ids": [
+        "N11.a1"
+      ],
+      "first_required_gate": "M3",
+      "phase_gate": "M3"
+    },
+    {
+      "case_id": "N12",
+      "required": true,
+      "assertion_ids": [
+        "N12.a1",
+        "N12.a2",
+        "N12.a3",
+        "N12.a4"
+      ],
+      "first_required_gate": "M3",
+      "phase_gate": "M3"
+    },
+    {
+      "case_id": "N13",
+      "required": true,
+      "assertion_ids": [
+        "N13.a1",
+        "N13.a2",
+        "N13.a3"
+      ],
+      "first_required_gate": "M3",
+      "phase_gate": "M3"
+    },
+    {
+      "case_id": "N14",
+      "required": true,
+      "assertion_ids": [
+        "N14.a1"
+      ],
+      "first_required_gate": "M7",
+      "phase_gate": "M7"
+    },
+    {
+      "case_id": "N15",
+      "required": true,
+      "assertion_ids": [
+        "N15.a1",
+        "N15.a2",
+        "N15.a3",
+        "N15.a4",
+        "N15.a5",
+        "N15.a6"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "N16",
+      "required": true,
+      "assertion_ids": [
+        "N16.a1"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "N17",
+      "required": true,
+      "assertion_ids": [
+        "N17.a1"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "N18",
+      "required": true,
+      "assertion_ids": [
+        "N18.a1"
+      ],
+      "first_required_gate": "M6",
+      "phase_gate": "M6"
+    },
+    {
+      "case_id": "N19",
+      "required": true,
+      "assertion_ids": [
+        "N19.a1"
+      ],
+      "first_required_gate": "M4",
+      "phase_gate": "M4"
+    },
+    {
+      "case_id": "N20",
+      "required": true,
+      "assertion_ids": [
+        "N20.a1"
+      ],
+      "first_required_gate": "M7",
+      "phase_gate": "M7"
+    },
+    {
+      "case_id": "N21",
+      "required": true,
+      "assertion_ids": [
+        "N21.a1"
+      ],
+      "first_required_gate": "M7",
+      "phase_gate": "M7"
+    },
+    {
+      "case_id": "N22",
+      "required": true,
+      "assertion_ids": [
+        "N22.a1"
+      ],
+      "first_required_gate": "M7",
+      "phase_gate": "M7"
+    },
+    {
+      "case_id": "N23",
+      "required": true,
+      "assertion_ids": [
+        "N23.a1"
+      ],
+      "first_required_gate": "M6",
+      "phase_gate": "M6"
+    },
+    {
+      "case_id": "N24",
+      "required": true,
+      "assertion_ids": [
+        "N24.a1"
+      ],
+      "first_required_gate": "M6",
+      "phase_gate": "M6"
+    },
+    {
+      "case_id": "N25",
+      "required": true,
+      "assertion_ids": [
+        "N25.a1",
+        "N25.a2"
+      ],
+      "first_required_gate": "M6",
+      "phase_gate": "M6"
+    },
+    {
+      "case_id": "N26",
+      "required": true,
+      "assertion_ids": [
+        "N26.a1"
+      ],
+      "first_required_gate": "M6",
+      "phase_gate": "M6"
+    },
+    {
+      "case_id": "N28",
+      "required": true,
+      "assertion_ids": [
+        "N28.a1"
+      ],
+      "first_required_gate": "M5",
+      "phase_gate": "M5"
+    },
+    {
+      "case_id": "N29",
+      "required": true,
+      "assertion_ids": [
+        "N29.a1"
+      ],
+      "first_required_gate": "M5",
+      "phase_gate": "M5"
+    },
+    {
+      "case_id": "N30",
+      "required": true,
+      "assertion_ids": [
+        "N30.a1"
+      ],
+      "first_required_gate": "M3",
+      "phase_gate": "M3"
+    },
+    {
+      "case_id": "N31",
+      "required": true,
+      "assertion_ids": [
+        "N31.a1"
+      ],
+      "first_required_gate": "M6",
+      "phase_gate": "M6"
+    },
+    {
+      "case_id": "N32",
+      "required": true,
+      "assertion_ids": [
+        "N32.a1"
+      ],
+      "first_required_gate": "M6",
+      "phase_gate": "M6"
+    },
+    {
+      "case_id": "N35",
+      "required": true,
+      "assertion_ids": [
+        "N35.a1",
+        "N35.a2"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "N36",
+      "required": true,
+      "assertion_ids": [
+        "N36.a1"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "N37",
+      "required": true,
+      "assertion_ids": [
+        "N37.a1",
+        "N37.a2"
+      ],
+      "first_required_gate": "M7",
+      "phase_gate": "M7"
+    },
+    {
+      "case_id": "N38",
+      "required": true,
+      "assertion_ids": [
+        "N38.a1",
+        "N38.a2",
+        "N38.a4"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "N39",
+      "required": true,
+      "assertion_ids": [
+        "N39.a1",
+        "N39.a2"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "N40",
+      "required": true,
+      "assertion_ids": [
+        "N40.a1",
+        "N40.a2"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "N41",
+      "required": true,
+      "assertion_ids": [
+        "N41.a1",
+        "N41.a2"
+      ],
+      "first_required_gate": "M7",
+      "phase_gate": "M7"
+    },
+    {
+      "case_id": "N42",
+      "required": true,
+      "assertion_ids": [
+        "N42.a1"
+      ],
+      "first_required_gate": "M2",
+      "phase_gate": "M2"
+    },
+    {
+      "case_id": "N43",
+      "required": true,
+      "assertion_ids": [
+        "N43.a1"
+      ],
+      "first_required_gate": "M3",
+      "phase_gate": "M3"
+    },
+    {
+      "case_id": "N44",
+      "required": true,
+      "assertion_ids": [
+        "N44.a1",
+        "N44.a2"
+      ],
+      "first_required_gate": "M7",
+      "phase_gate": "M7"
+    },
+    {
+      "case_id": "N45",
+      "required": true,
+      "assertion_ids": [
+        "N45.a1",
+        "N45.a2"
+      ],
+      "first_required_gate": "M7",
+      "phase_gate": "M7"
+    },
+    {
+      "case_id": "WEB01",
+      "required": true,
+      "assertion_ids": [
+        "WEB01.a1"
+      ],
+      "first_required_gate": "M6",
+      "phase_gate": "M6",
+      "browser_test_id": "tests.browser.WEB01",
+      "required_browser_paths": [
+        "desktop-install-launch",
+        "empty-workspace",
+        "local-client-configuration",
+        "create-trw",
+        "upload-original-material",
+        "authorize-budget",
+        "start-frozen-request",
+        "path-picker"
+      ],
+      "native_manual_paths": [
+        "desktop-install-launch",
+        "path-picker"
+      ]
+    },
+    {
+      "case_id": "WEB02",
+      "required": true,
+      "assertion_ids": [
+        "WEB02.a1"
+      ],
+      "first_required_gate": "M6",
+      "phase_gate": "M6",
+      "browser_test_id": "tests.browser.WEB02",
+      "required_browser_paths": [
+        "create-tfdw",
+        "inspect-candidates-and-comparison",
+        "select-exact-candidate",
+        "prepare-handoff",
+        "human-adopt-handoff",
+        "new-trw-paused-with-exact-revision"
+      ]
+    },
+    {
+      "case_id": "WEB03",
+      "required": true,
+      "assertion_ids": [
+        "WEB03.a1"
+      ],
+      "first_required_gate": "M6",
+      "phase_gate": "M6",
+      "browser_test_id": "tests.browser.WEB03",
+      "required_browser_paths": [
+        "pause-active-workflow",
+        "close-browser",
+        "reopen-workspace",
+        "inspect-sealed-capture",
+        "recover-original-request-once",
+        "unknown-request-no-resend"
+      ]
+    },
+    {
+      "case_id": "WEB04",
+      "required": true,
+      "assertion_ids": [
+        "WEB04.a1"
+      ],
+      "first_required_gate": "M6",
+      "phase_gate": "M6",
+      "browser_test_id": "tests.browser.WEB04",
+      "required_browser_paths": [
+        "inspect-report-failure",
+        "inspect-open-research-duty",
+        "intact-knowledge-decision-without-report-gate",
+        "preserve-failed-report",
+        "explicit-report-first-remains-blocked"
+      ]
+    },
+    {
+      "case_id": "WEB05",
+      "required": true,
+      "assertion_ids": [
+        "WEB05.a1"
+      ],
+      "first_required_gate": "M6",
+      "phase_gate": "M6",
+      "browser_test_id": "tests.browser.WEB05",
+      "required_browser_paths": [
+        "native-backup",
+        "select-native-archive",
+        "check-native-backup",
+        "restore-new-paused-project",
+        "inspect-restored-records-and-capture"
+      ]
+    },
+    {
+      "case_id": "WEB06",
+      "required": true,
+      "assertion_ids": [
+        "WEB06.a1"
+      ],
+      "first_required_gate": "M6",
+      "phase_gate": "M6",
+      "browser_test_id": "tests.browser.WEB06",
+      "required_browser_paths": [
+        "switch-exact-instance",
+        "configure-future-model-policy",
+        "verify-frozen-task-unchanged",
+        "reject-unauthenticated-write",
+        "reject-cross-origin-write",
+        "reject-missing-csrf",
+        "replay-idempotent-post",
+        "reject-budget-exhaustion",
+        "read-only-refresh-no-dispatch"
+      ]
+    }
+  ],
+  "baseline": [
+    {
+      "port_id": "P001",
+      "required": true,
+      "behavior": "authorized method change stales frozen response"
+    },
+    {
+      "port_id": "P002",
+      "required": true,
+      "behavior": "dependency candidate changes dispatch identity"
+    },
+    {
+      "port_id": "P003",
+      "required": true,
+      "behavior": "satisfied missing source is in frozen packet"
+    },
+    {
+      "port_id": "P004",
+      "required": true,
+      "behavior": "recovery concurrent winner is idempotent"
+    },
+    {
+      "port_id": "P005",
+      "required": true,
+      "behavior": "visual revise with warning does not complete profile"
+    },
+    {
+      "port_id": "P006",
+      "required": true,
+      "behavior": "Current runtime contains no earlier-version source or readers"
+    },
+    {
+      "port_id": "P007",
+      "required": true,
+      "behavior": "export cannot hide an inside project destination with dotdot"
+    },
+    {
+      "port_id": "P008",
+      "required": true,
+      "behavior": "read is pure and chain verified"
+    },
+    {
+      "port_id": "P009",
+      "required": true,
+      "behavior": "atomic noop and CAS"
+    },
+    {
+      "port_id": "P010",
+      "required": true,
+      "behavior": "tamper fails closed"
+    },
+    {
+      "port_id": "P011",
+      "required": true,
+      "behavior": "projection deletion does not lose authority"
+    },
+    {
+      "port_id": "P012",
+      "required": true,
+      "behavior": "same blocker wait and actual source change ready"
+    },
+    {
+      "port_id": "P013",
+      "required": true,
+      "behavior": "same input different roles are not deduplicated"
+    },
+    {
+      "port_id": "P014",
+      "required": true,
+      "behavior": "feedback does not remove new proof or premises"
+    },
+    {
+      "port_id": "P015",
+      "required": true,
+      "behavior": "real review dependency is not sanitized"
+    },
+    {
+      "port_id": "P016",
+      "required": true,
+      "behavior": "feedback not invalidation but math is"
+    },
+    {
+      "port_id": "P017",
+      "required": true,
+      "behavior": "bilingual retrieval keeps source exact"
+    },
+    {
+      "port_id": "P018",
+      "required": true,
+      "behavior": "new chinese research is rejected not translated"
+    },
+    {
+      "port_id": "P019",
+      "required": true,
+      "behavior": "p6 and p10 do not erase lifting or same witness"
+    },
+    {
+      "port_id": "P020",
+      "required": true,
+      "behavior": "Foreign project schema is not opened by the native runtime"
+    },
+    {
+      "port_id": "P021",
+      "required": true,
+      "behavior": "renamed duty cannot erase a same purpose attempt"
+    },
+    {
+      "port_id": "P022",
+      "required": true,
+      "behavior": "blocker wording and target order do not change fingerprint"
+    },
+    {
+      "port_id": "P023",
+      "required": true,
+      "behavior": "projection directory symlink does not write outside"
+    },
+    {
+      "port_id": "P024",
+      "required": true,
+      "behavior": "projection file symlink is not followed"
+    },
+    {
+      "port_id": "P025",
+      "required": true,
+      "behavior": "rebuild replaces corrupt index without touching authority"
+    },
+    {
+      "port_id": "P026",
+      "required": true,
+      "behavior": "stale sqlite sidecar requires explicit reader shutdown"
+    },
+    {
+      "port_id": "P034",
+      "required": true,
+      "behavior": "bad archive paths and case aliases rejected"
+    },
+    {
+      "port_id": "P035",
+      "required": true,
+      "behavior": "symlink input rejected"
+    },
+    {
+      "port_id": "P050",
+      "required": true,
+      "behavior": "host namespace allows same local key"
+    },
+    {
+      "port_id": "P051",
+      "required": true,
+      "behavior": "preflight and submit use same rejection"
+    },
+    {
+      "port_id": "P052",
+      "required": true,
+      "behavior": "english data gate not only body"
+    },
+    {
+      "port_id": "P053",
+      "required": true,
+      "behavior": "preflight is read only"
+    },
+    {
+      "port_id": "P054",
+      "required": true,
+      "behavior": "preflight does not override live CAS"
+    },
+    {
+      "port_id": "P055",
+      "required": true,
+      "behavior": "unrelated operational title does not stale task"
+    },
+    {
+      "port_id": "P056",
+      "required": true,
+      "behavior": "recovery captures once and commits idempotently"
+    },
+    {
+      "port_id": "P057",
+      "required": true,
+      "behavior": "pause preserves capture until explicit resume"
+    },
+    {
+      "port_id": "P058",
+      "required": true,
+      "behavior": "unknown is not a free retry"
+    },
+    {
+      "port_id": "P059",
+      "required": true,
+      "behavior": "capture identity is immutable"
+    },
+    {
+      "port_id": "P060",
+      "required": true,
+      "behavior": "real execution requires explicit budget"
+    },
+    {
+      "port_id": "P061",
+      "required": true,
+      "behavior": "simulation cannot run in real project"
+    },
+    {
+      "port_id": "P062",
+      "required": true,
+      "behavior": "exact duplicate has no new object"
+    },
+    {
+      "port_id": "P063",
+      "required": true,
+      "behavior": "duplicate cannot smuggle changes"
+    },
+    {
+      "port_id": "P064",
+      "required": true,
+      "behavior": "revise requires parent read and preserves kind"
+    },
+    {
+      "port_id": "P065",
+      "required": true,
+      "behavior": "model cannot revise controlling problem"
+    },
+    {
+      "port_id": "P066",
+      "required": true,
+      "behavior": "revision invalidates declared dependents not feedback"
+    },
+    {
+      "port_id": "P067",
+      "required": true,
+      "behavior": "self report does not advance without independent work check"
+    },
+    {
+      "port_id": "P068",
+      "required": true,
+      "behavior": "task checker cannot return science"
+    },
+    {
+      "port_id": "P069",
+      "required": true,
+      "behavior": "inspected quote must match exact body"
+    },
+    {
+      "port_id": "P070",
+      "required": true,
+      "behavior": "unchecked review cannot pass"
+    },
+    {
+      "port_id": "P071",
+      "required": true,
+      "behavior": "cancel preserves unfinished duty"
+    },
+    {
+      "port_id": "P072",
+      "required": true,
+      "behavior": "early delivery does not complete P10 P12"
+    },
+    {
+      "port_id": "P073",
+      "required": true,
+      "behavior": "task manifest tamper fails closed"
+    },
+    {
+      "port_id": "P074",
+      "required": true,
+      "behavior": "chinese source is retrieved without changing identity"
+    },
+    {
+      "port_id": "P075",
+      "required": true,
+      "behavior": "independent validation metadata does not leak prior verdict"
+    },
+    {
+      "port_id": "P076",
+      "required": true,
+      "behavior": "P7 roles do not read each other before synthesis"
+    },
+    {
+      "port_id": "P077",
+      "required": true,
+      "behavior": "known blocker repeat waits and material then reenters"
+    },
+    {
+      "port_id": "P078",
+      "required": true,
+      "behavior": "same failed work needs new authorized basis"
+    },
+    {
+      "port_id": "P079",
+      "required": true,
+      "behavior": "Source archive preserves current runtime resources byte for byte"
+    },
+    {
+      "port_id": "P080",
+      "required": true,
+      "behavior": "sequential profiles and repeat zero calls"
+    },
+    {
+      "port_id": "P081",
+      "required": true,
+      "behavior": "batched visual pages cover every page"
+    },
+    {
+      "port_id": "P082",
+      "required": true,
+      "behavior": "report writing does not add mathematical knowledge"
+    },
+    {
+      "port_id": "P084",
+      "required": true,
+      "behavior": "active snapshot damage blocks not skips"
+    },
+    {
+      "port_id": "P085",
+      "required": true,
+      "behavior": "current completed pdf tamper not accepted"
+    },
+    {
+      "port_id": "P086",
+      "required": true,
+      "behavior": "stale candidate does not override new snapshot"
+    },
+    {
+      "port_id": "P087",
+      "required": true,
+      "behavior": "host statement labels are English"
+    },
+    {
+      "port_id": "P088",
+      "required": true,
+      "behavior": "minimal cannot change accepted parent or shared math"
+    },
+    {
+      "port_id": "P089",
+      "required": true,
+      "behavior": "semantic rejection blocks minimal and preserves draft"
+    },
+    {
+      "port_id": "P090",
+      "required": true,
+      "behavior": "recovery uses capture without another author"
+    },
+    {
+      "port_id": "P091",
+      "required": true,
+      "behavior": "operator json is not independent review in real project"
+    },
+    {
+      "port_id": "P092",
+      "required": true,
+      "behavior": "page hash and unchecked scope fail preflight"
+    },
+    {
+      "port_id": "P093",
+      "required": true,
+      "behavior": "report catalog and status are pure"
+    },
+    {
+      "port_id": "P094",
+      "required": true,
+      "behavior": "missing coverage and unsafe tex do not enter reports"
+    },
+    {
+      "port_id": "P095",
+      "required": true,
+      "behavior": "pure English new output and original Chinese unchanged"
+    },
+    {
+      "port_id": "P096",
+      "required": true,
+      "behavior": "explicit report revision is bounded and keeps old body"
+    },
+    {
+      "port_id": "P097",
+      "required": true,
+      "behavior": "complete revised proof and dependencies without prior verdict"
+    },
+    {
+      "port_id": "P098",
+      "required": true,
+      "behavior": "exact chinese quote in new english review is not rewritten"
+    },
+    {
+      "port_id": "P099",
+      "required": true,
+      "behavior": "verdict used as actual premise blocks review"
+    },
+    {
+      "port_id": "P100",
+      "required": true,
+      "behavior": "malformed nested json has shared recorded rejection"
+    },
+    {
+      "port_id": "P101",
+      "required": true,
+      "behavior": "status five dimensions pure not running"
+    },
+    {
+      "port_id": "P102",
+      "required": true,
+      "behavior": "cli status and audit are zero model read only"
+    },
+    {
+      "port_id": "P104",
+      "required": true,
+      "behavior": "full P0 to P14 native workflow has actual reduction and checks"
+    },
+    {
+      "port_id": "P105",
+      "required": true,
+      "behavior": "capture recovery does not invoke executor"
+    },
+    {
+      "port_id": "P106",
+      "required": true,
+      "behavior": "unknown request stops without executor"
+    },
+    {
+      "port_id": "P107",
+      "required": true,
+      "behavior": "resume does not erase remaining allowance"
+    },
+    {
+      "port_id": "P108",
+      "required": true,
+      "behavior": "native backup restore preserves capture budget and pauses"
+    },
+    {
+      "port_id": "P109",
+      "required": true,
+      "behavior": "gate needs completed actual report and does not autorun"
+    },
+    {
+      "port_id": "P110",
+      "required": true,
+      "behavior": "Only current native backups can be restored"
+    },
+    {
+      "port_id": "P111",
+      "required": true,
+      "behavior": "transport has full named permission policy and no web"
+    },
+    {
+      "port_id": "P112",
+      "required": true,
+      "behavior": "child environment drops desktop IPC"
+    },
+    {
+      "port_id": "P113",
+      "required": true,
+      "behavior": "missing isolation does not reserve a call"
+    },
+    {
+      "port_id": "P114",
+      "required": true,
+      "behavior": "second coordinator refused"
+    },
+    {
+      "port_id": "P115",
+      "required": true,
+      "behavior": "P6 gap only cannot forward as reduction"
+    },
+    {
+      "port_id": "P116",
+      "required": true,
+      "behavior": "retained restricted syscall floor for two architectures"
+    },
+    {
+      "port_id": "P117",
+      "required": true,
+      "behavior": "foreign architecture and x32 rejected"
+    },
+    {
+      "port_id": "P118",
+      "required": true,
+      "behavior": "filter sealed and closed"
+    },
+    {
+      "port_id": "P119",
+      "required": true,
+      "behavior": "filter failure has no fallback"
+    },
+    {
+      "port_id": "P120",
+      "required": true,
+      "behavior": "unsafe tex and macros rejected"
+    },
+    {
+      "port_id": "P121",
+      "required": true,
+      "behavior": "english host template"
+    },
+    {
+      "port_id": "P122",
+      "required": true,
+      "behavior": "nested mount and daemon alias fail closed"
+    },
+    {
+      "port_id": "P123",
+      "required": true,
+      "behavior": "namespace chain contains no root bind or network fallback"
+    },
+    {
+      "port_id": "P124",
+      "required": true,
+      "behavior": "source bound chinese quote is preserved but new chinese claim rejected"
+    },
+    {
+      "port_id": "P125",
+      "required": true,
+      "behavior": "sealed transport recovery no subprocess"
+    },
+    {
+      "port_id": "P126",
+      "required": true,
+      "behavior": "system poppler wins over unmounted path wrapper"
+    },
+    {
+      "port_id": "P127",
+      "required": true,
+      "behavior": "explicit tool override is honored and never silently replaced"
+    },
+    {
+      "port_id": "P128",
+      "required": true,
+      "behavior": "path only compiler remains supported"
+    },
+    {
+      "port_id": "P129",
+      "required": true,
+      "behavior": "ca file is read only without mounting private keys"
+    },
+    {
+      "port_id": "P130",
+      "required": true,
+      "behavior": "missing ca has actionable error and doctor does not claim render pass"
+    },
+    {
+      "port_id": "P131",
+      "required": true,
+      "behavior": "invalid ca is rejected"
+    }
+  ],
+  "milestones": [
+    {
+      "milestone_id": "M0",
+      "required_case_ids": []
+    },
+    {
+      "milestone_id": "M1",
+      "required_case_ids": [
+        "K03",
+        "K04",
+        "K07",
+        "K08",
+        "R11",
+        "R12",
+        "N02",
+        "N03",
+        "N04",
+        "N08",
+        "N09",
+        "N10"
+      ]
+    },
+    {
+      "milestone_id": "M2",
+      "required_case_ids": [
+        "K01",
+        "K02",
+        "K05",
+        "K06",
+        "S03",
+        "S04",
+        "S05",
+        "S06",
+        "S07",
+        "S08",
+        "R07",
+        "N05",
+        "N06",
+        "N07",
+        "N15",
+        "N16",
+        "N17",
+        "N42"
+      ]
+    },
+    {
+      "milestone_id": "M3",
+      "required_case_ids": [
+        "W01",
+        "W02",
+        "W03",
+        "W04",
+        "W05",
+        "W06",
+        "W07",
+        "W08",
+        "W09",
+        "W10",
+        "N01",
+        "N11",
+        "N12",
+        "N13",
+        "N30",
+        "N43"
+      ]
+    },
+    {
+      "milestone_id": "M4",
+      "required_case_ids": [
+        "S01",
+        "S02",
+        "W11",
+        "W12",
+        "W13",
+        "N19"
+      ]
+    },
+    {
+      "milestone_id": "M5",
+      "required_case_ids": [
+        "N28",
+        "N29"
+      ]
+    },
+    {
+      "milestone_id": "M6",
+      "required_case_ids": [
+        "R03",
+        "R04",
+        "R05",
+        "R06",
+        "N18",
+        "N23",
+        "N24",
+        "N25",
+        "N26",
+        "N31",
+        "N32",
+        "WEB01",
+        "WEB02",
+        "WEB03",
+        "WEB04",
+        "WEB05",
+        "WEB06"
+      ]
+    },
+    {
+      "milestone_id": "M7",
+      "required_case_ids": [
+        "R01",
+        "R02",
+        "N14",
+        "N20",
+        "N21",
+        "N22",
+        "N37",
+        "N41",
+        "N44",
+        "N45"
+      ]
+    },
+    {
+      "milestone_id": "M8",
+      "required_case_ids": [
+        "N35",
+        "N36",
+        "N38",
+        "N39",
+        "N40"
+      ]
+    }
+  ],
+  "inventory_revision": "native-only/1",
+  "retired": {
+    "cases": [
+      {
+        "case_id": "R08",
+        "required": true,
+        "assertion_ids": [
+          "R08.a1"
+        ],
+        "first_required_gate": "M5",
+        "phase_gate": "M5",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "case_id": "R09",
+        "required": true,
+        "assertion_ids": [
+          "R09.a1"
+        ],
+        "first_required_gate": "M5",
+        "phase_gate": "M5",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "case_id": "R10",
+        "required": true,
+        "assertion_ids": [
+          "R10.a1"
+        ],
+        "first_required_gate": "M5",
+        "phase_gate": "M5",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "case_id": "N27",
+        "required": true,
+        "assertion_ids": [
+          "N27.a1"
+        ],
+        "first_required_gate": "M5",
+        "phase_gate": "M5",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "case_id": "N33",
+        "required": true,
+        "assertion_ids": [
+          "N33.a1"
+        ],
+        "first_required_gate": "M5",
+        "phase_gate": "M5",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "case_id": "N34",
+        "required": true,
+        "assertion_ids": [
+          "N34.a1"
+        ],
+        "first_required_gate": "M5",
+        "phase_gate": "M5",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "case_id": "N46",
+        "required": true,
+        "assertion_ids": [
+          "N46.a1"
+        ],
+        "first_required_gate": "M7",
+        "phase_gate": "M7",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      }
+    ],
+    "assertions": [
+      {
+        "assertion_id": "N38.a3",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "Private prior-version specification mirror is outside the current product. Current inventory, mappings, docs and build checks remain required."
+      }
+    ],
+    "baseline": [
+      {
+        "port_id": "P027",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P028",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P029",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P030",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P031",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P032",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P033",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P036",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P037",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P038",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P039",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P040",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P041",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P042",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P043",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P044",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P045",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P046",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P047",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P048",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P049",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P083",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      },
+      {
+        "port_id": "P103",
+        "disposition": "RETIRED_BY_USER_SCOPE",
+        "reason": "User removed earlier-version readers, imported project authority, and bundled research samples from the 4.0 product scope."
+      }
+    ]
+  }
+}

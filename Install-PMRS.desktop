@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Install Pure Math Research Studio 4.0.0
+Name[zh_CN]=安装纯数学研究工作室 4.0.0
+Comment=Install PMRS into your personal applications
+Exec=python3 -c "import pathlib,runpy,sys;runpy.run_path(str(pathlib.Path(sys.argv[1]).resolve().parent/'scripts'/'install-gui.py'),run_name='__main__')" %k
+Icon=applications-science
+Terminal=false
+Categories=Education;Science;Math;
+StartupNotify=true

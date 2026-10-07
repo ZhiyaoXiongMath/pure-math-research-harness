@@ -1,0 +1,73 @@
+{
+  "schema": "pmrs.test-coverage/1",
+  "acceptance": [
+    {
+      "case_id": "WEB01",
+      "assertions": [
+        {
+          "assertion_id": "WEB01.a1",
+          "test_ids": [
+            "tests.browser.WEB01"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "WEB02",
+      "assertions": [
+        {
+          "assertion_id": "WEB02.a1",
+          "test_ids": [
+            "tests.browser.WEB02"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "WEB03",
+      "assertions": [
+        {
+          "assertion_id": "WEB03.a1",
+          "test_ids": [
+            "tests.browser.WEB03"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "WEB04",
+      "assertions": [
+        {
+          "assertion_id": "WEB04.a1",
+          "test_ids": [
+            "tests.browser.WEB04"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "WEB05",
+      "assertions": [
+        {
+          "assertion_id": "WEB05.a1",
+          "test_ids": [
+            "tests.browser.WEB05",
+            "tests.test_final_surface.WebApplicationTests.test_native_backup_over_32_mib_restores_over_http_without_raising_material_limit"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "WEB06",
+      "assertions": [
+        {
+          "assertion_id": "WEB06.a1",
+          "test_ids": [
+            "tests.browser.WEB06"
+          ]
+        }
+      ]
+    }
+  ],
+  "baseline": []
+}

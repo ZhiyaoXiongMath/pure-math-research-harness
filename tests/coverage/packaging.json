@@ -1,0 +1,139 @@
+{
+  "schema": "pmrs.test-coverage/1",
+  "owner": "packaging",
+  "acceptance": [
+    {
+      "case_id": "N35",
+      "assertions": [
+        {
+          "assertion_id": "N35.a1",
+          "test_ids": [
+            "tests.test_final_packaging.ReleaseInstallationTests.test_n35_clean_release_prefix_and_real_wheel_venv_cli_smoke"
+          ]
+        },
+        {
+          "assertion_id": "N35.a2",
+          "test_ids": [
+            "tests.test_final_packaging.ReleaseInstallationTests.test_n35_clean_release_prefix_and_real_wheel_venv_cli_smoke"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N36",
+      "assertions": [
+        {
+          "assertion_id": "N36.a1",
+          "test_ids": [
+            "tests.test_final_packaging.ReleaseInstallationTests.test_n36_fixed_epoch_reproducible_source_release_and_wheel",
+            "tests.test_final_packaging.PackagingUnitTests.test_source_inventory_and_zip_preserve_current_resources_only"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N38",
+      "assertions": [
+        {
+          "assertion_id": "N38.a1",
+          "test_ids": [
+            "tests.test_final_packaging.PackagingUnitTests.test_runner_required_skip_zero_and_missing_mapping_exit_nonzero",
+            "tests.test_final_packaging.PackagingUnitTests.test_resource_manifest_hashes_json_css_fonts_and_all_fixture_bytes"
+          ]
+        },
+        {
+          "assertion_id": "N38.a2",
+          "test_ids": [
+            "tests.test_final_packaging.PackagingUnitTests.test_group_plan_is_not_execution_and_shared_actual_tests_are_deduplicated"
+          ]
+        },
+        {
+          "assertion_id": "N38.a4",
+          "test_ids": [
+            "tests.test_final_packaging.PackagingUnitTests.test_required_missing_skip_and_unrun_do_not_turn_into_pass",
+            "tests.test_final_packaging.PackagingUnitTests.test_required_inventory_has_explicit_active_and_retired_scopes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N39",
+      "assertions": [
+        {
+          "assertion_id": "N39.a1",
+          "test_ids": [
+            "tests.test_final_packaging.PackagingUnitTests.test_required_inventory_has_explicit_active_and_retired_scopes",
+            "tests.test_final_packaging.PackagingUnitTests.test_runner_required_skip_zero_and_missing_mapping_exit_nonzero",
+            "tests.test_final_security.SecurityTests.test_english_host_template",
+            "tests.test_final_security.SecurityTests.test_filter_failure_has_no_fallback",
+            "tests.test_final_security.SecurityTests.test_filter_sealed_and_closed",
+            "tests.test_final_security.SecurityTests.test_foreign_architecture_and_x32_rejected",
+            "tests.test_final_security.SecurityTests.test_namespace_chain_contains_no_root_bind_or_network_fallback",
+            "tests.test_final_security.SecurityTests.test_nested_mount_and_daemon_alias_fail_closed",
+            "tests.test_final_security.SecurityTests.test_retained_restricted_syscall_floor_for_two_architectures",
+            "tests.test_final_security.SecurityTests.test_unsafe_tex_and_macros_rejected",
+            "tests.test_final_render_dependencies.RenderDependencyTests.test_ca_file_is_read_only_without_mounting_private_keys",
+            "tests.test_final_render_dependencies.RenderDependencyTests.test_explicit_tool_override_is_honored_and_never_silently_replaced",
+            "tests.test_final_render_dependencies.RenderDependencyTests.test_invalid_ca_is_rejected",
+            "tests.test_final_render_dependencies.RenderDependencyTests.test_missing_ca_has_actionable_error_and_doctor_does_not_claim_render_pass",
+            "tests.test_final_render_dependencies.RenderDependencyTests.test_path_only_compiler_remains_supported",
+            "tests.test_final_render_dependencies.RenderDependencyTests.test_system_poppler_wins_over_unmounted_path_wrapper"
+          ]
+        },
+        {
+          "assertion_id": "N39.a2",
+          "test_ids": [
+            "tests.test_final_packaging.PackagingUnitTests.test_group_plan_is_not_execution_and_shared_actual_tests_are_deduplicated"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N40",
+      "assertions": [
+        {
+          "assertion_id": "N40.a1",
+          "test_ids": [
+            "tests.test_final_packaging.ReleaseInstallationTests.test_n40_actual_ubuntu26_fresh_install_isolation_and_real_pdf_evidence",
+            "tests.test_final_packaging.ReleaseInstallationTests.test_n35_clean_release_prefix_and_real_wheel_venv_cli_smoke",
+            "tests.browser.WEB01",
+            "tests.browser.WEB02",
+            "tests.browser.WEB03",
+            "tests.browser.WEB04",
+            "tests.browser.WEB05",
+            "tests.browser.WEB06"
+          ]
+        },
+        {
+          "assertion_id": "N40.a2",
+          "test_ids": [
+            "tests.test_final_packaging.ReleaseInstallationTests.test_n40_actual_ubuntu26_fresh_install_isolation_and_real_pdf_evidence",
+            "tests.test_final_packaging.ReleaseInstallationTests.test_n35_clean_release_prefix_and_real_wheel_venv_cli_smoke",
+            "tests.browser.WEB01",
+            "tests.browser.WEB02",
+            "tests.browser.WEB03",
+            "tests.browser.WEB04",
+            "tests.browser.WEB05",
+            "tests.browser.WEB06"
+          ]
+        }
+      ]
+    }
+  ],
+  "baseline": [
+    {
+      "port_id": "P079",
+      "disposition": "REPLACE",
+      "reason": "Current source archives preserve runtime resources exactly; retention of removed older-version source is no longer required.",
+      "test_ids": [
+        "tests.test_final_packaging.PackagingUnitTests.test_source_inventory_and_zip_preserve_current_resources_only"
+      ]
+    }
+  ],
+  "qualification_notes": [
+    "N36 requires rerun from the frozen clean candidate commit; a dirty development double-build is partial evidence.",
+    "N39 full qualification additionally depends on the complete required suite, not isolated packaging unit tests.",
+    "N40 requires the actual installed browser observations as well as the target/PDF component test; component success alone cannot pass it."
+  ],
+  "known_unmapped": []
+}

@@ -1,0 +1,254 @@
+{
+  "schema": "pmrs.test-coverage/1",
+  "owner": "reports",
+  "acceptance": [
+    {
+      "case_id": "R04",
+      "assertions": [
+        {
+          "assertion_id": "R04.a1",
+          "test_ids": [
+            "tests.test_final_reports.FinalReportTests.test_native_early_decision_missing_failed_and_explicit_report_first",
+            "tests.test_final_reports.FinalReportTests.test_tfdw_zero_candidate_report_and_failure_decision_variants",
+            "tests.test_final_reports.FinalReportTests.test_real_pdf_png_native_pair_exact_sequence_and_repeat_zero_calls"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "R05",
+      "assertions": [
+        {
+          "assertion_id": "R05.a1",
+          "test_ids": [
+            "tests.test_final_reports.FinalReportTests.test_native_early_delivery_is_honest_and_fake_report_does_not_qualify"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "R06",
+      "assertions": [
+        {
+          "assertion_id": "R06.a1",
+          "test_ids": [
+            "tests.test_final_reports.FinalReportTests.test_catalog_pure_scoped_classes_and_damage_is_visible",
+            "tests.test_final_reports.FinalReportTests.test_completed_pdf_tamper_and_layout_vs_math_invalidation"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N23",
+      "assertions": [
+        {
+          "assertion_id": "N23.a1",
+          "test_ids": [
+            "tests.test_final_reports.FinalReportTests.test_unrelated_workflow_commit_is_current_then_relevant_argument_is_stale"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N24",
+      "assertions": [
+        {
+          "assertion_id": "N24.a1",
+          "test_ids": [
+            "tests.test_final_reports.FinalReportTests.test_report_objection_creates_open_research_duty_atomically",
+            "tests.test_final_reports.FinalReportTests.test_strict_contract_no_science_tex_language_or_false_pass"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N25",
+      "assertions": [
+        {
+          "assertion_id": "N25.a1",
+          "test_ids": [
+            "tests.test_final_reports.FinalReportTests.test_exact_shared_math_terminal_lf_only_and_old_body_preserved",
+            "tests.test_final_reports.FinalReportTests.test_completed_pdf_tamper_and_layout_vs_math_invalidation"
+          ]
+        },
+        {
+          "assertion_id": "N25.a2",
+          "test_ids": [
+            "tests.test_final_reports.FinalReportTests.test_every_actual_page_batched_with_adjacent_context",
+            "tests.test_final_reports.FinalReportTests.test_completed_pdf_tamper_and_layout_vs_math_invalidation"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N26",
+      "assertions": [
+        {
+          "assertion_id": "N26.a1",
+          "test_ids": [
+            "tests.test_final_reports.FinalReportTests.test_catalog_pure_scoped_classes_and_damage_is_visible",
+            "tests.test_final_reports.FinalReportTests.test_native_early_delivery_is_honest_and_fake_report_does_not_qualify",
+            "tests.test_final_reports.FinalReportTests.test_unrelated_workflow_commit_is_current_then_relevant_argument_is_stale"
+          ]
+        }
+      ]
+    }
+  ],
+  "baseline": [
+    {
+      "port_id": "P005",
+      "disposition": "RETAIN",
+      "reason": "A warning with REVISE leaves the visual profile incomplete and does not start minimal.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_visual_warning_revise_does_not_complete_or_start_minimal"
+      ]
+    },
+    {
+      "port_id": "P072",
+      "disposition": "RETAIN",
+      "reason": "Early complete reports do not invent completion of unexecuted P9-P12 research.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_native_early_delivery_is_honest_and_fake_report_does_not_qualify",
+        "tests.test_final_reports.FinalReportTests.test_native_early_decision_missing_failed_and_explicit_report_first"
+      ]
+    },
+    {
+      "port_id": "P080",
+      "disposition": "RETAIN",
+      "reason": "Actual PDF/PNG delivery preserves lecture then minimal sequence and repeated zero calls.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_real_pdf_png_native_pair_exact_sequence_and_repeat_zero_calls"
+      ]
+    },
+    {
+      "port_id": "P081",
+      "disposition": "RETAIN",
+      "reason": "Every actual page is independently assigned in bounded batches with adjacent context.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_every_actual_page_batched_with_adjacent_context"
+      ]
+    },
+    {
+      "port_id": "P082",
+      "disposition": "RETAIN",
+      "reason": "Report writes preserve scientific records, support state and fixed target.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_real_pdf_png_native_pair_exact_sequence_and_repeat_zero_calls",
+        "tests.test_final_reports.FinalReportTests.test_strict_contract_no_science_tex_language_or_false_pass"
+      ]
+    },
+    {
+      "port_id": "P084",
+      "disposition": "RETAIN",
+      "reason": "Active damaged scope artifacts block the report without silently choosing another draft.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_catalog_pure_scoped_classes_and_damage_is_visible"
+      ]
+    },
+    {
+      "port_id": "P085",
+      "disposition": "RETAIN",
+      "reason": "Tampered completed PDF is detected and cannot finish the report.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_completed_pdf_tamper_and_layout_vs_math_invalidation"
+      ]
+    },
+    {
+      "port_id": "P086",
+      "disposition": "REPLACE",
+      "reason": "Report freshness follows exact relevant scope membership and dependencies; unrelated workflows do not stale it.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_unrelated_workflow_commit_is_current_then_relevant_argument_is_stale"
+      ]
+    },
+    {
+      "port_id": "P087",
+      "disposition": "RETAIN",
+      "reason": "Actual rendered English host labels preserve explicit open mathematical status.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_real_pdf_png_native_pair_exact_sequence_and_repeat_zero_calls"
+      ]
+    },
+    {
+      "port_id": "P088",
+      "disposition": "RETAIN",
+      "reason": "Minimal cannot replace accepted lecture notation or shared mathematical statements.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_exact_shared_math_terminal_lf_only_and_old_body_preserved"
+      ]
+    },
+    {
+      "port_id": "P089",
+      "disposition": "RETAIN",
+      "reason": "Semantic objection preserves draft and creates an open research duty without starting minimal.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_report_objection_creates_open_research_duty_atomically"
+      ]
+    },
+    {
+      "port_id": "P090",
+      "disposition": "RETAIN",
+      "reason": "Sealed report capture recovers once; an uncertain request cannot be resent.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_capture_crash_recovery_and_unknown_never_resends"
+      ]
+    },
+    {
+      "port_id": "P091",
+      "disposition": "RETAIN",
+      "reason": "Only genuine sealed task/execution evidence qualifies review; synthetic cannot enter a real project.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_independent_capture_cannot_be_forged_or_used_in_real_project"
+      ]
+    },
+    {
+      "port_id": "P092",
+      "disposition": "RETAIN",
+      "reason": "Wrong page hash and PASS with uncheckable scope fail preflight.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_strict_contract_no_science_tex_language_or_false_pass"
+      ]
+    },
+    {
+      "port_id": "P093",
+      "disposition": "RETAIN",
+      "reason": "Repeated catalog and check-only report preparation have no writes or model calls.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_catalog_pure_scoped_classes_and_damage_is_visible"
+      ]
+    },
+    {
+      "port_id": "P094",
+      "disposition": "RETAIN",
+      "reason": "Missing coverage, unsafe TeX and forbidden scientific operations cannot enter reports.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_strict_contract_no_science_tex_language_or_false_pass"
+      ]
+    },
+    {
+      "port_id": "P095",
+      "disposition": "RETAIN",
+      "reason": "English report output preserves Chinese source bytes and reaches complete actual PDF delivery.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_original_chinese_complete_report_stays_english_and_budget_stops"
+      ]
+    },
+    {
+      "port_id": "P096",
+      "disposition": "RETAIN",
+      "reason": "Explicit revisions preserve immutable old bodies and stop at the finite repair allowance.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_exact_shared_math_terminal_lf_only_and_old_body_preserved"
+      ]
+    },
+    {
+      "port_id": "P109",
+      "disposition": "REPLACE",
+      "reason": "Human knowledge decisions normally use exact knowledge/authorization; an explicit report-first instruction alone requires completed actual report.",
+      "test_ids": [
+        "tests.test_final_reports.FinalReportTests.test_native_early_decision_missing_failed_and_explicit_report_first",
+        "tests.test_final_reports.FinalReportTests.test_tfdw_zero_candidate_report_and_failure_decision_variants"
+      ]
+    }
+  ]
+}

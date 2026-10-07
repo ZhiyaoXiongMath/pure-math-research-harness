@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pure-math-research-studio"
+dynamic = ["version"]
+description = "Shared mathematical research kernel with independent TRW and TFDW workflows"
+readme = "README.en.md"
+requires-python = ">=3.11"
+dependencies = []
+license = {file = "LICENSE"}
+
+[project.scripts]
+pure-math-research-studio = "research_studio.cli:main"
+research-studio = "research_studio.cli:main"
+pmrs-desktop = "research_studio.desktop:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+research_studio = ["schemas/*.json", "schemas/**/*", "workflows/*.json", "static/*", "static/**/*", "resources/*", "resources/**/*"]
+
+[tool.setuptools.packages.find]
+include = ["research_studio*"]
+exclude = ["tests*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "research_studio.__version__"}

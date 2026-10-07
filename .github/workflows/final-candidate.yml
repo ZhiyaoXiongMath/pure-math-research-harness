@@ -1,0 +1,57 @@
+name: PMRS 4.0 native product gate on Ubuntu 26.04
+on:
+  workflow_dispatch:
+    inputs:
+      browser_evidence_path:
+        description: Absolute path to actual installed-browser evidence on the designated runner
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  validate:
+    # This label is an explicit operator-provisioned target, not a claim that
+    # a hosted image or a local mock has passed the user's installed E2E.
+    runs-on: [self-hosted, linux, x64, pmrs-ubuntu-26.04]
+    timeout-minutes: 45
+    env:
+      SOURCE_DATE_EPOCH: '315532800'
+      PYTHONDONTWRITEBYTECODE: '1'
+      BROWSER_EVIDENCE: ${{ inputs.browser_evidence_path }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require actual designated target
+        shell: bash
+        run: |
+          set -euo pipefail
+          . /etc/os-release
+          test "$ID" = ubuntu
+          test "$VERSION_ID" = 26.04
+          test "$(uname -m)" = x86_64
+          test -f "$BROWSER_EVIDENCE"
+          test -z "$(git status --porcelain)"
+      - name: Run exact required assertions and current behavior mappings without paid calls
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B scripts/validate-groups.py --out "$RUNNER_TEMP/pmrs-final-validation" --browser-evidence "$BROWSER_EVIDENCE"
+      - name: Build and compare deterministic artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B scripts/build-release.py --out "$RUNNER_TEMP/pmrs-final-build-a"
+          python3 -B scripts/build-release.py --out "$RUNNER_TEMP/pmrs-final-build-b"
+          cmp "$RUNNER_TEMP/pmrs-final-build-a/SHA256SUMS.txt" "$RUNNER_TEMP/pmrs-final-build-b/SHA256SUMS.txt"
+          test -z "$(git status --porcelain)"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: final-candidate-actual-evidence
+          path: |
+            ${{ runner.temp }}/pmrs-final-validation/
+            ${{ runner.temp }}/pmrs-final-build-a/
+          if-no-files-found: error
+          retention-days: 30

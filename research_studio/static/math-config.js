@@ -1,0 +1,1 @@
+window.MathJax={loader:{load:['ui/safe']},tex:{inlineMath:[['$','$'],['\\(','\\)']],displayMath:[['$$','$$'],['\\[','\\]']],processEscapes:true,maxMacros:1000,maxBuffer:65536},options:{enableMenu:false,safeOptions:{allow:{URLs:'none',classes:'none',cssIDs:'none',styles:'none'}}},svg:{fontCache:'local'},startup:{typeset:false}};

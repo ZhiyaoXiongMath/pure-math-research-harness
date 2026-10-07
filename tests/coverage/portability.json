@@ -1,0 +1,96 @@
+{
+  "schema": "pmrs.test-coverage/1",
+  "owner": "native-portability",
+  "acceptance": [
+    {
+      "case_id": "N28",
+      "assertions": [
+        {
+          "assertion_id": "N28.a1",
+          "test_ids": [
+            "tests.test_final_portability.NativePortabilityTests.test_archive_paths_case_unicode_aliases_and_symlinks_fail_closed",
+            "tests.test_final_portability.NativePortabilityTests.test_directory_change_during_inventory_is_detected",
+            "tests.test_final_portability.NativePortabilityTests.test_native_schema_and_destination_boundaries",
+            "tests.test_final_portability.NativePortabilityTests.test_native_backup_roundtrip_and_foreign_archive_rejection",
+            "tests.test_final_portability.NativePortabilityTests.test_backup_interruption_before_publication_keeps_authority_and_no_partial_archive",
+            "tests.test_final_native_boundaries.NativeVersionBoundaries.test_imported_authority_is_rejected_and_source_input_cannot_write_it",
+            "tests.test_final_native_boundaries.NativeVersionBoundaries.test_removed_http_routes_and_foreign_upload_do_not_create_receipts_or_projects",
+            "tests.test_final_portability.NativePortabilityTests.test_tampered_backup_members_and_rehashed_corrupt_body_never_publish"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N29",
+      "assertions": [
+        {
+          "assertion_id": "N29.a1",
+          "test_ids": [
+            "tests.test_final_portability.NativePortabilityTests.test_native_backup_preserves_actual_capture_budget_and_resumes_without_resend",
+            "tests.test_final_portability.NativePortabilityTests.test_native_backup_roundtrip_and_foreign_archive_rejection",
+            "tests.test_final_native_boundaries.NativeVersionBoundaries.test_native_history_is_commit_pinned_paginated_read_only_and_instance_scoped",
+            "tests.test_final_native_boundaries.NativeVersionBoundaries.test_handoff_history_keeps_source_visits_private_and_adoption_visible_to_both_instances"
+          ]
+        }
+      ]
+    }
+  ],
+  "baseline": [
+    {
+      "port_id": "P034",
+      "disposition": "RETAIN",
+      "reason": "Preserve native input integrity, runtime isolation, or backup/capture recovery using newly generated current-project data.",
+      "test_ids": [
+        "tests.test_final_portability.NativePortabilityTests.test_archive_paths_case_unicode_aliases_and_symlinks_fail_closed"
+      ]
+    },
+    {
+      "port_id": "P035",
+      "disposition": "RETAIN",
+      "reason": "Preserve native input integrity, runtime isolation, or backup/capture recovery using newly generated current-project data.",
+      "test_ids": [
+        "tests.test_final_portability.NativePortabilityTests.test_archive_paths_case_unicode_aliases_and_symlinks_fail_closed"
+      ]
+    },
+    {
+      "port_id": "P006",
+      "disposition": "REPLACE",
+      "reason": "Preserve native input integrity, runtime isolation, or backup/capture recovery using newly generated current-project data.",
+      "test_ids": [
+        "tests.test_final_portability.NativePortabilityTests.test_native_distribution_has_no_retired_runtime_or_reader_imports"
+      ]
+    },
+    {
+      "port_id": "P007",
+      "disposition": "RETAIN",
+      "reason": "Preserve native input integrity, runtime isolation, or backup/capture recovery using newly generated current-project data.",
+      "test_ids": [
+        "tests.test_final_portability.NativePortabilityTests.test_native_schema_and_destination_boundaries"
+      ]
+    },
+    {
+      "port_id": "P020",
+      "disposition": "RETAIN",
+      "reason": "Preserve native input integrity, runtime isolation, or backup/capture recovery using newly generated current-project data.",
+      "test_ids": [
+        "tests.test_final_portability.NativePortabilityTests.test_native_schema_and_destination_boundaries"
+      ]
+    },
+    {
+      "port_id": "P108",
+      "disposition": "RETAIN",
+      "reason": "Preserve native input integrity, runtime isolation, or backup/capture recovery using newly generated current-project data.",
+      "test_ids": [
+        "tests.test_final_portability.NativePortabilityTests.test_native_backup_preserves_actual_capture_budget_and_resumes_without_resend"
+      ]
+    },
+    {
+      "port_id": "P110",
+      "disposition": "RETAIN",
+      "reason": "Preserve native input integrity, runtime isolation, or backup/capture recovery using newly generated current-project data.",
+      "test_ids": [
+        "tests.test_final_portability.NativePortabilityTests.test_native_backup_roundtrip_and_foreign_archive_rejection"
+      ]
+    }
+  ]
+}

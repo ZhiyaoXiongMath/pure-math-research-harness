@@ -1,0 +1,147 @@
+{
+  "schema": "pmrs.test-coverage/1",
+  "owner": "security",
+  "acceptance": [
+    {
+      "case_id": "N37",
+      "assertions": [
+        {
+          "assertion_id": "N37.a1",
+          "test_ids": [
+            "tests.test_final_security.SecurityTests.test_retained_restricted_syscall_floor_for_two_architectures",
+            "tests.test_final_security.SecurityTests.test_foreign_architecture_and_x32_rejected",
+            "tests.test_final_security.SecurityTests.test_filter_sealed_and_closed",
+            "tests.test_final_security.SecurityTests.test_filter_failure_has_no_fallback",
+            "tests.test_final_security.SecurityTests.test_unsafe_tex_and_macros_rejected",
+            "tests.test_final_security.SecurityTests.test_nested_mount_and_daemon_alias_fail_closed",
+            "tests.test_final_security.SecurityTests.test_namespace_chain_contains_no_root_bind_or_network_fallback",
+            "tests.test_final_render.ActualRenderTests.test_real_namespace_seccomp_files_symlinks_and_network_fail_closed",
+            "tests.test_final_render.ActualRenderTests.test_actual_doctor_and_tectonic_poppler_fonts_render_all_pages"
+          ]
+        },
+        {
+          "assertion_id": "N37.a2",
+          "test_ids": [
+            "tests.test_final_render.ActualRenderTests.test_real_namespace_seccomp_files_symlinks_and_network_fail_closed",
+            "tests.test_final_render.ActualRenderTests.test_actual_doctor_and_tectonic_poppler_fonts_render_all_pages",
+            "tests.test_final_reports.FinalReportTests.test_real_pdf_png_native_pair_exact_sequence_and_repeat_zero_calls"
+          ]
+        }
+      ]
+    }
+  ],
+  "baseline": [
+    {
+      "port_id": "P116",
+      "disposition": "RETAIN",
+      "reason": "Retains the original syscall, isolation, restricted-TeX or PDF dependency assertion with the current renderer; no preview engine dependency.",
+      "test_ids": [
+        "tests.test_final_security.SecurityTests.test_retained_restricted_syscall_floor_for_two_architectures"
+      ]
+    },
+    {
+      "port_id": "P117",
+      "disposition": "RETAIN",
+      "reason": "Retains the original syscall, isolation, restricted-TeX or PDF dependency assertion with the current renderer; no preview engine dependency.",
+      "test_ids": [
+        "tests.test_final_security.SecurityTests.test_foreign_architecture_and_x32_rejected"
+      ]
+    },
+    {
+      "port_id": "P118",
+      "disposition": "RETAIN",
+      "reason": "Retains the original syscall, isolation, restricted-TeX or PDF dependency assertion with the current renderer; no preview engine dependency.",
+      "test_ids": [
+        "tests.test_final_security.SecurityTests.test_filter_sealed_and_closed"
+      ]
+    },
+    {
+      "port_id": "P119",
+      "disposition": "RETAIN",
+      "reason": "Retains the original syscall, isolation, restricted-TeX or PDF dependency assertion with the current renderer; no preview engine dependency.",
+      "test_ids": [
+        "tests.test_final_security.SecurityTests.test_filter_failure_has_no_fallback"
+      ]
+    },
+    {
+      "port_id": "P120",
+      "disposition": "RETAIN",
+      "reason": "Retains the original syscall, isolation, restricted-TeX or PDF dependency assertion with the current renderer; no preview engine dependency.",
+      "test_ids": [
+        "tests.test_final_security.SecurityTests.test_unsafe_tex_and_macros_rejected"
+      ]
+    },
+    {
+      "port_id": "P121",
+      "disposition": "RETAIN",
+      "reason": "Retains the original syscall, isolation, restricted-TeX or PDF dependency assertion with the current renderer; no preview engine dependency.",
+      "test_ids": [
+        "tests.test_final_security.SecurityTests.test_english_host_template"
+      ]
+    },
+    {
+      "port_id": "P122",
+      "disposition": "RETAIN",
+      "reason": "Retains the original syscall, isolation, restricted-TeX or PDF dependency assertion with the current renderer; no preview engine dependency.",
+      "test_ids": [
+        "tests.test_final_security.SecurityTests.test_nested_mount_and_daemon_alias_fail_closed"
+      ]
+    },
+    {
+      "port_id": "P123",
+      "disposition": "RETAIN",
+      "reason": "Retains the original syscall, isolation, restricted-TeX or PDF dependency assertion with the current renderer; no preview engine dependency.",
+      "test_ids": [
+        "tests.test_final_security.SecurityTests.test_namespace_chain_contains_no_root_bind_or_network_fallback"
+      ]
+    },
+    {
+      "port_id": "P126",
+      "disposition": "RETAIN",
+      "reason": "Retains the original syscall, isolation, restricted-TeX or PDF dependency assertion with the current renderer; no preview engine dependency.",
+      "test_ids": [
+        "tests.test_final_render_dependencies.RenderDependencyTests.test_system_poppler_wins_over_unmounted_path_wrapper"
+      ]
+    },
+    {
+      "port_id": "P127",
+      "disposition": "RETAIN",
+      "reason": "Retains the original syscall, isolation, restricted-TeX or PDF dependency assertion with the current renderer; no preview engine dependency.",
+      "test_ids": [
+        "tests.test_final_render_dependencies.RenderDependencyTests.test_explicit_tool_override_is_honored_and_never_silently_replaced"
+      ]
+    },
+    {
+      "port_id": "P128",
+      "disposition": "RETAIN",
+      "reason": "Retains the original syscall, isolation, restricted-TeX or PDF dependency assertion with the current renderer; no preview engine dependency.",
+      "test_ids": [
+        "tests.test_final_render_dependencies.RenderDependencyTests.test_path_only_compiler_remains_supported"
+      ]
+    },
+    {
+      "port_id": "P129",
+      "disposition": "RETAIN",
+      "reason": "Retains the original syscall, isolation, restricted-TeX or PDF dependency assertion with the current renderer; no preview engine dependency.",
+      "test_ids": [
+        "tests.test_final_render_dependencies.RenderDependencyTests.test_ca_file_is_read_only_without_mounting_private_keys"
+      ]
+    },
+    {
+      "port_id": "P130",
+      "disposition": "RETAIN",
+      "reason": "Retains the original syscall, isolation, restricted-TeX or PDF dependency assertion with the current renderer; no preview engine dependency.",
+      "test_ids": [
+        "tests.test_final_render_dependencies.RenderDependencyTests.test_missing_ca_has_actionable_error_and_doctor_does_not_claim_render_pass"
+      ]
+    },
+    {
+      "port_id": "P131",
+      "disposition": "RETAIN",
+      "reason": "Retains the original syscall, isolation, restricted-TeX or PDF dependency assertion with the current renderer; no preview engine dependency.",
+      "test_ids": [
+        "tests.test_final_render_dependencies.RenderDependencyTests.test_invalid_ca_is_rejected"
+      ]
+    }
+  ]
+}

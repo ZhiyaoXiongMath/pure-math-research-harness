@@ -1,0 +1,205 @@
+{
+  "schema": "pmrs.test-coverage/1",
+  "owner": "surface-and-journal",
+  "acceptance": [
+    {
+      "case_id": "R03",
+      "assertions": [
+        {
+          "assertion_id": "R03.a1",
+          "test_ids": [
+            "tests.test_final_surface.WebApplicationTests.test_read_only_status_pages_and_frozen_cursor_do_not_admit_capture"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "R07",
+      "assertions": [
+        {
+          "assertion_id": "R07.a1",
+          "test_ids": [
+            "tests.test_final_surface.NativeReaderTests.test_chinese_original_search_body_source_and_projection_rebuild"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "R11",
+      "assertions": [
+        {
+          "assertion_id": "R11.a1",
+          "test_ids": [
+            "tests.test_final_storage.JournalTests.test_missing_projection_rebuild_and_actual_source_tamper_detection"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "R12",
+      "assertions": [
+        {
+          "assertion_id": "R12.a1",
+          "test_ids": [
+            "tests.test_final_storage.JournalTests.test_atomic_multi_record_capture_and_obligation_effects_at_each_fault",
+            "tests.test_final_storage.JournalTests.test_faults_at_blobs_records_commit_and_head_preserve_whole_transaction"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N02",
+      "assertions": [
+        {
+          "assertion_id": "N02.a1",
+          "test_ids": [
+            "tests.test_final_storage.JournalTests.test_atomic_multi_record_capture_and_obligation_effects_at_each_fault",
+            "tests.test_final_storage.JournalTests.test_science_control_boundary_record_bytes_and_checkpoint_integrity"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N03",
+      "assertions": [
+        {
+          "assertion_id": "N03.a1",
+          "test_ids": [
+            "tests.test_final_storage.JournalTests.test_n03_ten_thousand_records_thousand_delta_controls_measured"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N18",
+      "assertions": [
+        {
+          "assertion_id": "N18.a1",
+          "test_ids": [
+            "tests.test_final_surface.WebApplicationTests.test_read_only_status_pages_and_frozen_cursor_do_not_admit_capture"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N32",
+      "assertions": [
+        {
+          "assertion_id": "N32.a1",
+          "test_ids": [
+            "tests.test_final_surface.WebApplicationTests.test_exact_scope_body_paths_and_hostile_text_are_not_html",
+            "tests.test_final_surface.WebApplicationTests.test_authenticated_business_actions_csrf_origin_and_idempotence",
+            "tests.test_final_surface.WebApplicationTests.test_read_only_status_pages_and_frozen_cursor_do_not_admit_capture"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N42",
+      "assertions": [
+        {
+          "assertion_id": "N42.a1",
+          "test_ids": [
+            "tests.test_final_surface.NativeReaderTests.test_n42_result_family_never_transfers_equivalence_or_qualification",
+            "tests.test_final_surface.NativeReaderTests.test_reused_scientific_content_links_production_without_new_theorem",
+            "tests.test_final_surface.NativeReaderTests.test_real_diff_distinguishes_new_reused_source_and_control_changes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N31",
+      "assertions": [
+        {
+          "assertion_id": "N31.a1",
+          "test_ids": [
+            "tests.test_final_surface.WebApplicationTests.test_n31_native_partial_scope_family_method_source_pagination_and_diff",
+            "tests.browser.WEB06"
+          ]
+        }
+      ]
+    }
+  ],
+  "baseline": [
+    {
+      "port_id": "P008",
+      "disposition": "RETAIN",
+      "reason": "Reads pin one complete journal snapshot and never admit captured work.",
+      "test_ids": [
+        "tests.test_final_surface.WebApplicationTests.test_read_only_status_pages_and_frozen_cursor_do_not_admit_capture"
+      ]
+    },
+    {
+      "port_id": "P009",
+      "disposition": "REPLACE",
+      "reason": "Typed atomic transaction replaces unrestricted old patch/CAS interface.",
+      "test_ids": [
+        "tests.test_final_storage.JournalTests.test_atomic_multi_record_capture_and_obligation_effects_at_each_fault"
+      ]
+    },
+    {
+      "port_id": "P010",
+      "disposition": "RETAIN",
+      "reason": "Real record and checkpoint tampering fail closed.",
+      "test_ids": [
+        "tests.test_final_storage.JournalTests.test_science_control_boundary_record_bytes_and_checkpoint_integrity"
+      ]
+    },
+    {
+      "port_id": "P011",
+      "disposition": "RETAIN",
+      "reason": "Projection deletion preserves authoritative journal and raw bytes.",
+      "test_ids": [
+        "tests.test_final_storage.JournalTests.test_missing_projection_rebuild_and_actual_source_tamper_detection"
+      ]
+    },
+    {
+      "port_id": "P023",
+      "disposition": "RETAIN",
+      "reason": "Projection directory symlink remains forbidden.",
+      "test_ids": [
+        "tests.test_final_storage.JournalTests.test_projection_symlinks_corruption_and_live_sidecars_fail_closed"
+      ]
+    },
+    {
+      "port_id": "P024",
+      "disposition": "RETAIN",
+      "reason": "Projection file symlink remains forbidden.",
+      "test_ids": [
+        "tests.test_final_storage.JournalTests.test_projection_symlinks_corruption_and_live_sidecars_fail_closed"
+      ]
+    },
+    {
+      "port_id": "P025",
+      "disposition": "RETAIN",
+      "reason": "Explicit rebuild replaces corrupt derived index without authority writes.",
+      "test_ids": [
+        "tests.test_final_storage.JournalTests.test_projection_symlinks_corruption_and_live_sidecars_fail_closed"
+      ]
+    },
+    {
+      "port_id": "P026",
+      "disposition": "RETAIN",
+      "reason": "Live SQLite sidecars require explicit reader shutdown.",
+      "test_ids": [
+        "tests.test_final_storage.JournalTests.test_projection_symlinks_corruption_and_live_sidecars_fail_closed"
+      ]
+    },
+    {
+      "port_id": "P101",
+      "disposition": "RETAIN",
+      "reason": "Five status dimensions stay pure; workflow ACTIVE does not invent a running process.",
+      "test_ids": [
+        "tests.test_final_surface.WebApplicationTests.test_read_only_status_pages_and_frozen_cursor_do_not_admit_capture"
+      ]
+    },
+    {
+      "port_id": "P102",
+      "disposition": "RETAIN",
+      "reason": "Status/audit/knowledge CLI reads make no model requests or knowledge commits.",
+      "test_ids": [
+        "tests.test_final_surface.NativeReaderTests.test_cli_readers_and_required_instance_do_not_call_executor"
+      ]
+    }
+  ]
+}

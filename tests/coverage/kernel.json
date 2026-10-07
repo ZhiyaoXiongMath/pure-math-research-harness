@@ -1,0 +1,630 @@
+{
+  "schema": "pmrs.test-coverage/1",
+  "acceptance": [
+    {
+      "case_id": "K01",
+      "assertions": [
+        {
+          "assertion_id": "K01.a1",
+          "test_ids": [
+            "tests.test_final_kernel.PersistedKernelTests.test_two_workflows_shared_content_unrelated_commits_and_recovery"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "K02",
+      "assertions": [
+        {
+          "assertion_id": "K02.a1",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_support_withdrawal_does_not_swap_paths_or_family"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "K03",
+      "assertions": [
+        {
+          "assertion_id": "K03.a1",
+          "test_ids": [
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_content_identity_context_quantifiers_and_families"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "K04",
+      "assertions": [
+        {
+          "assertion_id": "K04.a1",
+          "test_ids": [
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_argument_revision_preserves_statement_author_and_target"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "K05",
+      "assertions": [
+        {
+          "assertion_id": "K05.a1",
+          "test_ids": [
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_current_vs_pinned_relevant_cas_and_unrelated_rebase",
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_argument_revision_preserves_statement_author_and_target",
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_statement_revision_keeps_fixed_target_and_rejects_late_current_capture"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "K06",
+      "assertions": [
+        {
+          "assertion_id": "K06.a1",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_conflict_independent_scope_and_synthetic_authority"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "K07",
+      "assertions": [
+        {
+          "assertion_id": "K07.a1",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_candidate_scoped_single_dual_missing_reuse_and_formulation",
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_same_content_multiple_requests_reuses_revision"
+          ]
+        },
+        {
+          "assertion_id": "K07.a2",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_candidate_scoped_single_dual_missing_reuse_and_formulation",
+            "tests.test_final_kernel.AssuranceContextTests.test_human_adoption_is_not_scoped_mathematical_attestation"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "K08",
+      "assertions": [
+        {
+          "assertion_id": "K08.a1",
+          "test_ids": [
+            "tests.test_final_kernel.PersistedKernelTests.test_two_workflows_shared_content_unrelated_commits_and_recovery"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "S03",
+      "assertions": [
+        {
+          "assertion_id": "S03.a1",
+          "test_ids": [
+            "tests.test_final_kernel.PersistedKernelTests.test_two_workflows_shared_content_unrelated_commits_and_recovery"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "S04",
+      "assertions": [
+        {
+          "assertion_id": "S04.a1",
+          "test_ids": [
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_current_vs_pinned_relevant_cas_and_unrelated_rebase"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "S05",
+      "assertions": [
+        {
+          "assertion_id": "S05.a1",
+          "test_ids": [
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_query_guard_new_member_and_lifecycle_not_definition_stale"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "S06",
+      "assertions": [
+        {
+          "assertion_id": "S06.a1",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_complete_dependency_body_and_verdict_derivatives_fail_closed"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "S07",
+      "assertions": [
+        {
+          "assertion_id": "S07.a1",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_complete_dependency_body_and_verdict_derivatives_fail_closed"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "S08",
+      "assertions": [
+        {
+          "assertion_id": "S08.a1",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_complete_dependency_body_and_verdict_derivatives_fail_closed"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N04",
+      "assertions": [
+        {
+          "assertion_id": "N04.a1",
+          "test_ids": [
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_same_content_multiple_requests_reuses_revision",
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_content_identity_context_quantifiers_and_families"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N05",
+      "assertions": [
+        {
+          "assertion_id": "N05.a1",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_provenance_method_inspiration_and_feedback_isolation"
+          ]
+        },
+        {
+          "assertion_id": "N05.a2",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_provenance_method_inspiration_and_feedback_isolation",
+            "tests.test_final_kernel.AssuranceContextTests.test_candidate_scoped_single_dual_missing_reuse_and_formulation"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N06",
+      "assertions": [
+        {
+          "assertion_id": "N06.a1",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_conditional_premise_remains_open_and_not_reverse_certified",
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_topological_local_refs_body_staging_and_reduction_binding"
+          ]
+        },
+        {
+          "assertion_id": "N06.a2",
+          "test_ids": [
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_topological_local_refs_body_staging_and_reduction_binding"
+          ]
+        },
+        {
+          "assertion_id": "N06.a3",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_candidate_scoped_single_dual_missing_reuse_and_formulation",
+            "tests.test_final_kernel.AssuranceContextTests.test_conditional_premise_remains_open_and_not_reverse_certified"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N07",
+      "assertions": [
+        {
+          "assertion_id": "N07.a1",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_support_withdrawal_does_not_swap_paths_or_family"
+          ]
+        },
+        {
+          "assertion_id": "N07.a2",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_candidate_scoped_single_dual_missing_reuse_and_formulation",
+            "tests.test_final_kernel.AssuranceContextTests.test_support_withdrawal_does_not_swap_paths_or_family",
+            "tests.test_final_kernel.AssuranceContextTests.test_conflict_independent_scope_and_synthetic_authority",
+            "tests.test_final_kernel.AssuranceContextTests.test_author_self_check_and_scope_extension_do_not_qualify",
+            "tests.test_final_kernel.AssuranceContextTests.test_a1_defect_cannot_authorize_withdrawal_of_a2",
+            "tests.test_final_kernel.AssuranceContextTests.test_scoped_withdrawal_outside_consumer_does_not_erase_support"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N08",
+      "assertions": [
+        {
+          "assertion_id": "N08.a1",
+          "test_ids": [
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_topological_local_refs_body_staging_and_reduction_binding",
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_strict_json_unknown_fields_duplicate_depth_float",
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_nested_rejection_is_identical_and_raw_capture_remains"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N09",
+      "assertions": [
+        {
+          "assertion_id": "N09.a1",
+          "test_ids": [
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_zero_record_no_result_and_attempt_account_preserved",
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_blocked_attempt_creates_persistent_retry_predicate"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N10",
+      "assertions": [
+        {
+          "assertion_id": "N10.a1",
+          "test_ids": [
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_request_raw_idempotency_and_content_conflict",
+            "tests.test_final_kernel.PersistedKernelTests.test_two_workflows_shared_content_unrelated_commits_and_recovery"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N16",
+      "assertions": [
+        {
+          "assertion_id": "N16.a1",
+          "test_ids": [
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_bilingual_index_exact_locator_and_bound_quote"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N17",
+      "assertions": [
+        {
+          "assertion_id": "N17.a1",
+          "test_ids": [
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_bilingual_index_exact_locator_and_bound_quote",
+            "tests.test_final_kernel.FinalIdentityAdmissionTests.test_source_input_store_commit_and_original_hash"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "W05",
+      "assertions": [
+        {
+          "assertion_id": "W05.a1",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_failed_sufficient_route_never_refutes_original_target"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "W06",
+      "assertions": [
+        {
+          "assertion_id": "W06.a1",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_and_three_children_and_or_complete_route_require_lifting"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "W07",
+      "assertions": [
+        {
+          "assertion_id": "W07.a1",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_and_three_children_and_or_complete_route_require_lifting"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "W08",
+      "assertions": [
+        {
+          "assertion_id": "W08.a1",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_p6_gap_is_not_reduction_and_same_witness_is_not_boolean"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N43",
+      "assertions": [
+        {
+          "assertion_id": "N43.a1",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_not_required_reduction_and_quantifier_gap_are_real_kcs_outcomes",
+            "tests.test_final_kernel.AssuranceContextTests.test_p6_gap_is_not_reduction_and_same_witness_is_not_boolean"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N12",
+      "assertions": [
+        {
+          "assertion_id": "N12.a1",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_candidate_scoped_single_dual_missing_reuse_and_formulation",
+            "tests.test_final_kernel.AssuranceContextTests.test_refutation_integration_defect_policy_and_formal_boundaries",
+            "tests.test_final_workflows.Workflows.test_explicit_verify_only",
+            "tests.test_final_workflows.RuntimeBoundaries.test_cancel_unknown_and_capture_identity_do_not_close_duty",
+            "tests.test_final_workflows.RuntimeStories.test_trw_original_target_dual_and_open_decision"
+          ]
+        },
+        {
+          "assertion_id": "N12.a2",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_candidate_scoped_single_dual_missing_reuse_and_formulation",
+            "tests.test_final_kernel.AssuranceContextTests.test_refutation_integration_defect_policy_and_formal_boundaries",
+            "tests.test_final_workflows.Workflows.test_explicit_verify_only",
+            "tests.test_final_workflows.CoverageExecution.test_superwindow_parts_and_required_independent_integration"
+          ]
+        },
+        {
+          "assertion_id": "N12.a3",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_refutation_integration_defect_policy_and_formal_boundaries",
+            "tests.test_final_kernel.AssuranceContextTests.test_author_self_check_and_scope_extension_do_not_qualify",
+            "tests.test_final_kernel.AssuranceContextTests.test_human_adoption_is_not_scoped_mathematical_attestation",
+            "tests.test_final_workflows.RuntimeStories.test_trw_original_target_dual_and_open_decision"
+          ]
+        },
+        {
+          "assertion_id": "N12.a4",
+          "test_ids": [
+            "tests.test_final_kernel.AssuranceContextTests.test_refutation_integration_defect_policy_and_formal_boundaries"
+          ]
+        }
+      ]
+    }
+  ],
+  "baseline": [
+    {
+      "port_id": "P014",
+      "disposition": "REPLACE",
+      "reason": "Typed mathematical closure includes complete explicit premises; historical feedback is excluded.",
+      "test_ids": [
+        "tests.test_final_kernel.AssuranceContextTests.test_complete_dependency_body_and_verdict_derivatives_fail_closed"
+      ]
+    },
+    {
+      "port_id": "P015",
+      "disposition": "RETAIN",
+      "reason": "An actual verdict premise fails closed without rewriting its body.",
+      "test_ids": [
+        "tests.test_final_kernel.AssuranceContextTests.test_complete_dependency_body_and_verdict_derivatives_fail_closed"
+      ]
+    },
+    {
+      "port_id": "P016",
+      "disposition": "REPLACE",
+      "reason": "Scoped support bindings replace blanket object invalidation; feedback never propagates mathematical withdrawal.",
+      "test_ids": [
+        "tests.test_final_kernel.AssuranceContextTests.test_support_withdrawal_does_not_swap_paths_or_family",
+        "tests.test_final_kernel.AssuranceContextTests.test_provenance_method_inspiration_and_feedback_isolation"
+      ]
+    },
+    {
+      "port_id": "P017",
+      "disposition": "RETAIN",
+      "reason": "Bilingual retrieval returns an exact original locator and keeps bytes/hash.",
+      "test_ids": [
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_bilingual_index_exact_locator_and_bound_quote"
+      ]
+    },
+    {
+      "port_id": "P018",
+      "disposition": "RETAIN",
+      "reason": "Unbound newly authored Chinese research is rejected without translation.",
+      "test_ids": [
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_bilingual_index_exact_locator_and_bound_quote"
+      ]
+    },
+    {
+      "port_id": "P050",
+      "disposition": "REPLACE",
+      "reason": "Same scientific content shares KR; distinct productions/executions preserve provenance rather than forcing duplicate review content.",
+      "test_ids": [
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_same_content_multiple_requests_reuses_revision"
+      ]
+    },
+    {
+      "port_id": "P051",
+      "disposition": "RETAIN",
+      "reason": "Pure/live validation share nested and language error semantics.",
+      "test_ids": [
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_nested_rejection_is_identical_and_raw_capture_remains"
+      ]
+    },
+    {
+      "port_id": "P052",
+      "disposition": "REPLACE",
+      "reason": "Strict six-kind metadata replaces arbitrary claim data; authored metadata remains English.",
+      "test_ids": [
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_nested_rejection_is_identical_and_raw_capture_remains"
+      ]
+    },
+    {
+      "port_id": "P053",
+      "disposition": "RETAIN",
+      "reason": "Preflight has no persistence or authority effects.",
+      "test_ids": [
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_forged_frozen_permissions_rejected_and_preflight_is_pure",
+        "tests.test_final_kernel.PersistedKernelTests.test_pause_capture_and_preflight_do_not_admit_or_resend"
+      ]
+    },
+    {
+      "port_id": "P054",
+      "disposition": "REPLACE",
+      "reason": "Live checks exact CURRENT reads and scoped guards after preflight; unrelated HEAD changes remain valid.",
+      "test_ids": [
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_current_vs_pinned_relevant_cas_and_unrelated_rebase"
+      ]
+    },
+    {
+      "port_id": "P055",
+      "disposition": "RETAIN",
+      "reason": "Unrelated commits do not stale frozen scientific inputs.",
+      "test_ids": [
+        "tests.test_final_kernel.PersistedKernelTests.test_two_workflows_shared_content_unrelated_commits_and_recovery"
+      ]
+    },
+    {
+      "port_id": "P062",
+      "disposition": "REPLACE",
+      "reason": "EXACT_DUPLICATE is request/raw receipt identity; cross-request same record is reuse.",
+      "test_ids": [
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_request_raw_idempotency_and_content_conflict",
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_same_content_multiple_requests_reuses_revision"
+      ]
+    },
+    {
+      "port_id": "P063",
+      "disposition": "REPLACE",
+      "reason": "Different raw bytes for settled request fail even when JSON is semantically equal.",
+      "test_ids": [
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_request_raw_idempotency_and_content_conflict"
+      ]
+    },
+    {
+      "port_id": "P064",
+      "disposition": "RETAIN",
+      "reason": "Revision has a frozen read parent and exact write CAS; earlier bytes remain.",
+      "test_ids": [
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_argument_revision_preserves_statement_author_and_target"
+      ]
+    },
+    {
+      "port_id": "P065",
+      "disposition": "REPLACE",
+      "reason": "Statement revisions can be candidates, but TRW target is an immutable instance binding.",
+      "test_ids": [
+        "tests.test_final_kernel.PersistedKernelTests.test_two_workflows_shared_content_unrelated_commits_and_recovery",
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_statement_revision_keeps_fixed_target_and_rejects_late_current_capture"
+      ]
+    },
+    {
+      "port_id": "P066",
+      "disposition": "REPLACE",
+      "reason": "Current selection changes stale CURRENT reads; pinned history remains and withdrawal follows exact support paths.",
+      "test_ids": [
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_current_vs_pinned_relevant_cas_and_unrelated_rebase",
+        "tests.test_final_kernel.AssuranceContextTests.test_support_withdrawal_does_not_swap_paths_or_family"
+      ]
+    },
+    {
+      "port_id": "P069",
+      "disposition": "REPLACE",
+      "reason": "Exact locator hashes and target-body binding replace embedded quote strings.",
+      "test_ids": [
+        "tests.test_final_kernel.AssuranceContextTests.test_author_self_check_and_scope_extension_do_not_qualify",
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_topological_local_refs_body_staging_and_reduction_binding"
+      ]
+    },
+    {
+      "port_id": "P070",
+      "disposition": "REPLACE",
+      "reason": "Partial assessment may be saved but missing scope/aspects cannot qualify the complete consumer.",
+      "test_ids": [
+        "tests.test_final_kernel.AssuranceContextTests.test_author_self_check_and_scope_extension_do_not_qualify"
+      ]
+    },
+    {
+      "port_id": "P074",
+      "disposition": "RETAIN",
+      "reason": "Source and record bilingual retrieval is read-only and byte-preserving.",
+      "test_ids": [
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_bilingual_index_exact_locator_and_bound_quote"
+      ]
+    },
+    {
+      "port_id": "P075",
+      "disposition": "RETAIN",
+      "reason": "Independent packets exclude verdict contents and derived sources, including metadata.",
+      "test_ids": [
+        "tests.test_final_kernel.AssuranceContextTests.test_complete_dependency_body_and_verdict_derivatives_fail_closed"
+      ]
+    },
+    {
+      "port_id": "P097",
+      "disposition": "REPLACE",
+      "reason": "Complete exact proof/definition is supplied; provenance alone no longer forces source into proof closure.",
+      "test_ids": [
+        "tests.test_final_kernel.AssuranceContextTests.test_complete_dependency_body_and_verdict_derivatives_fail_closed",
+        "tests.test_final_kernel.AssuranceContextTests.test_provenance_method_inspiration_and_feedback_isolation"
+      ]
+    },
+    {
+      "port_id": "P098",
+      "disposition": "REPLACE",
+      "reason": "Exact source-bound quotations use hash locators; English authored prose is not silently translated.",
+      "test_ids": [
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_bilingual_index_exact_locator_and_bound_quote"
+      ]
+    },
+    {
+      "port_id": "P099",
+      "disposition": "RETAIN",
+      "reason": "Verdict-as-premise and derivative laundering block independent review.",
+      "test_ids": [
+        "tests.test_final_kernel.AssuranceContextTests.test_complete_dependency_body_and_verdict_derivatives_fail_closed"
+      ]
+    },
+    {
+      "port_id": "P100",
+      "disposition": "RETAIN",
+      "reason": "Malformed nested JSON uses one shared rejection and leaves original capture intact.",
+      "test_ids": [
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_nested_rejection_is_identical_and_raw_capture_remains"
+      ]
+    },
+    {
+      "port_id": "P124",
+      "disposition": "RETAIN",
+      "reason": "Verified original quotation is allowed; unbound authored Chinese remains rejected.",
+      "test_ids": [
+        "tests.test_final_kernel.FinalIdentityAdmissionTests.test_bilingual_index_exact_locator_and_bound_quote"
+      ]
+    },
+    {
+      "port_id": "P019",
+      "disposition": "REPLACE",
+      "reason": "Exact REDUCTION lifting and witness bindings preserve open duties; Boolean compatibility cannot close distinct witnesses.",
+      "test_ids": [
+        "tests.test_final_kernel.AssuranceContextTests.test_and_three_children_and_or_complete_route_require_lifting",
+        "tests.test_final_kernel.AssuranceContextTests.test_p6_gap_is_not_reduction_and_same_witness_is_not_boolean",
+        "tests.test_final_kernel.AssuranceContextTests.test_not_required_reduction_and_quantifier_gap_are_real_kcs_outcomes"
+      ]
+    },
+    {
+      "port_id": "P115",
+      "disposition": "REPLACE",
+      "reason": "An accepted REDUCTION Argument is required before a P6 reduction duty can exit FULFILLED; gap-only records retain open work.",
+      "test_ids": [
+        "tests.test_final_kernel.AssuranceContextTests.test_p6_gap_is_not_reduction_and_same_witness_is_not_boolean",
+        "tests.test_final_workflows.ClosureContracts.test_p6_gap_cannot_fulfill_a_reduction_visit"
+      ]
+    }
+  ],
+  "owner": "kernel"
+}

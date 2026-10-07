@@ -1,0 +1,689 @@
+{
+  "schema": "pmrs.test-coverage/1",
+  "owner": "workflows",
+  "acceptance": [
+    {
+      "case_id": "W01",
+      "assertions": [
+        {
+          "assertion_id": "W01.a1",
+          "test_ids": [
+            "tests.test_final_workflows.Workflows.test_hard_material_blocker_and_relevant_repair",
+            "tests.test_final_workflows.Workflows.test_bounded_sampling_no_renaming_reset"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "W02",
+      "assertions": [
+        {
+          "assertion_id": "W02.a1",
+          "test_ids": [
+            "tests.test_final_workflows.Workflows.test_hard_material_blocker_and_relevant_repair",
+            "tests.test_final_workflows.PersistentInputKeys.test_actual_supplement_source_fulfills_hash_predicate_and_is_frozen"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "W03",
+      "assertions": [
+        {
+          "assertion_id": "W03.a1",
+          "test_ids": [
+            "tests.test_final_workflows.RuntimeStories.test_trw_original_target_dual_and_open_decision",
+            "tests.test_final_workflows.Workflows.test_explicit_verify_only"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "W04",
+      "assertions": [
+        {
+          "assertion_id": "W04.a1",
+          "test_ids": [
+            "tests.test_final_workflows.RuntimeIntegration.test_real_store_fake_transport_admission_budget_and_replay",
+            "tests.test_final_workflows.Workflows.test_bounded_sampling_no_renaming_reset",
+            "tests.test_final_workflows.Workflows.test_route_change_does_not_reset_responsibility_limit",
+            "tests.test_final_workflows.Workflows.test_hard_material_blocker_and_relevant_repair",
+            "tests.test_final_workflows.PersistentInputKeys.test_reauthorizing_same_intent_does_not_refill_default_sample"
+          ]
+        },
+        {
+          "assertion_id": "W04.a2",
+          "test_ids": [
+            "tests.test_final_workflows.RuntimeIntegration.test_real_store_fake_transport_admission_budget_and_replay",
+            "tests.test_final_workflows.Workflows.test_bounded_sampling_no_renaming_reset",
+            "tests.test_final_workflows.Workflows.test_route_change_does_not_reset_responsibility_limit",
+            "tests.test_final_workflows.Workflows.test_hard_material_blocker_and_relevant_repair",
+            "tests.test_final_workflows.PersistentInputKeys.test_reauthorizing_same_intent_does_not_refill_default_sample"
+          ]
+        },
+        {
+          "assertion_id": "W04.a3",
+          "test_ids": [
+            "tests.test_final_workflows.RuntimeIntegration.test_real_store_fake_transport_admission_budget_and_replay",
+            "tests.test_final_workflows.Workflows.test_bounded_sampling_no_renaming_reset",
+            "tests.test_final_workflows.Workflows.test_route_change_does_not_reset_responsibility_limit",
+            "tests.test_final_workflows.Workflows.test_hard_material_blocker_and_relevant_repair",
+            "tests.test_final_workflows.PersistentInputKeys.test_reauthorizing_same_intent_does_not_refill_default_sample"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "W09",
+      "assertions": [
+        {
+          "assertion_id": "W09.a1",
+          "test_ids": [
+            "tests.test_final_workflows.SharedRuntime.test_p7_single_routes_and_comparative_actual_work",
+            "tests.test_final_workflows.RuntimeIntegration.test_real_store_fake_transport_admission_budget_and_replay"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "W10",
+      "assertions": [
+        {
+          "assertion_id": "W10.a1",
+          "test_ids": [
+            "tests.test_final_workflows.RuntimeBoundaries.test_format_repairs_are_separate_finite_cost_not_new_science_sample"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "W11",
+      "assertions": [
+        {
+          "assertion_id": "W11.a1",
+          "test_ids": [
+            "tests.test_final_workflows.RuntimeStories.test_tfdw_candidate_formulation_and_exact_paused_handoff"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "W12",
+      "assertions": [
+        {
+          "assertion_id": "W12.a1",
+          "test_ids": [
+            "tests.test_final_workflows.DiscoveryFlow.test_n44_four_discovery_variants_feedback_unknown_and_formal_reports"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "W13",
+      "assertions": [
+        {
+          "assertion_id": "W13.a1",
+          "test_ids": [
+            "tests.test_final_workflows.FullWorkflowStories.test_n45_false_original_discovery_exact_adoption_independent_proof_and_reports"
+          ]
+        },
+        {
+          "assertion_id": "W13.a2",
+          "test_ids": [
+            "tests.test_final_workflows.FullWorkflowStories.test_n45_false_original_discovery_exact_adoption_independent_proof_and_reports"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N11",
+      "assertions": [
+        {
+          "assertion_id": "N11.a1",
+          "test_ids": [
+            "tests.test_final_workflows.Workflows.test_n11_single_registry",
+            "tests.test_final_model_policy.ModelPolicy.test_every_registered_role_in_all_21_stages_is_resolved",
+            "tests.test_final_model_policy.ModelPolicy.test_frozen_task_and_actual_command_use_same_policy"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N13",
+      "assertions": [
+        {
+          "assertion_id": "N13.a1",
+          "test_ids": [
+            "tests.test_final_workflows.Workflows.test_bounded_sampling_no_renaming_reset",
+            "tests.test_final_workflows.Workflows.test_route_change_does_not_reset_responsibility_limit",
+            "tests.test_final_workflows.Workflows.test_unknown_and_capture_block_new_sample",
+            "tests.test_final_workflows.Workflows.test_hard_material_blocker_and_relevant_repair",
+            "tests.test_final_workflows.RuntimeIntegration.test_real_store_fake_transport_admission_budget_and_replay",
+            "tests.test_final_workflows.PersistentInputKeys.test_reauthorizing_same_intent_does_not_refill_default_sample"
+          ]
+        },
+        {
+          "assertion_id": "N13.a2",
+          "test_ids": [
+            "tests.test_final_workflows.Workflows.test_bounded_sampling_no_renaming_reset",
+            "tests.test_final_workflows.Workflows.test_route_change_does_not_reset_responsibility_limit",
+            "tests.test_final_workflows.Workflows.test_unknown_and_capture_block_new_sample",
+            "tests.test_final_workflows.Workflows.test_hard_material_blocker_and_relevant_repair",
+            "tests.test_final_workflows.RuntimeIntegration.test_real_store_fake_transport_admission_budget_and_replay",
+            "tests.test_final_workflows.PersistentInputKeys.test_reauthorizing_same_intent_does_not_refill_default_sample"
+          ]
+        },
+        {
+          "assertion_id": "N13.a3",
+          "test_ids": [
+            "tests.test_final_workflows.Workflows.test_bounded_sampling_no_renaming_reset",
+            "tests.test_final_workflows.Workflows.test_route_change_does_not_reset_responsibility_limit",
+            "tests.test_final_workflows.Workflows.test_unknown_and_capture_block_new_sample",
+            "tests.test_final_workflows.Workflows.test_hard_material_blocker_and_relevant_repair",
+            "tests.test_final_workflows.RuntimeIntegration.test_real_store_fake_transport_admission_budget_and_replay",
+            "tests.test_final_workflows.PersistentInputKeys.test_reauthorizing_same_intent_does_not_refill_default_sample"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N14",
+      "assertions": [
+        {
+          "assertion_id": "N14.a1",
+          "test_ids": [
+            "tests.test_final_workflows.SharedRuntime.test_actual_multiinstance_fair_dispatch_and_policy_isolation",
+            "tests.test_final_workflows.Workflows.test_unknown_and_capture_block_new_sample",
+            "tests.test_final_workflows.RuntimeBoundaries.test_transport_contract_environment_and_single_coordinator"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N19",
+      "assertions": [
+        {
+          "assertion_id": "N19.a1",
+          "test_ids": [
+            "tests.test_final_workflows.FullWorkflowStories.test_n45_false_original_discovery_exact_adoption_independent_proof_and_reports",
+            "tests.test_final_workflows.Workflows.test_handoff_shared_ref_paused_and_idempotent",
+            "tests.test_final_workflows.Workflows.test_control_scope_cas_and_no_model_decision"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N20",
+      "assertions": [
+        {
+          "assertion_id": "N20.a1",
+          "test_ids": [
+            "tests.test_final_workflows.RuntimeBoundaries.test_frozen_manifest_and_model_tampering_fail_closed",
+            "tests.test_final_workflows.RuntimeFaults.test_sealed_capture_recovery_never_spawns",
+            "tests.test_final_workflows.RuntimeStories.test_future_scope_configuration_preserves_old_tasks_and_budget"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N22",
+      "assertions": [
+        {
+          "assertion_id": "N22.a1",
+          "test_ids": [
+            "tests.test_final_workflows.RuntimeBoundaries.test_no_budget_real_fake_and_missing_isolation_fail_before_call",
+            "tests.test_final_kernel.AssuranceContextTests.test_conflict_independent_scope_and_synthetic_authority",
+            "tests.test_final_reports.FinalReportTests.test_independent_capture_cannot_be_forged_or_used_in_real_project"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N30",
+      "assertions": [
+        {
+          "assertion_id": "N30.a1",
+          "test_ids": [
+            "tests.test_final_workflows.DiscoveryFlow.test_n30_chinese_original_two_selected_instances_readers_and_english_tasks"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N41",
+      "assertions": [
+        {
+          "assertion_id": "N41.a1",
+          "test_ids": [
+            "tests.test_final_workflows.SharedRuntime.test_p7_single_routes_and_comparative_actual_work",
+            "tests.test_final_workflows.FullWorkflowStories.test_n45_false_original_discovery_exact_adoption_independent_proof_and_reports",
+            "tests.test_final_workflows.Workflows.test_route_change_does_not_reset_responsibility_limit",
+            "tests.test_final_workflows.Workflows.test_decision_missing_report_valid_and_explicit_report_first"
+          ]
+        },
+        {
+          "assertion_id": "N41.a2",
+          "test_ids": [
+            "tests.test_final_workflows.SharedRuntime.test_p7_single_routes_and_comparative_actual_work",
+            "tests.test_final_workflows.FullWorkflowStories.test_n45_false_original_discovery_exact_adoption_independent_proof_and_reports",
+            "tests.test_final_workflows.Workflows.test_route_change_does_not_reset_responsibility_limit",
+            "tests.test_final_workflows.Workflows.test_decision_missing_report_valid_and_explicit_report_first"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N44",
+      "assertions": [
+        {
+          "assertion_id": "N44.a1",
+          "test_ids": [
+            "tests.test_final_workflows.DiscoveryFlow.test_n44_four_discovery_variants_feedback_unknown_and_formal_reports",
+            "tests.test_final_workflows.RuntimeStories.test_tfdw_candidate_formulation_and_exact_paused_handoff",
+            "tests.test_final_reports.FinalReportTests.test_tfdw_zero_candidate_report_and_failure_decision_variants"
+          ]
+        },
+        {
+          "assertion_id": "N44.a2",
+          "test_ids": [
+            "tests.test_final_workflows.DiscoveryFlow.test_n44_four_discovery_variants_feedback_unknown_and_formal_reports",
+            "tests.test_final_workflows.RuntimeStories.test_tfdw_candidate_formulation_and_exact_paused_handoff",
+            "tests.test_final_reports.FinalReportTests.test_tfdw_zero_candidate_report_and_failure_decision_variants"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N45",
+      "assertions": [
+        {
+          "assertion_id": "N45.a1",
+          "test_ids": [
+            "tests.test_final_workflows.FullWorkflowStories.test_n45_false_original_discovery_exact_adoption_independent_proof_and_reports"
+          ]
+        },
+        {
+          "assertion_id": "N45.a2",
+          "test_ids": [
+            "tests.test_final_workflows.FullWorkflowStories.test_n45_false_original_discovery_exact_adoption_independent_proof_and_reports"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N15",
+      "assertions": [
+        {
+          "assertion_id": "N15.a1",
+          "test_ids": [
+            "tests.test_final_workflows.CoverageExecution.test_superwindow_parts_and_required_independent_integration",
+            "tests.test_final_kernel.AssuranceContextTests.test_complete_dependency_body_and_verdict_derivatives_fail_closed"
+          ]
+        },
+        {
+          "assertion_id": "N15.a2",
+          "test_ids": [
+            "tests.test_final_workflows.CoverageExecution.test_superwindow_parts_and_required_independent_integration",
+            "tests.test_final_kernel.AssuranceContextTests.test_capacity_unknown_full_request_and_successful_slot_partition_integration"
+          ]
+        },
+        {
+          "assertion_id": "N15.a3",
+          "test_ids": [
+            "tests.test_final_workflows.CoverageExecution.test_superwindow_parts_and_required_independent_integration"
+          ]
+        },
+        {
+          "assertion_id": "N15.a4",
+          "test_ids": [
+            "tests.test_final_workflows.CoverageExecution.test_superwindow_parts_and_required_independent_integration"
+          ]
+        },
+        {
+          "assertion_id": "N15.a5",
+          "test_ids": [
+            "tests.test_final_workflows.CoverageExecution.test_superwindow_parts_and_required_independent_integration",
+            "tests.test_final_kernel.AssuranceContextTests.test_capacity_unknown_full_request_and_successful_slot_partition_integration"
+          ]
+        },
+        {
+          "assertion_id": "N15.a6",
+          "test_ids": [
+            "tests.test_final_workflows.CoverageExecution.test_superwindow_parts_and_required_independent_integration",
+            "tests.test_final_kernel.PersistedKernelTests.test_resource_revision_affects_only_future_frozen_task"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "S01",
+      "assertions": [
+        {
+          "assertion_id": "S01.a1",
+          "test_ids": [
+            "tests.test_final_workflows.FullWorkflowStories.test_n45_false_original_discovery_exact_adoption_independent_proof_and_reports"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "S02",
+      "assertions": [
+        {
+          "assertion_id": "S02.a1",
+          "test_ids": [
+            "tests.test_final_workflows.RuntimeStories.test_tfdw_candidate_formulation_and_exact_paused_handoff",
+            "tests.test_final_workflows.Workflows.test_handoff_shared_ref_paused_and_idempotent"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "R01",
+      "assertions": [
+        {
+          "assertion_id": "R01.a1",
+          "test_ids": [
+            "tests.test_final_workflows.RuntimeFaults.test_capture_boundaries_recover_without_second_call",
+            "tests.test_final_workflows.SharedRuntime.test_concurrent_recover_has_one_scientific_commit"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "R02",
+      "assertions": [
+        {
+          "assertion_id": "R02.a1",
+          "test_ids": [
+            "tests.test_final_workflows.Workflows.test_unknown_and_capture_block_new_sample",
+            "tests.test_final_reports.FinalReportTests.test_capture_crash_recovery_and_unknown_never_resends"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N01",
+      "assertions": [
+        {
+          "assertion_id": "N01.a1",
+          "test_ids": [
+            "tests.test_final_workflows.SharedRuntime.test_actual_multiinstance_fair_dispatch_and_policy_isolation",
+            "tests.test_final_portability.NativePortabilityTests.test_native_schema_and_destination_boundaries"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "N21",
+      "assertions": [
+        {
+          "assertion_id": "N21.a1",
+          "test_ids": [
+            "tests.test_final_workflows.RuntimeFaults.test_capture_boundaries_recover_without_second_call",
+            "tests.test_final_storage.JournalTests.test_atomic_multi_record_capture_and_obligation_effects_at_each_fault",
+            "tests.test_final_workflows.RecoveryCompleteness.test_profile_accepted_before_pair_crash_reuses_first_profile",
+            "tests.test_final_portability.NativePortabilityTests.test_backup_interruption_before_publication_keeps_authority_and_no_partial_archive"
+          ]
+        }
+      ]
+    }
+  ],
+  "baseline": [
+    {
+      "port_id": "P001",
+      "disposition": "REPLACE",
+      "reason": "Final frozen obligation definition revision guards replace legacy mutable method pointers.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeBoundaries.test_frozen_manifest_and_model_tampering_fail_closed"
+      ]
+    },
+    {
+      "port_id": "P004",
+      "disposition": "RETAIN",
+      "reason": "Concurrent replay accepts one original capture once.",
+      "test_ids": [
+        "tests.test_final_workflows.SharedRuntime.test_concurrent_recover_has_one_scientific_commit"
+      ]
+    },
+    {
+      "port_id": "P012",
+      "disposition": "RETAIN",
+      "reason": "Persistent missing-material predicate is reevaluated only on relevant verified material.",
+      "test_ids": [
+        "tests.test_final_workflows.Workflows.test_hard_material_blocker_and_relevant_repair"
+      ]
+    },
+    {
+      "port_id": "P013",
+      "disposition": "RETAIN",
+      "reason": "Formal target dual duties keep distinct purpose keys on identical scientific material.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeStories.test_trw_original_target_dual_and_open_decision",
+        "tests.test_final_workflows.Workflows.test_explicit_verify_only"
+      ]
+    },
+    {
+      "port_id": "P021",
+      "disposition": "RETAIN",
+      "reason": "Renaming a duty or route does not reset its cumulative responsibility ledger.",
+      "test_ids": [
+        "tests.test_final_workflows.Workflows.test_bounded_sampling_no_renaming_reset",
+        "tests.test_final_workflows.Workflows.test_route_change_does_not_reset_responsibility_limit"
+      ]
+    },
+    {
+      "port_id": "P056",
+      "disposition": "RETAIN",
+      "reason": "Capture receipt and atomic scientific admission recover without a second call.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeIntegration.test_real_store_fake_transport_admission_budget_and_replay"
+      ]
+    },
+    {
+      "port_id": "P057",
+      "disposition": "RETAIN",
+      "reason": "Pause keeps exact capture; explicit knowledge-based resume admits it.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeIntegration.test_pause_capture_and_fault_recovery_never_calls_twice"
+      ]
+    },
+    {
+      "port_id": "P058",
+      "disposition": "RETAIN",
+      "reason": "Unknown requests hold budget and prevent new purpose samples.",
+      "test_ids": [
+        "tests.test_final_workflows.Workflows.test_unknown_and_capture_block_new_sample",
+        "tests.test_final_workflows.RuntimeFaults.test_capture_boundaries_recover_without_second_call"
+      ]
+    },
+    {
+      "port_id": "P059",
+      "disposition": "RETAIN",
+      "reason": "Captured original bytes and task bindings cannot be replaced.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeBoundaries.test_cancel_unknown_and_capture_identity_do_not_close_duty"
+      ]
+    },
+    {
+      "port_id": "P060",
+      "disposition": "RETAIN",
+      "reason": "No model execution without the explicit finite mission and project authorization.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeBoundaries.test_no_budget_real_fake_and_missing_isolation_fail_before_call"
+      ]
+    },
+    {
+      "port_id": "P061",
+      "disposition": "RETAIN",
+      "reason": "Fake reservations and review credentials cannot enter a real project.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeBoundaries.test_no_budget_real_fake_and_missing_isolation_fail_before_call",
+        "tests.test_final_kernel.AssuranceContextTests.test_conflict_independent_scope_and_synthetic_authority",
+        "tests.test_final_reports.FinalReportTests.test_independent_capture_cannot_be_forged_or_used_in_real_project"
+      ]
+    },
+    {
+      "port_id": "P067",
+      "disposition": "REPLACE",
+      "reason": "Final specification removes generic per-task checking; accepted work dispositions remain distinct from support qualification and original-target dual review.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeStories.test_trw_original_target_dual_and_open_decision",
+        "tests.test_final_workflows.Workflows.test_explicit_verify_only"
+      ]
+    },
+    {
+      "port_id": "P068",
+      "disposition": "REPLACE",
+      "reason": "TASK_CHECK is not a final role; explicit independent scoped scientific review uses Assessment under one StageSpec contract.",
+      "test_ids": [
+        "tests.test_final_workflows.Workflows.test_n11_single_registry",
+        "tests.test_final_workflows.Workflows.test_explicit_verify_only"
+      ]
+    },
+    {
+      "port_id": "P071",
+      "disposition": "RETAIN",
+      "reason": "Cancelling one lease preserves the shared open mathematical duty.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeBoundaries.test_cancel_unknown_and_capture_identity_do_not_close_duty"
+      ]
+    },
+    {
+      "port_id": "P073",
+      "disposition": "RETAIN",
+      "reason": "Frozen manifest and model contract tampering fail closed.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeBoundaries.test_frozen_manifest_and_model_tampering_fail_closed"
+      ]
+    },
+    {
+      "port_id": "P076",
+      "disposition": "RETAIN",
+      "reason": "Actual comparative P7 branches freeze separate inputs and only synthesize after both actual dispositions.",
+      "test_ids": [
+        "tests.test_final_workflows.SharedRuntime.test_p7_single_routes_and_comparative_actual_work"
+      ]
+    },
+    {
+      "port_id": "P077",
+      "disposition": "RETAIN",
+      "reason": "Relevant material fulfillment reopens a blocked responsibility without a new theorem.",
+      "test_ids": [
+        "tests.test_final_workflows.Workflows.test_hard_material_blocker_and_relevant_repair"
+      ]
+    },
+    {
+      "port_id": "P078",
+      "disposition": "REPLACE",
+      "reason": "Finite explicitly granted sampling is allowed without invented new global duties; exhausted responsibility and hard blocker still stop dispatch.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeIntegration.test_real_store_fake_transport_admission_budget_and_replay",
+        "tests.test_final_workflows.Workflows.test_bounded_sampling_no_renaming_reset",
+        "tests.test_final_workflows.Workflows.test_route_change_does_not_reset_responsibility_limit",
+        "tests.test_final_workflows.Workflows.test_hard_material_blocker_and_relevant_repair"
+      ]
+    },
+    {
+      "port_id": "P104",
+      "disposition": "REPLACE",
+      "reason": "Obligation-driven StageVisits replace a fabricated P0-to-P14 phase loop; real target dual reviews, discovery feedback, exact adoption and complete native reports record only performed work.",
+      "test_ids": [
+        "tests.test_final_workflows.FullWorkflowStories.test_n45_false_original_discovery_exact_adoption_independent_proof_and_reports",
+        "tests.test_final_workflows.SharedRuntime.test_p7_single_routes_and_comparative_actual_work",
+        "tests.test_final_workflows.Workflows.test_route_change_does_not_reset_responsibility_limit",
+        "tests.test_final_workflows.Workflows.test_decision_missing_report_valid_and_explicit_report_first"
+      ]
+    },
+    {
+      "port_id": "P105",
+      "disposition": "RETAIN",
+      "reason": "Capture recovery calls no transport process.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeFaults.test_sealed_capture_recovery_never_spawns"
+      ]
+    },
+    {
+      "port_id": "P106",
+      "disposition": "RETAIN",
+      "reason": "Uncertain request state cannot trigger automatic resend.",
+      "test_ids": [
+        "tests.test_final_workflows.Workflows.test_unknown_and_capture_block_new_sample",
+        "tests.test_final_workflows.RuntimeFaults.test_capture_boundaries_recover_without_second_call"
+      ]
+    },
+    {
+      "port_id": "P107",
+      "disposition": "RETAIN",
+      "reason": "Resume and future configuration preserve cumulative request reservations and retry usage.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeIntegration.test_pause_capture_and_fault_recovery_never_calls_twice",
+        "tests.test_final_workflows.RuntimeStories.test_future_scope_configuration_preserves_old_tasks_and_budget"
+      ]
+    },
+    {
+      "port_id": "P111",
+      "disposition": "RETAIN",
+      "reason": "Actual command arguments pin the named isolated permission profile with networking and web search disabled.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeBoundaries.test_transport_contract_environment_and_single_coordinator"
+      ]
+    },
+    {
+      "port_id": "P112",
+      "disposition": "RETAIN",
+      "reason": "Child environments drop desktop IPC and task routing variables.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeBoundaries.test_transport_contract_environment_and_single_coordinator"
+      ]
+    },
+    {
+      "port_id": "P113",
+      "disposition": "RETAIN",
+      "reason": "An unavailable executor isolation contract fails before reservation or process launch.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeBoundaries.test_no_budget_real_fake_and_missing_isolation_fail_before_call"
+      ]
+    },
+    {
+      "port_id": "P114",
+      "disposition": "RETAIN",
+      "reason": "A second native project coordinator cannot own the same lock.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeBoundaries.test_transport_contract_environment_and_single_coordinator"
+      ]
+    },
+    {
+      "port_id": "P125",
+      "disposition": "RETAIN",
+      "reason": "Sealed original transport bytes recover with task and command identity checks and Popen forbidden.",
+      "test_ids": [
+        "tests.test_final_workflows.RuntimeFaults.test_sealed_capture_recovery_never_spawns"
+      ]
+    },
+    {
+      "port_id": "P002",
+      "disposition": "RETAIN",
+      "reason": "A changed upstream candidate changes the relevant dispatch fingerprint and complete dependency inputs without changing responsibility identity.",
+      "test_ids": [
+        "tests.test_final_workflows.PersistentInputKeys.test_dependency_candidate_changes_dispatch_key_and_packet"
+      ]
+    },
+    {
+      "port_id": "P003",
+      "disposition": "RETAIN",
+      "reason": "Newly supplied exact verified source bytes satisfy the material predicate and are included in the frozen request, without new scientific records.",
+      "test_ids": [
+        "tests.test_final_workflows.PersistentInputKeys.test_actual_supplement_source_fulfills_hash_predicate_and_is_frozen"
+      ]
+    },
+    {
+      "port_id": "P022",
+      "disposition": "RETAIN",
+      "reason": "Blocker prose, set ordering and grant wrappers do not alter the scientific dispatch key.",
+      "test_ids": [
+        "tests.test_final_workflows.PersistentInputKeys.test_blocker_wording_target_order_and_grant_wrapper_do_not_reset"
+      ]
+    }
+  ]
+}

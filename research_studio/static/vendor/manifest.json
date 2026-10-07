@@ -1,0 +1,12 @@
+{
+  "mathjax": {
+    "version": "3.2.2",
+    "license": "Apache-2.0",
+    "source": "Preserved audited offline vendor assets from PMRS 3.3.2"
+  },
+  "files": {
+    "mathjax/LICENSE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "mathjax/es5/tex-svg.js": "d4295dc33744836935c1399feece5159577b34c5c8ffb9f1c6324cd82e03a882",
+    "mathjax/es5/ui/safe.js": "9fef48d868277a8bc1852f7ba796b33ead812d38916a7131b0a29ea48961a6a4"
+  }
+}
