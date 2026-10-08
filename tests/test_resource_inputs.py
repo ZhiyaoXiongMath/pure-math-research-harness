@@ -3,6 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 import unittest
+import os
 from research_studio import changes, context, demo, execution, reports, resources, runner, scheduler, survey
 from research_studio.store import Store
 from research_studio.util import canonical, PMRSError, sha
@@ -12,6 +13,7 @@ from tests.test_survey import ready_survey
 class ResourceInputs(unittest.TestCase):
     def setUp(self):
         self.temp=TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=Path(self.temp.name)
+        env=patch.dict(os.environ,{'PMRS_HOST_POOL_ROOT':str(self.root/'host-pool')});env.start();self.addCleanup(env.stop)
 
     def material(self,store,raw,title='Synthetic material'):
         return store.commit(changes.prepare_material_input(store.read_snapshot(),raw,title,'text/plain',blob_get=store.read_blob))['source_ref']
@@ -55,7 +57,7 @@ class ResourceInputs(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'injected'):
                 with resources.reserve(self.root,owner='failure',temporary_bytes=1,memory_bytes=1):raise RuntimeError('injected')
             with resources.reserve(self.root,owner='replacement',temporary_bytes=1,memory_bytes=1):pass
-        self.assertEqual((self.root/'.runtime/resources/reservations.json').read_text(),'{}')
+        self.assertEqual(resources.resource_status()['leases'],[])
         with resources.reserve(self.root,owner='one-worker',temporary_bytes=1,memory_bytes=1,max_preparations=1):
             with self.assertRaisesRegex(PMRSError,'RESOURCE_WAIT'):
                 with resources.reserve(self.root,owner='second-worker',temporary_bytes=1,memory_bytes=1,max_preparations=1):pass
@@ -100,7 +102,8 @@ class ResourceInputs(unittest.TestCase):
         task=store.read_snapshot()['tasks'][selected['task_id']]
         import json
         packet=json.loads(store.read_blob(task['input_packet_ref']))
-        self.assertEqual(packet['body_text'],{});self.assertEqual(packet['source_bytes_base64'],{})
+        self.assertNotIn('body_text',packet);self.assertNotIn('source_bytes_base64',packet)
+        self.assertEqual(packet['material_refs'],task['material_refs'])
         self.assertNotIn('report_files_base64',packet)
         work=store.root/'runs'/task['task_id']/'work';runner.materialize_task_inputs(store,task,work)
         self.assertTrue(runner.cleanup_task_inputs(store,task['task_id'])['protected'])
@@ -129,7 +132,11 @@ class ResourceInputs(unittest.TestCase):
         self.assertTrue((work/'packet.json').exists())
         # An original transport result arrives later. A failure to reclaim its
         # cache cannot undo the accepted result or manufacture a second call.
-        raw=demo.response(task,store.read_snapshot())
+        from copy import deepcopy
+        fixture_task=deepcopy(task)
+        fixture_task['report_context']['statement_bodies']={ref:store.read_blob(digest).decode()
+            for ref,digest in task['report_context'].get('statement_refs',{}).items()}
+        raw=demo.response(fixture_task,store.read_snapshot())
         execution.capture(store,request['request_id'],raw,execution_id=request['execution_id'])
         with patch('research_studio.runner.cleanup_task_inputs',side_effect=OSError('injected cache cleanup failure')):
             result=execution.recover(store,request['request_id'])
@@ -153,8 +160,8 @@ class ResourceInputs(unittest.TestCase):
         with patch('research_studio.runner.doctor',return_value={'ready':True,'binary':'/bin/true'}), \
              patch('research_studio.runner.immutable',side_effect=fail_command), \
              patch('research_studio.runner.subprocess.Popen',side_effect=AssertionError('No transport may start')):
-            with self.assertRaisesRegex(PMRSError,'RESOURCE_DISK_LOW'):
-                runner.CodexExecutor('/bin/true').execute(store,made['task_id'])
+            result=runner.CodexExecutor('/bin/true').execute(store,made['task_id'])
+            self.assertEqual((result['state'],result['code']),('RESOURCE_WAIT','RESOURCE_DISK_LOW'))
         self.assertEqual(store.read_snapshot()['requests'][made['request_id']]['execution_state'],'PREPARED')
         self.assertFalse((store.root/'runs'/made['task_id']/'work').exists())
-        self.assertEqual((store.root/'.runtime/resources/reservations.json').read_text(),'{}')
+        self.assertEqual(resources.resource_status()['leases'],[])

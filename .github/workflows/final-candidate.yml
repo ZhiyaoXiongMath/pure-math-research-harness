@@ -1,4 +1,4 @@
-name: PMRS 4.1 native product gate on Ubuntu 26.04
+name: PMRS 4.2 native product gate on Ubuntu 26.04
 on:
   workflow_dispatch:
     inputs:

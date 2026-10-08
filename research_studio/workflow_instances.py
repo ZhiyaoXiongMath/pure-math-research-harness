@@ -5,8 +5,8 @@ from .workflows.registry import REGISTRY, spec, validate_exit
 
 EVENT_FIELDS={'event_id','actor','capability_ref','project_id','instance_id','mission_id',
               'event_type','expected_scope_version','payload','related_change_ref'}
-EVENT_TYPES={'CREATE_INSTANCE','AUTHORIZE_MISSION','PAUSE','RESUME','CANCEL_REQUEST','RETIRE_CONSUMER',
-             'HANDOFF_PREPARED','HANDOFF_ADOPTED','REPORT_SELECTED','HUMAN_DECISION','RECONCILE_UNKNOWN','DISCOVERY_SCOPE_DEFINED'}
+EVENT_TYPES={'CREATE_INSTANCE','AUTHORIZE_MISSION','EXTEND_MISSION_BUDGET','PAUSE','RESUME','CANCEL_REQUEST','RETIRE_CONSUMER',
+             'REQUEST_CORRECTION','HANDOFF_PREPARED','HANDOFF_ADOPTED','REPORT_SELECTED','HUMAN_DECISION','RECONCILE_UNKNOWN','DISCOVERY_SCOPE_DEFINED'}
 
 def validate_report_first_actions(actions):
     require(type(actions) is list and all(type(action) is str and action in {'CONTINUE','END','ADOPT','ADOPT_HANDOFF'} for action in actions)
@@ -166,6 +166,22 @@ def apply_control(snapshot,e):
         policy['model_overrides']=model_policy.merge_overrides(existing,config['model_overrides'],reset_scopes=config.get('reset_scopes',[]),
                 workflow_kind=instance['kind'],capabilities=policy.get('model_capabilities'));policy.pop('model_override',None)
         policy['configuration_authorized']=True;policy['configuration_event_ref']=e['event_id']
+    elif kind=='EXTEND_MISSION_BUDGET':
+        instance=select_instance(s,iid);mid=instance.get('current_mission_id')
+        mission=s.get('missions',{}).get(mid)
+        require(set(p)=={'added_calls','reason'} and type(p['added_calls']) is int and 1<=p['added_calls']<=1000
+                and isinstance(p['reason'],str) and 0<len(p['reason'].strip())<=12000,
+                'AUTHORIZATION_REQUIRED','Authorize one to 1000 additional calls with a concrete reason.')
+        require(instance['status']!='ENDED' and mission and mission['status']=='ACTIVE' and e['mission_id']==mid,
+                'AUTHORIZATION_REQUIRED','Additional calls must belong to the current existing active mission.')
+        grant=s['budget_grants'][mission['budget_grant_id']];project=s['project_budget']
+        require(grant.get('explicit_unlimited') is not True and project.get('explicit_unlimited') is not True
+                and type(grant.get('max_calls')) is int and grant['max_calls']>=0
+                and type(project.get('max_calls')) is int and project['max_calls']>=0,
+                'AUTHORIZATION_REQUIRED','This operation extends existing finite mission and project budgets only.')
+        grant['max_calls']+=p['added_calls'];project['max_calls']+=p['added_calls']
+        # Exact frozen tasks, uncertainty, responsibility allowances and the
+        # human pause state are intentionally outside this budget operation.
     elif kind=='AUTHORIZE_MISSION':
         instance=select_instance(s,iid);m=deepcopy(p['mission']);b=deepcopy(p['budget'])
         require(instance['kind']!='SURVEY' or instance['status']!='ENDED','AUTHORIZATION_REQUIRED','An ended Survey requires a linked new instance')
@@ -207,7 +223,7 @@ def apply_control(snapshot,e):
                 'AUTHORIZATION_REQUIRED','Finite budget or explicit unlimited authorization required')
         require(b.get('budget_grant_id')==m.get('budget_grant_id'),'AUTHORIZATION_REQUIRED','Mission budget binding differs')
         if 'max_workers' in b:
-            require(type(b['max_workers']) is int and 1<=b['max_workers']<=4,'AUTHORIZATION_REQUIRED','Project concurrency must be explicitly bounded at one to four')
+            require(type(b['max_workers']) is int and 1<=b['max_workers']<=8,'AUTHORIZATION_REQUIRED','Project concurrency must be explicitly bounded at one to eight')
             s['max_workers']=b['max_workers']
         used=sum(r.get('reserved_calls',1) for r in s.get('requests',{}).values() if r['execution_state']!='CANCELLED_BEFORE_SEND')
         project_budget=s.setdefault('project_budget',{'max_calls':0})
@@ -277,6 +293,9 @@ def apply_control(snapshot,e):
         instance['discovery_scope']=new
         if new.get('phenomenon_ref'):instance['discovery_brief_ref']=new['phenomenon_ref']
         validate_discovery_scope(s,instance,required=False)
+    elif kind=='REQUEST_CORRECTION':
+        from .corrections import apply
+        apply(s,e)
     elif kind=='RETIRE_CONSUMER':
         require(p.get('binding_id') and p.get('reason'),'CONTROL_EVENT_INVALID','Exact consumer and reason required')
         s.setdefault('retired_consumers',{})[p['binding_id']]={'instance_id':iid,'event_id':e['event_id'],'reason':p['reason']}

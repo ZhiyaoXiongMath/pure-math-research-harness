@@ -19,18 +19,38 @@ def budget_remaining(snapshot,grant_id):
 
 def project_remaining(snapshot):
     budget=snapshot.get('project_budget',{'max_calls':0})
-    if budget.get('explicit_unlimited') is True:return float('inf')
+    if budget.get('explicit_unlimited') is True:return aggregate_project_remaining(snapshot)
+    return min(aggregate_project_remaining(snapshot),max(0,budget.get('max_calls',0)-sum(_cost(snapshot,r) for r in snapshot.get('requests',{}).values()
+        if r.get('budget_domain','SCIENCE')=='SCIENCE')))
+
+def aggregate_project_remaining(snapshot):
+    """An optional explicitly configured total includes every request domain."""
+    budget=snapshot.get('project_total_budget')
+    if not budget or budget.get('explicit_unlimited') is True:return float('inf')
     return max(0,budget.get('max_calls',0)-sum(_cost(snapshot,r) for r in snapshot.get('requests',{}).values()))
+
+
+def ordinary_preparations_since_account(snapshot):
+    count=snapshot.get('scheduler_state',{}).get('ordinary_preparations_since_account')
+    if count is not None:
+        require(type(count) is int and 0<=count<=8,'SCHEDULER_STATE_INVALID','Invalid native preparation age.')
+        return count
+    # Legacy snapshots have no durable chronological index in their task/event
+    # maps. Do not invent one from JSON key order. A bounded first accounting
+    # turn is conservative; the next PREPARE persists the exact new counter.
+    events=snapshot.get('execution_events',{})
+    return min(8,sum(e.get('event_type')=='PREPARE' for e in events.values()) if events else len(snapshot.get('tasks',{})))
 
 def plan(snapshot,authorized_instances,policy=None):
     policy=policy or {};workers=policy.get('max_workers',1)
-    require(type(workers) is int and 1<=workers<=4,'AUTHORIZATION_REQUIRED','Bounded worker limit must be between one and four')
+    require(type(workers) is int and 1<=workers<=8,'AUTHORIZATION_REQUIRED','Bounded worker limit must be between one and eight')
     require(workers<=snapshot.get('max_workers',1),'AUTHORIZATION_REQUIRED','Worker count exceeds project authorization')
     allowed=set(authorized_instances);actions=[];waits=[];ready=[]
     for iid in allowed:require(iid in snapshot.get('instances',{}),'INSTANCE_UNKNOWN',iid)
     active_count=sum(r['execution_state'] in {'RESERVED','SENT','UNKNOWN'} and r.get('unknown_disposition')!='ABANDON_UNKNOWN' for r in snapshot.get('requests',{}).values())
     seen_purposes=set()
     for rid,r in sorted(snapshot.get('requests',{}).items()):
+        if r.get('purpose')=='PROJECT_ASSISTANT':continue
         if r['instance_id'] not in allowed:continue
         status=r['execution_state'];purpose=r['purpose_key']
         ctx=snapshot.get('tasks',{}).get(r['task_id'],{}).get('report_context',{})
@@ -38,30 +58,41 @@ def plan(snapshot,authorized_instances,policy=None):
             waits.append({'request_id':rid,'code':'REPORT_ABANDONED'})
             if status in obligations.PENDING:seen_purposes.add(purpose)
             continue
-        if status=='CAPTURED' and not r.get('fenced') and snapshot['instances'][r['instance_id']]['status']=='ACTIVE':
+        if status=='PREPARED' and not ctx and r['mission_id']!=snapshot['instances'][r['instance_id']].get('current_mission_id'):
+            waits.append({'request_id':rid,'code':'SUPERSEDED_MISSION'});seen_purposes.add(purpose);continue
+        if ctx and status=='PREPARED':
+            try:
+                from .reports import dispatch_current
+                dispatch_current(snapshot,ctx)
+            except PMRSError as exc:
+                waits.append({'request_id':rid,'code':exc.code,'reason':exc.message})
+                seen_purposes.add(purpose);continue
+        from .reports import dispatch_authorized
+        dispatchable=dispatch_authorized(snapshot,ctx) if ctx else False
+        dispatchable=dispatchable or snapshot['instances'][r['instance_id']]['status']=='ACTIVE'
+        if status=='CAPTURED' and not r.get('fenced') and dispatchable:
             actions.append({'action':'RECOVER','request_id':rid,'reason':'PERSISTED_CAPTURE_FIRST'})
-        elif status=='PREPARED' and not r.get('fenced') and snapshot['instances'][r['instance_id']]['status']=='ACTIVE':
+        elif status=='PREPARED' and not r.get('fenced') and dispatchable:
             actions.append({'action':'REUSE','request_id':rid,'reason':'REUSE_FROZEN_REQUEST'})
         elif status in {'RESERVED','SENT','UNKNOWN'}:
             waits.append({'request_id':rid,'code':('UNKNOWN_ABANDONED_RESERVATION_RETAINED' if r.get('unknown_disposition')=='ABANDON_UNKNOWN' else 'UNKNOWN_REQUIRES_EVIDENCE') if status=='UNKNOWN' else 'EXISTING_REQUEST'})
         if status in obligations.PENDING:seen_purposes.add(purpose)
     for oid,o in sorted(snapshot.get('obligations',{}).items()):
+        if policy.get('only_obligation_ids') is not None and oid not in policy['only_obligation_ids']:continue
         d=o['definition']
         for consumer in d['consumer_bindings']:
             iid=consumer['instance_id']
             if iid not in allowed:continue
+            if consumer['mission_id']!=snapshot['instances'][iid].get('current_mission_id') and not consumer.get('report_context'):
+                continue
             if consumer['binding_id'] in snapshot.get('retired_consumers',{}):continue
             stage=consumer.get('stage_id');role=consumer.get('role')
             try:
                 role_spec=validate_assignment(stage,d['type'],role,consumer.get('entry_basis',{}))
-                if stage=='P7' and role=='SYNTHESIS' and consumer.get('entry_basis',{}).get('analysis_route')=='COMPARATIVE':
-                    branches=consumer['entry_basis'].get('branch_dispositions',{})
-                    for branch in ('LEARN','DIRECT'):
-                        binding=branches.get(branch)
-                        require(isinstance(binding,str) and any(t.get('mission_id')==consumer['mission_id'] and t.get('stage_id')=='P7' and t.get('role')==branch
-                            and any(x['binding_id']==binding for x in t.get('obligation_bindings',[]))
-                            and snapshot['requests'][t['request_id']].get('acceptance_state')=='ACCEPTED' for t in snapshot.get('tasks',{}).values()),
-                            'DEPENDENCY_PENDING','Comparative synthesis needs actual accepted branch work dispositions')
+                obligations.validate_branch_dispositions(snapshot,consumer)
+                if consumer.get('report_context'):
+                    from .reports import dispatch_current
+                    dispatch_current(snapshot,consumer['report_context'])
                 from .model_policy import resolve
                 if not resolve(spec(stage)['workflow_kind'],stage,role,consumer.get('work_purpose','DEFAULT'),require_capability=False)['call_model']:
                     waits.append({'obligation_id':oid,'binding_id':consumer['binding_id'],'state':'LOCAL','code':'NO_MODEL_OPERATION'});continue
@@ -70,21 +101,35 @@ def plan(snapshot,authorized_instances,policy=None):
                     waits.append({'obligation_id':oid,'binding_id':consumer['binding_id'],**decision});continue
                 mission=snapshot['missions'][consumer['mission_id']]
                 scope=mission['authorized_scope']
-                if scope.get('obligation_ids') and oid not in scope['obligation_ids'] and not scope.get('allow_derived_work') and not (d['type']=='REPORT' and scope.get('reports')):
+                from .reports import dispatch_budget
+                report_grant=dispatch_budget(snapshot,consumer)
+                if not report_grant and scope.get('obligation_ids') and oid not in scope['obligation_ids'] and not scope.get('allow_derived_work') and not (d['type']=='REPORT' and scope.get('reports')):
                     waits.append({'obligation_id':oid,'code':'AUTHORIZATION_REQUIRED'});continue
-                if scope.get('stage_ids') and stage not in scope['stage_ids']:
+                if not report_grant and scope.get('stage_ids') and stage not in scope['stage_ids']:
                     waits.append({'obligation_id':oid,'code':'AUTHORIZATION_REQUIRED'});continue
                 if decision['purpose_key'] in seen_purposes:continue
                 priority=0 if d['type']=='VERIFY' else 1 if consumer.get('unlocks') else 3 if d['type'] in {'REPORT','ACCOUNT'} else 2
                 ready.append({'obligation_id':oid,'definition_revision':d['definition_revision'],
                     'consumer':deepcopy(consumer),'instance_id':iid,'mission_id':consumer['mission_id'],
                     'stage_id':stage,'role':role,'stage_spec_digest':role_spec['stage_spec_digest'],
-                    'budget_grant_id':mission['budget_grant_id'],'priority':priority,
+                    'budget_grant_id':report_grant or mission['budget_grant_id'],'budget_domain':snapshot['budget_grants'][report_grant or mission['budget_grant_id']].get('budget_domain','SCIENCE'),'priority':priority,
                     'ready_since':consumer.get('ready_since',0),**decision})
             except PMRSError as exc:waits.append({'obligation_id':oid,'binding_id':consumer['binding_id'],'state':'REJECT','code':exc.code,'reason':exc.message})
+    # PREPARE increments/resets this counter under the native Store write lock.
+    # Task and event dictionaries are content-addressed maps, never a timeline.
+    if ordinary_preparations_since_account(snapshot)>=8:
+        for row in ready:
+            if row['priority']==3:row['priority']=-1
+    demand_by_grant={}
+    for row in ready:
+        gid=row['budget_grant_id'];demand_by_grant[gid]=demand_by_grant.get(gid,0)+1
+    science_demand=sum(min(n,budget_remaining(snapshot,gid)) for gid,n in demand_by_grant.items() if snapshot['budget_grants'][gid].get('budget_domain','SCIENCE')=='SCIENCE')
+    independent_demand=sum(min(n,budget_remaining(snapshot,gid)) for gid,n in demand_by_grant.items() if snapshot['budget_grants'][gid].get('budget_domain','SCIENCE')!='SCIENCE')
+    ready_demand=min(aggregate_project_remaining(snapshot),min(project_remaining(snapshot),science_demand)+independent_demand)
+    existing_demand=sum(r.get('purpose')!='PROJECT_ASSISTANT' and r['instance_id'] in allowed and r['execution_state'] in {'PREPARED','RESERVED','SENT','UNKNOWN'} and r.get('unknown_disposition')!='ABANDON_UNKNOWN' for r in snapshot.get('requests',{}).values())
     last=snapshot.get('scheduler_state',{}).get('last_instance_by_tier',{})
     chosen=[];budget_used={};selected_scopes=[];project_available=project_remaining(snapshot)
-    capacity=max(0,workers-active_count)
+    capacity=max(0,workers-active_count);science_selected=0;total_available=aggregate_project_remaining(snapshot)
     for tier in sorted({r['priority'] for r in ready}):
         queues={iid:sorted([r for r in ready if r['priority']==tier and r['instance_id']==iid],key=lambda r:(r['ready_since'],r['consumer']['binding_id'])) for iid in sorted(allowed)}
         order=[iid for iid in queues if queues[iid]]
@@ -95,7 +140,7 @@ def plan(snapshot,authorized_instances,policy=None):
             for iid in order:
                 if not queues[iid]:continue
                 row=queues[iid].pop(0);gid=row['budget_grant_id'];scope=row['consumer'].get('write_scope',[])
-                if len(chosen)>=capacity or len(chosen)>=project_available:
+                if len(chosen)>=capacity or len(chosen)>=total_available or row.get('budget_domain','SCIENCE')=='SCIENCE' and science_selected>=project_available:
                     waits.append({'obligation_id':row['obligation_id'],'code':'BUDGET_OR_WORKER_LIMIT'});continue
                 if budget_remaining(snapshot,gid)<=budget_used.get(gid,0):
                     waits.append({'obligation_id':row['obligation_id'],'code':'BUDGET_EXHAUSTED'});continue
@@ -103,8 +148,10 @@ def plan(snapshot,authorized_instances,policy=None):
                     waits.append({'obligation_id':row['obligation_id'],'code':'WRITE_CAS_CONFLICT'});continue
                 if row['purpose_key'] in seen_purposes:continue
                 chosen.append(row);seen_purposes.add(row['purpose_key']);budget_used[gid]=budget_used.get(gid,0)+1;selected_scopes.append(scope)
+                if row.get('budget_domain','SCIENCE')=='SCIENCE':science_selected+=1
     value={'schema':'pmrs.dispatch-plan/1','knowledge_commit':snapshot.get('knowledge_commit'),
            'actions':actions,'selected':chosen,'waits':waits,'max_workers':workers,
+           'ready_demand':min(workers,existing_demand+ready_demand),
            'state':'READY' if actions or chosen else 'WAIT','model_calls':0}
     value['plan_id']=identity(value,'PLAN-');return value
 
@@ -134,8 +181,7 @@ def commit_dispatch(store,dispatch_plan,*,policy=None):
                 consumer['visit_id']=visit['visit_id'];snapshot=store.read_snapshot()
         task_policy=policy or {}
         if task_policy.get('mission_policies'):
-            mission=snapshot['missions'][candidate['mission_id']]
-            task_policy=snapshot['budget_grants'][mission['budget_grant_id']].get('execution_policy',{})
+            task_policy=snapshot['budget_grants'][candidate['budget_grant_id']].get('execution_policy',{})
         task=tasks.freeze(store,snapshot,candidate,task_policy)
         e=execution.event('PREPARE',{'task':task,'candidate':candidate,'max_workers':dispatch_plan['max_workers']})
         receipt=store.commit_execution(e);prepared.append({'task_id':task['task_id'],'request_id':task['request_id'],'receipt':receipt})

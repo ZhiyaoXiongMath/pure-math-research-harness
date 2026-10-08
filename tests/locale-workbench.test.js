@@ -11,7 +11,7 @@ class Element{
   setAttribute(name,value){this.attributes[name]=String(value);}
 }
 test('new installation display defaults to English and all three stage families are translated',()=>{
-  assert.equal(L.getLocale(),'en');assert.equal(workflowStageLabel('P7'),'Obligation analysis');assert.equal(workflowStageLabel('S4'),'Readiness review');
+  assert.equal(L.getLocale(),'en');assert.equal(workflowStageLabel('P7'),'Method transfer & direct analysis');assert.equal(workflowStageLabel('S4'),'Readiness review');
   assert.deepEqual(Object.keys(L.messages.en).sort(),Object.keys(L.messages['zh-CN']).sort());
   for(const [prefix,count] of [['P',15],['D',6],['S',8]])for(let n=0;n<count;n++){assert.ok(L.messages.en[`stage.${prefix}${n}.name`]);assert.ok(L.messages['zh-CN'][`stage.${prefix}${n}.description`]);}
 });
@@ -27,4 +27,28 @@ test('unmarked source text stays verbatim and translated attributes use plain te
 });
 test('missing translations fall back to English without altering message identity',()=>{
   const saved=L.messages['zh-CN']['stage.S4.name'];delete L.messages['zh-CN']['stage.S4.name'];L.setLocale('zh-CN');assert.equal(L.render(L.message('stage.S4.name')),'Readiness review');L.messages['zh-CN']['stage.S4.name']=saved;assert.equal(L.render(L.message('stage.S4.name')),'就绪审查');L.setLocale('unknown');assert.equal(L.getLocale(),'en');
+});
+test('actual Guide renders copyable examples in both locales while user bodies remain raw',()=>{
+  const fs=require('node:fs'),vm=require('node:vm');
+  const source=fs.readFileSync(require.resolve('../research_studio/static/workbench.js'),'utf8');
+  const elSource=source.slice(source.indexOf('function el('),source.indexOf('\nfunction button(',source.indexOf('function el(')));
+  const helpSource=source.slice(source.indexOf('function help(){'),source.indexOf('\nfunction selectedInstanceRow(',source.indexOf('function help(){')));
+  class GuideElement extends Element{constructor(tag){super();this.tagName=tag;this.dataset={};}}
+  const box=new GuideElement('dialog');
+  const context={L,m:L.message,document:{createElement:tag=>new GuideElement(tag)},dialog:()=>box,button:()=>new GuideElement('button')};
+  L.setLocale('en');vm.runInNewContext(elSource+'\n'+helpSource+'\nhelp();',context);
+  const examples=['trw','tfdw','survey'].map(name=>box.children.find(n=>n.dataset?.guideSection===name).children.find(n=>n.tagName==='pre'));
+  for(const locale of ['en','zh-CN']){
+    L.setLocale(locale);
+    for(const [index,name] of ['trw','tfdw','survey'].entries()){
+      assert.equal(examples[index].textContent,L.translate('guide.'+name+'.input'));
+      assert.doesNotMatch(examples[index].textContent,/[\uE000\uE001]/);
+      assert.ok(examples[index].textContent.includes('\n'));
+    }
+  }
+  const assistant=box.children.find(n=>n.dataset?.guideSection==='assistant');assert.ok(assistant);assert.equal(assistant.children.filter(n=>n.tagName==='pre').length,2);
+  for(const locale of ['en','zh-CN']){L.setLocale(locale);assert.doesNotMatch(assistant.textContent,/[\uE000\uE001]/);assert.match(assistant.textContent,/gpt-6-astra/);assert.match(assistant.textContent,/UNKNOWN/);assert.ok(assistant.textContent.length>1200);}
+  const raw=vm.runInNewContext("el('pre',m('guide.trw.input'),'body')",context);
+  assert.equal(raw.textContent,L.message('guide.trw.input'));
+  L.setLocale('en');assert.equal(raw.textContent,L.message('guide.trw.input'));
 });

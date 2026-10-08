@@ -28,13 +28,14 @@ SCIENCE_MAPS = frozenset(('records', 'objects', 'sources',
 CONTROL_MAPS = frozenset(('instances', 'missions', 'visits', 'candidates', 'capabilities',
     'scope_versions', 'control_events', 'human_decisions', 'handoffs', 'obligations',
     'consumers', 'obligation_bindings', 'budget_grants', 'fences', 'active_reports', 'requests',
-    'retry_grants', 'retired_consumers', 'selected_reports', 'project_budget', 'handoff_adoptions', 'max_workers'))
+    'corrections', 'retry_grants', 'retired_consumers', 'selected_reports', 'project_budget', 'handoff_adoptions', 'max_workers'))
 EXECUTION_MAPS = frozenset(('tasks', 'requests', 'attempt_groups', 'budget_grants', 'leases',
     'execution_events', 'usage', 'obligations', 'consumers', 'obligation_bindings',
     'captures', 'responses', 'missions', 'visits', 'instances', 'fences', 'dispatch_plans',
-    'scheduler_state', 'review_executions', 'retry_grants','coverage_plans'))
-REPORT_MAPS = frozenset(('reports', 'report_events', 'active_reports', 'report_receipts'))
+    'round_deliveries', 'scheduler_state', 'review_executions', 'retry_grants','coverage_plans'))
+REPORT_MAPS = frozenset(('reports', 'report_events', 'active_reports', 'report_receipts','budget_grants'))
 from .survey import MAPS as SURVEY_MAPS
+from .assistant import MAPS as ASSISTANT_MAPS
 EPHEMERAL = frozenset(('knowledge_commit', '_head', '_snapshot_sequence'))
 
 
@@ -52,7 +53,7 @@ def _native_only(state):
 
 
 def initial_state(title, language=None, *, synthetic=False):
-    maps = (SCIENCE_MAPS | CONTROL_MAPS | EXECUTION_MAPS | REPORT_MAPS | SURVEY_MAPS) - {'relations'}
+    maps = (SCIENCE_MAPS | CONTROL_MAPS | EXECUTION_MAPS | REPORT_MAPS | SURVEY_MAPS | ASSISTANT_MAPS) - {'relations'}
     state = {name: {} for name in sorted(maps)}
     state.update(schema=SCHEMA_VERSION, project_id='P34F-'+secrets.token_hex(12),
         title=title, versions=dict(VERSIONS), language_policy=policy(language),
@@ -223,7 +224,7 @@ class Store:
         for key, item in delta.items():
             field = ('knowledge_delta_ref' if key in SCIENCE_MAPS else
                      'report_delta_ref' if key in REPORT_MAPS else
-                     'control_delta_ref' if key in CONTROL_MAPS | EXECUTION_MAPS | SURVEY_MAPS else 'registry_delta_ref')
+                     'control_delta_ref' if key in CONTROL_MAPS | EXECUTION_MAPS | SURVEY_MAPS | ASSISTANT_MAPS else 'registry_delta_ref')
             groups[field][key] = item
         sequence = 1 if previous is None else previous['sequence'] + 1
         events = deepcopy(events)
@@ -362,6 +363,10 @@ class Store:
     def commit_report(self, event):
         from .reports import apply_event
         return self._typed_commit(event, apply_event, REPORT_MAPS, 'Report')
+
+    def commit_assistant(self, event):
+        from .assistant import apply_event
+        return self._typed_commit(event,lambda state,e:apply_event(state,e,self.read_blob),ASSISTANT_MAPS,'Assistant')
 
     def put_blob(self, data):
         require(isinstance(data, bytes), 'BLOB_BYTES_REQUIRED', 'Content must be exact bytes')

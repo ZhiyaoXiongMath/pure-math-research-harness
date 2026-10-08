@@ -137,8 +137,12 @@ def doctor():
 
 class Renderer:
     def resource_estimate(self):
+        from .resources import PHASE_MEMORY
         _, files, total = self._cache_inventory()
-        return {'temporary_bytes':total + 256*1024**2, 'memory_bytes':256*1024**2,
+        # Finite process-tree measurements stay below 400 MiB including eight
+        # resident clients. Allow the bounded PDF/page/log buffers plus margin;
+        # this estimate is not the subprocess virtual-address-space limit.
+        return {'temporary_bytes':total + 256*1024**2, 'memory_bytes':PHASE_MEMORY['render'],
                 'cache_bytes':total, 'cache_files':len(files)}
 
     def _cache_inventory(self):
@@ -154,6 +158,13 @@ class Renderer:
         return cache,files,total
 
     def __call__(self,body,*,synthetic=False):
+        from .resources import reserve
+        estimate=self.resource_estimate()
+        with reserve(Path(tempfile.gettempdir()),owner='render-'+sha(body),phase='render',
+                     temporary_bytes=estimate['temporary_bytes'],memory_bytes=estimate['memory_bytes']):
+            return self._render(body,synthetic=synthetic)
+
+    def _render(self,body,*,synthetic=False):
         from .resources import hash_file, copy_file, disk_preflight
         text=validate_tex(body.decode());tex=(PREAMBLE+text+'\n\\end{document}\n').encode()
         bins={n:tool(n) for n in TOOLS};cache,files,total=self._cache_inventory()

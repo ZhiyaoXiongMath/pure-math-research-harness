@@ -29,17 +29,34 @@ def policy():
             'reserved_output_tokens':4096}
 
 
-def response(task,snapshot):
+def response(task,snapshot,*,blob_get=None):
     ops=[];evidence=[];role=task['role'];stage=task['stage_id']
+    prerequisite=bool(snapshot.get('synthetic_test_only') and stage in {'P1','P2','P3'} and
+        task.get('target_refs') and all(snapshot['records'][ref]['body_sha256']==sha(ARITHMETIC) for ref in task['target_refs']))
     if role.startswith('REPORT_'):
         from .reports import demo_payload
         payload_kind='REPORT_OUTPUT' if role=='REPORT_AUTHOR' else 'REPORT_REVIEW'
         return canonical({'schema':C.RESPONSE_SCHEMA,'task_id':task['task_id'],'request_id':task['request_id'],
-                          'payload_kind':payload_kind,'payload':demo_payload(task,snapshot)})
+                          'payload_kind':payload_kind,'payload':demo_payload(task,snapshot,blob_get=blob_get)})
     if stage.startswith('S'):
         from .survey import demo_response
         return demo_response(task,snapshot)
-    if task.get('independent'):
+    if prerequisite:
+        body={'P1':'Synthetic teaching conventions: n is an arbitrary integer. Addition and zero are the ordinary integer operation and its additive identity. The quantifier ranges over all integers; no hypothesis is weakened.',
+              'P2':'Synthetic teaching backward implication: to establish the original target it suffices to apply the additive identity axiom to an arbitrary integer n. This is a sufficient implication in the given integer structure, not an inference from finitely many examples.',
+              'P3':'Synthetic teaching route: fix an arbitrary integer n and apply the additive identity axiom directly. A sample computation alone would not cover the universal quantifier. The executable next question is whether that axiom gives n + 0 = n under exactly the original conventions.'}[stage]
+        loc=locator(body)
+        if stage=='P1':
+            ops=[{'op':'NEW','local_key':'prerequisite','kind':'Context','context_refs':[],'body':body,
+                  'data':{'definitions':[{'key':'integer_additive_identity','locator':loc}],'objects':[],
+                          'assumptions':[],'quantifiers':[],'conventions':[],'parent_context_refs':[]}}]
+        else:
+            ops=[{'op':'NEW','local_key':'prerequisite','kind':'Statement','context_refs':[],'body':body,
+                  'data':{'statement_locator':loc,'scope_context_refs':[],'hypothesis_locators':[loc],
+                          'conclusion_locators':[loc],'quantifier_locators':[loc],'form':'CONJECTURE',
+                          'representation':'AUTHORED','source_binding':None}}]
+        evidence=['local:prerequisite']
+    elif task.get('independent'):
         req=task.get('required_assurance')
         slots=[x for x in req['review_slots'] if role in x['allowed_roles']] if req else []
         if slots:
@@ -71,7 +88,7 @@ def response(task,snapshot):
         evidence=['local:argument']
     effects=[{'binding_id':b['binding_id'],'expected_definition_revision':b['expected_definition_revision'],
         'work_disposition':'ADDRESSED' if ops else 'NO_RESULT','resolution_proposal':'CANDIDATE_RESPONSE' if ops else 'UNRESOLVED',
-        'evidence_refs':evidence,'remaining_conditions':['Synthetic demonstration only; no real mathematical certification.'],
+        'evidence_refs':evidence,'remaining_conditions':[] if prerequisite else ['Synthetic demonstration only; no real mathematical certification.'],
         'blocker_proposals':[]} for b in task['obligation_bindings']]
     payload={'schema':C.CHANGE_SCHEMA,'task_id':task['task_id'],'request_id':task['request_id'],'base_knowledge_commit':task['knowledge_commit'],
         'read_set_digest':C.digest(task['read_set']),'query_guard_digest':C.digest(task['query_guards']),'write_guard_digest':C.digest(task['write_guards']),
@@ -82,7 +99,8 @@ def response(task,snapshot):
     return canonical({'schema':C.RESPONSE_SCHEMA,'task_id':task['task_id'],'request_id':task['request_id'],'payload_kind':'KNOWLEDGE_CHANGE','payload':payload})
 
 
-def executor():return FakeExecutor(response)
+def executor(*,blob_get=None):
+    return FakeExecutor(response if blob_get is None else lambda task,snapshot:response(task,snapshot,blob_get=blob_get))
 
 
 def scenario(kind):

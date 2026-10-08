@@ -154,12 +154,14 @@ def app_handler(workspace,bootstrap_token):
                 require(path in {'/api/session','/api/preferences','/api/survey','/api/workspace','/api/operations','/api/operation','/api/workflow-graph',
                     '/api/progress','/api/workflow-inputs','/api/settings','/api/capabilities','/api/download','/api/status',
                     '/api/current','/api/frontier','/api/sources','/api/history','/api/source-file','/api/diff',
-                    '/api/body','/api/reports','/api/report-file'},'ROUTE_NOT_FOUND','未找到页面。')
+                    '/api/body','/api/reports','/api/report-file','/api/assistant','/api/assistant-evidence'},'ROUTE_NOT_FOUND','未找到页面。')
                 if path=='/api/session':result={'csrf':session['csrf'],'workspace_id':workspace.workspace_id,**workspace.preferences()}
                 elif path=='/api/preferences':result=workspace.preferences()
                 elif path=='/api/workspace':result=workspace.list()
                 elif path=='/api/operations':result=workspace.operations(int(q.get('offset',0)),int(q.get('limit',50)))
                 elif path=='/api/operation':result=workspace.operation_status(q.get('key'),operation_id=q.get('id'))
+                elif path=='/api/assistant':result=workspace.assistant_status(q.get('project'),q.get('session_id'),int(q.get('offset',0)),int(q.get('limit',30)))
+                elif path=='/api/assistant-evidence':result=workspace.assistant_evidence(q.get('project'),q.get('session_id'))
                 elif path=='/api/workflow-graph':
                     from .activity import graph
                     from .model_policy import describe
@@ -201,11 +203,19 @@ def app_handler(workspace,bootstrap_token):
                         for row in rows:
                             entry=s['reports'].get(row['report_id'],{});row['failure_history']=entry.get('failure_history',[])
                             row['open_research_requests']=entry.get('open_research_requests',[])
+                            row['profiles']={name:{'revision':p['revision'],'body_sha256':p.get('body_sha256'),
+                                'raw_body_sha256':p.get('raw_body_sha256')} for name,p in entry.get('profiles',{}).items()}
+                            row['versions']=workspace.report_versions(q['project'],entry)
                             row['downloads']=[{'profile':name,'url':'/api/report-file?project='+q['project']+'&report='+row['report_id']+'&profile='+name+'&commit='+s['knowledge_commit']} for name,p in entry.get('profiles',{}).items() if p.get('render')]
                         result={'reports':rows,'commit':s['knowledge_commit']}
                     elif path=='/api/report-file':
                         from .report_catalog import check_files
                         entry=s['reports'][q['report']];check_files(store,entry);profile=entry['profiles'][q['profile']]
+                        if q.get('revision') is not None:
+                            revision=int(q['revision']);matches=[p for p in [*profile.get('history',[]),profile] if p['revision']==revision]
+                            require(len(matches)==1,'REPORT_REVISION_STALE','Select an available exact report revision.')
+                            profile=matches[0]
+                        require(bool(profile.get('render')),'REPORT_RENDER_REQUIRED','This revision has no rendered PDF yet.')
                         self.reply(200,store.read_blob(profile['render']['pdf_sha256']),'application/pdf');return
                     else:raise PMRSError('PATH_INVALID','未找到页面。')
                 self.reply(200,result)

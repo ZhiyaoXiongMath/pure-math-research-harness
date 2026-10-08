@@ -62,12 +62,16 @@ def live_check(task,snapshot,blob_get=None):
     for binding in task.get('obligation_bindings',[]):
         o=snapshot.get('obligations',{}).get(binding['obligation_id'])
         require(o and o['definition']['definition_revision']==binding['expected_definition_revision'],'STALE_OBLIGATION_DEFINITION',binding['obligation_id'])
+    report_authorized=False
+    if task.get('report_context'):
+        from .reports import dispatch_authorized
+        report_authorized=dispatch_authorized(snapshot,task)
     if task.get('instance_id'):
         instance=snapshot.get('instances',{}).get(task['instance_id'])
-        require(instance is not None and instance.get('status')=='ACTIVE','TASK_FENCED','Instance is not accepting new results; paused captures remain sealed')
+        require(instance is not None and (instance.get('status')=='ACTIVE' or report_authorized),'TASK_FENCED','Instance is not accepting new results; paused captures remain sealed')
     if task.get('mission_id'):
         mission=snapshot.get('missions',{}).get(task['mission_id'])
-        require(mission is not None and mission.get('status') not in ('ENDED','CANCELLED','DELIVERED'),'TASK_FENCED','Original mission no longer accepts results')
+        require(mission is not None and (mission.get('status') not in ('ENDED','CANCELLED','DELIVERED') or report_authorized),'TASK_FENCED','Original mission no longer accepts results')
     request=snapshot.get('requests',{}).get(task.get('request_id'),{})
     require(request.get('execution_state')!='CANCELLED' and not request.get('cancelled') and not request.get('fenced'),'TASK_FENCED','Request cancelled')
     return True

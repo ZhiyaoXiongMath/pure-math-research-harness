@@ -36,7 +36,7 @@ def parser():
         q=ss.add_parser(name);q.add_argument('project',type=Path);q.add_argument('--instance',required=True)
         if name=='activity':
             q.add_argument('--stage',choices=['S1','S2','S3','S4','S5'],required=True);q.add_argument('--intent',required=True)
-            q.add_argument('--max-calls',type=int,required=True);q.add_argument('--max-workers',type=int,default=1);q.add_argument('--model-overrides',type=Path)
+            q.add_argument('--max-calls',type=int,required=True);q.add_argument('--max-workers',type=int,choices=range(1,9),default=None,help='Project model slots (1–8); omitted keeps the saved limit; shared host pool is 10');q.add_argument('--model-overrides',type=Path)
             q.add_argument('--allow-reports',action='store_true',default=None)
             q.add_argument('--selected-refs',type=Path);q.add_argument('--source-refs',type=Path);q.add_argument('--role')
         if name=='retrieve':q.add_argument('--plan-ref',required=True)
@@ -46,6 +46,15 @@ def parser():
         if name=='plan':
             q.add_argument('--snapshot-ref',required=True);q.add_argument('--profile',choices=['minimal','thematic','lecture'],required=True)
             q.add_argument('--settings',type=Path)
+    planned=sub.add_parser('plan-work',help='Authorize one finite multi-branch research plan, without calling a model unless --run is given')
+    planned.add_argument('project',type=Path);planned.add_argument('--instance',required=True)
+    planned.add_argument('--intent',required=True);planned.add_argument('--items',type=Path,required=True,help='JSON list of exact stage/role duties with local keys, inputs and dependencies')
+    planned.add_argument('--mission',help='Append to this existing mission without increasing its budget')
+    planned.add_argument('--max-calls',type=int,default=8);planned.add_argument('--max-workers',type=int,choices=range(1,9),default=None)
+    planned.add_argument('--allow-reports',action='store_true');planned.add_argument('--run',action='store_true')
+    deferred=sub.add_parser('defer-work',help='Record an explicit reason for deferring one responsibility; never discard a pending request')
+    deferred.add_argument('project',type=Path);deferred.add_argument('--instance',required=True)
+    deferred.add_argument('--binding',required=True);deferred.add_argument('--reason',required=True)
     hf=sub.add_parser('handoff');hs=hf.add_subparsers(dest='operation',required=True)
     for name in ('prepare','adopt'):
         q=hs.add_parser(name);q.add_argument('project',type=Path);q.add_argument('--instance',required=True)
@@ -55,7 +64,7 @@ def parser():
         q=sub.add_parser(name);q.add_argument('project',type=Path)
         if name not in {'audit','rebuild-index','orphans','source','preflight','recover','ui'}:q.add_argument('--instance',required=name not in {'status'})
         if name=='authorize':q.add_argument('--mission',type=Path,required=True);q.add_argument('--budget',type=Path,required=True)
-        if name=='start':q.add_argument('--intent',required=True);q.add_argument('--max-calls',type=int,required=True);q.add_argument('--max-workers',type=int,default=1);q.add_argument('--model-overrides',type=Path)
+        if name=='start':q.add_argument('--intent',required=True);q.add_argument('--max-calls',type=int,required=True);q.add_argument('--max-workers',type=int,choices=range(1,9),default=None,help='Project model slots (1–8); omitted keeps the saved limit; shared host pool is 10');q.add_argument('--model-overrides',type=Path)
         if name=='configure':q.add_argument('--model-overrides',type=Path);q.add_argument('--reset-scopes',type=Path);q.add_argument('--reason',default='Explicit future task configuration')
         if name=='pause':q.add_argument('--reason',required=True)
         if name=='decide':
@@ -104,6 +113,17 @@ def execute(a):
         state=Store(a.out).read_snapshot()
         return {'path':str(a.out),'instance_id':next(iter(state['instances'])),'project_id':state['project_id'],'model_calls':0}
     store=Store(a.project)
+    if hasattr(a,'max_workers') and a.max_workers is None:a.max_workers=store.read_snapshot().get('max_workers',1)
+    if cmd=='defer-work':return e.defer_work(store,a.instance,a.binding,a.reason)
+    if cmd=='plan-work':
+        from .codex_client import policy
+        from .demo import policy as demo_policy
+        config=demo_policy() if store.read_snapshot()['synthetic_test_only'] else policy()
+        result=e.plan_work(store,a.instance,a.intent,loads(read(a.items)),mission_id=a.mission,
+            max_calls=a.max_calls,max_workers=a.max_workers,policy=config,allow_reports=a.allow_reports)
+        if not a.run:return result
+        from .demo import executor as demo_executor
+        return e.run_round(store,a.instance,executor=demo_executor() if store.read_snapshot()['synthetic_test_only'] else None)
     if cmd=='survey':
         from . import survey
         if a.operation=='status':return survey.status(store.read_snapshot(),a.instance)

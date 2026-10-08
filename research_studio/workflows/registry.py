@@ -66,8 +66,16 @@ def validate_assignment(stage_id, obligation_type, role, entry_basis, *, registr
         require(route in ROUTES, 'ANALYSIS_ROUTE_REQUIRED', 'Freeze the analysis route on the visit and request')
         require(role in ROUTES[route], 'STAGE_ROLE_FORBIDDEN', 'Role is outside the selected analysis route')
         if role == 'SYNTHESIS':
-            require(set(entry_basis.get('branch_dispositions', {})) >= {'LEARN', 'DIRECT'},
-                    'DEPENDENCY_PENDING', 'Comparative synthesis requires both independent dispositions')
+            branches = entry_basis.get('synthesis_branches')
+            if branches is not None:
+                require(isinstance(branches, list) and 2 <= len(branches) <= 32
+                        and {b.get('role') for b in branches} >= {'LEARN', 'DIRECT'}
+                        and all(b.get('stage_id') == 'P7' and b.get('binding_id') and b.get('obligation_id') for b in branches)
+                        and len({b['binding_id'] for b in branches}) == len(branches),
+                        'DEPENDENCY_PENDING', 'Freeze every selected transfer and direct branch for comparative synthesis')
+            else:
+                require(set(entry_basis.get('branch_dispositions', {})) >= {'LEARN', 'DIRECT'},
+                        'DEPENDENCY_PENDING', 'Comparative synthesis requires both independent dispositions')
     elif condition.startswith('SCOPED_SINGLE_'):
         requirement = entry_basis.get('consumer_requirement', {})
         require(obligation_type == 'VERIFY' and entry_basis.get('dependency_threshold') == 'SUPPORT_QUALIFIED'
@@ -106,8 +114,10 @@ def validate_exit(visit, disposition, registry=None):
 def prompt(stage_id, role, intent, registry=None):
     row = spec(stage_id, registry); contract = role_contract(stage_id, role, registry)
     sections = {name: '' for name in row['prompt_sections']}
+    from ..research_prompts import sections as scientific_sections
+    sections.update(scientific_sections(stage_id, role))
     sections['EXACT_TASK_INTENT'] = intent
-    sections['ROLE_DUTY_AND_BOUNDARIES'] = row['purpose'] + '. Role: ' + role + '.'
+    sections['ROLE_DUTY_AND_BOUNDARIES'] = 'Stage ' + stage_id + ', role ' + role + ': perform the explicit SCIENTIFIC_WORK for this exact task; preserve its input and result boundaries.'
     sections['EXPECTED_KNOWLEDGE_CHANGE'] = 'Allowed scientific kinds: ' + ', '.join(row['allowed_scientific_kinds']) + '. Zero records is valid when the actual attempt is accounted for.'
     sections['NO_AUTHORITY_PROMOTION'] = 'An accepted response is not proof certification. Preserve exact assumptions, quantifiers, unproved conditions and unchecked scope.'
     if contract['independent']:

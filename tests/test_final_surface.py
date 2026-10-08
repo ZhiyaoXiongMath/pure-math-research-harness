@@ -170,14 +170,14 @@ class WebApplicationTests(unittest.TestCase):
         with self.assertRaisesRegex(PMRSError,'ACTION_UNCERTAIN'):Workspace(self.w.root).action('create',p,key)
         self.assertEqual(self.w.list()['projects'],[])
 
-    def test_report_requested_during_research_runs_after_native_work_and_returns_json(self):
+    def test_report_requested_during_research_preserves_stale_snapshot_and_explicit_retry(self):
         created=self.create();entered=threading.Event();release=threading.Event();original=demo.response
         def delayed(task,snapshot):
             if not entered.is_set():entered.set();self.assertTrue(release.wait(15))
             return original(task,snapshot)
         with patch('research_studio.demo.response',side_effect=delayed):
             code,result,_=self.req('POST','/api/action/start',{'project':created['project'],'instance':created['instance_id'],
-                'intent':'Study the exact arithmetic example','max_calls':12,'max_workers':1,'report_first':True},key='start-report-1234567890123456')
+                'intent':'Study the exact arithmetic example','max_calls':16,'max_workers':1,'report_first':True},key='start-report-1234567890123456')
             self.assertEqual(code,200,result);self.assertTrue(entered.wait(10))
             code,result,_=self.req('POST','/api/action/report',{'project':created['project'],'instance':created['instance_id']},key='request-report-1234567890123456')
             self.assertEqual(code,200,result);self.assertTrue(result['report_id'].startswith('REPORT-'))
@@ -185,7 +185,16 @@ class WebApplicationTests(unittest.TestCase):
             deadline=time.monotonic()+60
             while self.w.live_jobs() and time.monotonic()<deadline:time.sleep(.02)
         self.assertFalse(self.w.live_jobs());job=self.w.jobs[(created['project'],created['instance_id'])]
-        self.assertEqual(job['state'],'WAITING',job);self.assertEqual(job['result']['state'],'COMPLETED_CURRENT_REPORT',job)
+        self.assertEqual(job['state'],'WAITING',job);self.assertEqual(job['result']['state'],'STALE_CANDIDATE',job)
+        store=self.w.project(created['project']);original_report=result['report_id'];old=store.read_snapshot()['reports'][original_report]
+        self.assertTrue(job['result']['requires_explicit_new_report'])
+        self.assertFalse(any(t.get('report_context',{}).get('report_id')==original_report for t in store.read_snapshot()['tasks'].values()))
+        code,replanned,_=self.req('POST','/api/action/report',{'project':created['project'],'instance':created['instance_id']},key='explicit-current-report-1234567890')
+        self.assertEqual(code,200,replanned);self.assertNotEqual(replanned['report_id'],original_report)
+        deadline=time.monotonic()+60
+        while self.w.live_jobs() and time.monotonic()<deadline:time.sleep(.02)
+        self.assertEqual(self.w.jobs[(created['project'],created['instance_id'])]['result']['state'],'COMPLETED_CURRENT_REPORT',self.w.jobs[(created['project'],created['instance_id'])])
+        self.assertEqual(store.read_snapshot()['reports'][original_report],old)
         code,rows,_=self.req('GET','/api/reports?project='+created['project']+'&instance='+created['instance_id'])
         self.assertEqual(code,200,rows);complete=[r for r in rows['reports'] if r['classification']=='COMPLETED_CURRENT_REPORT']
         self.assertEqual(len(complete),1);self.assertEqual(len(complete[0]['downloads']),2)

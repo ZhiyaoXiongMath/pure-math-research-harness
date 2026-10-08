@@ -27,7 +27,7 @@ def script(name):
 class PackagingUnitTests(unittest.TestCase):
     def test_required_inventory_has_explicit_active_and_retired_scopes(self):
         required = json.loads((ROOT / 'tests/coverage/required.json').read_text())
-        self.assertEqual(required['product_version'],'4.1.0')
+        self.assertEqual(required['product_version'],'4.2.0')
         cases={c['case_id'] for c in required['cases']}; retired={c['case_id'] for c in required['retired']['cases']}
         self.assertFalse(cases & retired)
         self.assertEqual(retired,{'R08','R09','R10','N27','N33','N34','N46'})

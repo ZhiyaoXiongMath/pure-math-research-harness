@@ -363,7 +363,7 @@ class RuntimeFaults(unittest.TestCase):
         from tempfile import TemporaryDirectory
         from unittest.mock import patch
         from research_studio import tasks
-        from research_studio.runner import recover_transport
+        from research_studio.runner import recover_transport,materialize_task_inputs
         from research_studio.util import immutable,canonical,sha
         with TemporaryDirectory() as d:
             store,policy=RuntimeIntegration().make_project(d+'/p',1);iid='I'
@@ -371,7 +371,8 @@ class RuntimeFaults(unittest.TestCase):
             task=tasks.load(store,tid);rid=task['request_id'];reservation=execution.reserve(store,rid,execution_kind='SYNTHETIC_TEST_ONLY')
             raw=RuntimeIntegration.no_result(task,store.read_snapshot());root=store.root/'runs'/tid
             command=['synthetic-no-process','--model','test-model'];immutable(root/'command.json',canonical(command))
-            for name,value in {'task.json':canonical(task),'packet.json':store.read_blob(task['input_packet_ref']),'prompt.md':store.read_blob(task['prompt_ref']),'response.json':raw}.items():immutable(root/'work'/name,value)
+            materialize_task_inputs(store,task,root/'work')
+            immutable(root/'work'/'response.json',raw)
             immutable(root/'capture.json',canonical({'task_id':tid,'request_id':rid,'execution_id':reservation['execution_id'],'task_sha256':sha(canonical(task)),'response_sha256':sha(raw),'command_sha256':sha(canonical(command))}))
             with patch('subprocess.Popen',side_effect=AssertionError('Recovery must never spawn')):
                 self.assertEqual(recover_transport(store,tid)['state'],'ACCEPTED');self.assertEqual(recover_transport(store,tid)['state'],'EXACT_DUPLICATE')
@@ -424,8 +425,8 @@ class CoverageExecution(unittest.TestCase):
             self.assertNotEqual(assurance.evaluate_requirement(s,sid,req,C.digest(req))['result'],'QUALIFIED')
             for tid in result['tasks']:
                 t=tasks.load(store,tid);packet=loads(store.read_blob(t['input_packet_ref']))
-                self.assertIn(s['records'][target]['body_sha256'],packet['body_text'])
-                self.assertNotIn(s['records'][arg]['body_sha256'],packet['body_text']);self.assertEqual(packet['partial_target_bodies'][arg]['state'],'PARTIAL_TARGET_BODY')
+                self.assertIn(s['records'][target]['body_sha256'],packet['material_refs'])
+                self.assertNotIn(s['records'][arg]['body_sha256'],packet['material_refs']);self.assertEqual(packet['partial_target_bodies'][arg]['state'],'PARTIAL_TARGET_BODY')
                 self.assertLess(t['context_budget']['input_tokens']+t['context_budget']['reserved_output_tokens']+t['context_budget']['safety_margin_tokens'],80001)
                 self.assertEqual(t['resource_policy_revision'],'test-small-2')
             self.assertEqual(len(scheduler.derive_coverage_integration(store,iid)),1)
@@ -832,10 +833,10 @@ class PersistentInputKeys(unittest.TestCase):
             self.assertFalse(O.condition_met(predicate,store.read_snapshot()))
             before=len(store.read_snapshot()['records']);store.commit(changes.prepare_material_input(store.read_snapshot(),raw,source_id='SO-required',media_type='text/plain',blob_get=store.read_blob))
             self.assertTrue(O.condition_met(predicate,store.read_snapshot()));self.assertEqual(len(store.read_snapshot()['records']),before)
-            iid=e.new_workflow(store,'TRW',target_ref=target)['instance_id'];e.start_round(store,iid,'Use the supplied exact original.',max_calls=1,policy=demo.policy())
+            iid=e.new_workflow(store,'TRW',target_ref=target)['instance_id'];e.start_round(store,iid,'Use the supplied exact original.',source_refs=['SO-required'],max_calls=1,policy=demo.policy())
             tid=e.prepare(store,iid)['prepared'][0]['task_id'];task=tasks.load(store,tid);packet=loads(store.read_blob(task['input_packet_ref']))
             import base64
-            self.assertEqual(base64.b64decode(packet['source_bytes_base64'][sha(raw)]),raw);self.assertIn('SO-required',{x['ref'] for x in task['input_manifest']})
+            self.assertEqual(store.read_blob(packet['material_refs'][sha(raw)]['sha256']),raw);self.assertIn('SO-required',{x['ref'] for x in task['input_manifest']})
 
     def test_reauthorizing_same_intent_does_not_refill_default_sample(self):
         from tempfile import TemporaryDirectory

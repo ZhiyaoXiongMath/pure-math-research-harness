@@ -111,7 +111,7 @@ class FinalReportTests(unittest.TestCase):
         result,fresh=self.run_report();self.assertEqual(result['code'],'UNKNOWN_REQUIRES_EVIDENCE');self.assertEqual(fresh.calls,0)
 
     def test_exact_shared_math_terminal_lf_only_and_old_body_preserved(self):
-        self.run_report(max_tasks=3);t=self.frozen_task();self.assertEqual(t['report_context']['profile'],'minimal');p=reports.demo_payload(t,self.state())
+        self.run_report(max_tasks=3);t=self.frozen_task();self.assertEqual(t['report_context']['profile'],'minimal');p=reports.demo_payload(t,self.state(),blob_get=self.store.read_blob)
         bad=deepcopy(p);bad['notation_tex']+=' Different meaning.'
         with self.assertRaisesRegex(PMRSError,'REPORT_MINIMAL_PARENT_MISMATCH'):self.preflight(t,bad)
         bad=deepcopy(p);bad['shared_statements'][0]['statement_tex']='A different quantified assertion.'
@@ -125,7 +125,7 @@ class FinalReportTests(unittest.TestCase):
         with self.assertRaisesRegex(PMRSError,'REPORT_REPAIR_LIMIT'):reports.revise(self.store,self.iid,'lecture','No unlimited repairs.')
 
     def test_strict_contract_no_science_tex_language_or_false_pass(self):
-        t=self.frozen_task();p=reports.demo_payload(t,self.state());bad=deepcopy(p);bad['operations']=[]
+        t=self.frozen_task();p=reports.demo_payload(t,self.state(),blob_get=self.store.read_blob);bad=deepcopy(p);bad['operations']=[]
         with self.assertRaisesRegex(PMRSError,'REPORT_NO_NEW_SCIENCE'):self.preflight(t,bad)
         bad=deepcopy(p);bad['coverage']={}
         with self.assertRaisesRegex(PMRSError,'REPORT_COVERAGE'):self.preflight(t,bad)
@@ -133,14 +133,14 @@ class FinalReportTests(unittest.TestCase):
         with self.assertRaisesRegex(PMRSError,'PDF_TEX_UNSUPPORTED'):self.preflight(t,bad)
         bad=deepcopy(p);bad['body']+=' 新写中文证明。'
         with self.assertRaisesRegex(PMRSError,'LANGUAGE_MISMATCH'):self.preflight(t,bad)
-        self.run_report(max_tasks=1);t=self.frozen_task();p=reports.demo_payload(t,self.state());self.assertEqual(t['role'],'REPORT_SEMANTIC')
+        self.run_report(max_tasks=1);t=self.frozen_task();p=reports.demo_payload(t,self.state(),blob_get=self.store.read_blob);self.assertEqual(t['role'],'REPORT_SEMANTIC')
         p['uncheckable']=['A premise remains unread.']
         with self.assertRaisesRegex(PMRSError,'REPORT_CONTRADICTORY_PASS'):self.preflight(t,p)
-        self.run_report(max_tasks=1);t=self.frozen_task();p=reports.demo_payload(t,self.state());self.assertEqual(t['role'],'REPORT_VISUAL');p['pages'][0]['sha256']='0'*64
+        self.run_report(max_tasks=1);t=self.frozen_task();p=reports.demo_payload(t,self.state(),blob_get=self.store.read_blob);self.assertEqual(t['role'],'REPORT_VISUAL');p['pages'][0]['sha256']='0'*64
         with self.assertRaisesRegex(PMRSError,'REPORT_PAGE_IDENTITY'):self.preflight(t,p)
 
     def test_independent_capture_cannot_be_forged_or_used_in_real_project(self):
-        self.run_report(max_tasks=1);t=self.frozen_task();payload=reports.demo_payload(t,self.state());raw=canonical({'schema':C.RESPONSE_SCHEMA,'task_id':t['task_id'],'request_id':t['request_id'],'payload_kind':'REPORT_REVIEW','payload':payload})
+        self.run_report(max_tasks=1);t=self.frozen_task();payload=reports.demo_payload(t,self.state(),blob_get=self.store.read_blob);raw=canonical({'schema':C.RESPONSE_SCHEMA,'task_id':t['task_id'],'request_id':t['request_id'],'payload_kind':'REPORT_REVIEW','payload':payload})
         reservation=execution.reserve(self.store,t['request_id'],execution_kind='SYNTHETIC_TEST_ONLY');execution.capture(self.store,t['request_id'],raw,execution_id=reservation['execution_id'])
         s=self.state();proposal=changes.validate_response(t,s,raw,'live',self.store.read_blob)
         forged=deepcopy(s);forged['review_executions'].clear()
@@ -246,8 +246,12 @@ class FinalReportTests(unittest.TestCase):
         rid=reports.create(self.store,self.iid);old=deepcopy(self.entry());before=report_catalog.fingerprint(self.state(),old['scope'])
         other=self.e.new_workflow(self.store,'TFDW',discovery_scope=demo.discovery_scope('Discover a separate matrix formulation.'))['instance_id']
         self.e.start_round(self.store,other,'Explore the separate formulation.',max_calls=3,policy=demo.policy());self.e.run_round(self.store,other,executor=demo.executor())
-        self.assertEqual(report_catalog.fingerprint(self.state(),old['scope']),before);self.assertEqual(reports.catalog(self.store,instance_id=self.iid)[0]['classification'],'RECOVERABLE_ACTIVE_CANDIDATE')
-        self.e.start_round(self.store,self.iid,'Investigate the exact original arithmetic target.',max_calls=3,policy=demo.policy());self.e.run_round(self.store,self.iid,executor=demo.executor())
+        self.assertEqual(report_catalog.fingerprint(self.state(),old['scope']),before)
+        self.assertIn(reports.catalog(self.store,instance_id=self.iid)[0]['classification'],('RECOVERABLE_ACTIVE_CANDIDATE','COMPLETED_CURRENT_REPORT'))
+        # The shared driver can fairly advance this already requested report.
+        # Its exact snapshot remains current while unrelated research runs.
+        old=deepcopy(self.state()['reports'][rid])
+        self.e.start_round(self.store,self.iid,'Investigate the exact original arithmetic target.',stage='P4',role='RESEARCH',max_calls=3,policy=demo.policy());self.e.run_round(self.store,self.iid,executor=demo.executor())
         self.assertNotEqual(report_catalog.fingerprint(self.state(),old['scope']),before)
         self.assertEqual(next(r for r in reports.catalog(self.store) if r['report_id']==rid)['classification'],'STALE_CANDIDATE');self.assertEqual(self.state()['reports'][rid],old)
         self.assertNotEqual(reports.create(self.store,self.iid),rid)

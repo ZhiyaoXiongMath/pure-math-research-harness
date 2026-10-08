@@ -1,6 +1,6 @@
 {
   "schema": "pmrs.required-test-inventory/1",
-  "product_version": "4.1.0",
+  "product_version": "4.2.0",
   "cases": [
     {
       "case_id": "K01",

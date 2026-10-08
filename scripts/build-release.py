@@ -23,8 +23,8 @@ PREFIX = 'Pure-Math-Research-Studio-' + VERSION
 SOURCE_DATE_EPOCH = int(os.environ.get('SOURCE_DATE_EPOCH', '315532800'))
 FIXED_TIME = datetime.datetime.fromtimestamp(max(SOURCE_DATE_EPOCH, 315532800), datetime.timezone.utc).timetuple()[:6]
 REQUIRED_DOCS = ['README.md', 'README.zh-CN.md', 'LICENSE', 'pyproject.toml',
-    'CHANGELOG-4.1.0.md', 'ARCHITECTURE-4.1.0.md',
-    'TEST-REPORT-4.1.0.md', 'UBUNTU-E2E-GUIDE.md', 'ACCEPTANCE-SCOPE-4.1.0.md']
+    'CHANGELOG-4.2.0.md', 'ARCHITECTURE-4.2.0.md', 'IMPLEMENTATION-NOTES-4.2.0.md',
+    'TEST-REPORT-4.2.0.md', 'UBUNTU-E2E-GUIDE.md', 'ACCEPTANCE-SCOPE-4.2.0.md']
 EXCLUDED = {'.git', '__pycache__', '.venv'}
 
 

@@ -423,12 +423,18 @@ def task_context(snapshot,iid,refs,source_refs,stage):
             'mapping':MAPPING,'stage':stage,'prior_review_verdicts_included':False}
 
 
-def start_activity(store,iid,stage=None,intent=None,*,max_calls=8,max_workers=1,policy=None,
+def start_activity(store,iid,stage=None,intent=None,*,max_calls=8,max_workers=None,policy=None,
                    selected_refs=None,source_refs=None,role=None,allow_reports=None,
-                   model_overrides=None,max_research_attempts=1,report_first_actions=None):
+                   model_overrides=None,max_research_attempts=1,report_first_actions=None,items=None):
     from . import obligations as O,workflow_instances as W,changes
     require(isinstance(intent,str) and intent.strip(),'AUTHORIZATION_REQUIRED','State the exact bounded Survey activity')
-    require(type(max_calls) is int and max_calls>=0 and type(max_workers) is int and 1<=max_workers<=4,
+    initial=store.read_snapshot();max_workers=initial.get('max_workers',1) if max_workers is None else max_workers
+    if items is not None:
+        from .research_plans import plan_work
+        return plan_work(store,iid,intent,items,max_calls=max_calls,max_workers=max_workers,policy=policy,
+            model_overrides=model_overrides,max_research_attempts=max_research_attempts,
+            allow_reports=bool(allow_reports),report_first_actions=report_first_actions)
+    require(type(max_calls) is int and max_calls>=0 and type(max_workers) is int and 1<=max_workers<=8,
             'AUTHORIZATION_REQUIRED','Finite model allowance and bounded concurrency required')
     require(type(max_research_attempts) is int and 1<=max_research_attempts<=max(1,max_calls),'AUTHORIZATION_REQUIRED','Bounded responsibility attempts required')
     s=store.read_snapshot();instance=_instance(s,iid);require(instance['status']!='ENDED','AUTHORIZATION_REQUIRED','Create a linked paused Survey to update an ended instance')
@@ -813,3 +819,57 @@ def prepare_reading_sources(store,iid,source_refs):
         details.update(source_ref=ref,material_sha256=source['blob_hash'],instance_id=iid,text_sha256=sha(text) if text else None,text_source_ref=text_ref)
         store.commit_survey(event(store.read_snapshot(),iid,'SOURCE_REGISTERED',details))
     return {'source_refs':list(source_refs),'model_calls':0}
+
+
+def plan_consumer(store,snapshot,instance,row,consumer,dependencies):
+    """Prepare an explicit member of one bounded Survey batch authorization."""
+    stage=row['stage'];role=row['role'];iid=instance['instance_id']
+    require(stage in {'S1','S2','S3','S4'},'SURVEY_ACTIVITY_INVALID','Batch research uses S1–S4; freezing and writing keep their native host/report paths')
+    refs=list(row['scope']['target_refs']);sources=list(consumer.get('source_refs',[]))
+    sources=sorted(set(sources)|{r for r in dependency_closure(snapshot,iid,refs) if r in snapshot['sources']})
+    if stage=='S2':require(bool(sources),'SURVEY_SOURCE_REQUIRED','Each reading branch requires its exact original material package')
+    if stage=='S4':require(bool(refs or dependencies),'SURVEY_SELECTION_EMPTY','Review must name exact knowledge or its explicitly planned producing responsibilities')
+    if stage in {'S2','S3','S4'} and sources:prepare_reading_sources(store,iid,sources)
+    questions=row['item'].get('question_ids',instance['survey_scope']['questions'])
+    require(isinstance(questions,list) and questions and set(questions)<=set(instance['survey_scope']['questions']),
+            'SURVEY_SELECTION_INVALID','Batch item questions must be an exact subset of the authorized Survey scope')
+    c=deepcopy(consumer);c['source_refs']=sources
+    c['scope'].update({'survey_scope':deepcopy(instance['survey_scope']),'question_ids':list(questions)})
+    c['entry_basis']['survey_stage']=stage
+    c['entry_basis']['survey_plan_selection']={'selected_refs':refs,'source_refs':sources,'question_ids':list(questions),
+        'include_dependency_evidence':bool(dependencies)}
+    if role=='RECONSTRUCT':c['scope']['declared_purpose']='SUBSTANTIVE_MATHEMATICAL_RECONSTRUCTION'
+    # Context is refreshed only at native freezing, after exact declared inputs
+    # arrive. This does not add responsibilities, authorization or model calls.
+    c['survey_context']=task_context(store.read_snapshot(),iid,refs,sources,stage)
+    return c
+
+
+def refresh_task_consumer(snapshot,consumer):
+    """Bind arrived dependency evidence at freezing, not at plan registration."""
+    c=deepcopy(consumer);selection_spec=c.get('entry_basis',{}).get('survey_plan_selection')
+    if not selection_spec:return c
+    from .obligations import dependency_inputs
+    oid=next((oid for oid,o in snapshot['obligations'].items()
+              if any(b['binding_id']==c['binding_id'] for b in o['definition']['consumer_bindings'])),None)
+    require(oid is not None,'OBLIGATION_INVALID','Survey batch consumer is not native')
+    deps=dependency_inputs(snapshot,snapshot['obligations'][oid]['definition']) if selection_spec['include_dependency_evidence'] else []
+    refs=sorted(set(selection_spec['selected_refs'])|{r for r in deps if r in snapshot['records']})
+    sources=set(selection_spec['source_refs'])
+    sources.update(r for r in dependency_closure(snapshot,c['instance_id'],refs) if r in snapshot['sources'])
+    # A reading result need not invent a SourceEvidence record merely to pass its
+    # exact original material package to a declared downstream organizer.
+    for dep in snapshot['obligations'][oid]['definition']['dependency_bindings']:
+        upstream=snapshot['obligations'].get(dep.get('binding_ref'),{})
+        for binding in upstream.get('definition',{}).get('consumer_bindings',[]):
+            if binding.get('binding_id')==dep.get('binding_id') and binding.get('mission_id')==c['mission_id']:
+                sources.update(binding.get('entry_basis',{}).get('survey_plan_selection',{}).get('source_refs',[]))
+    c['input_refs']=sorted(set(c.get('input_refs',[]))|set(refs));c['source_refs']=sorted(set(c.get('source_refs',[]))|sources)
+    ctx=task_context(snapshot,c['instance_id'],refs,sorted(sources),c['stage_id'])
+    ctx['scope']['questions']=list(selection_spec['question_ids'])
+    c['survey_context']=ctx;c['entry_basis']['survey_scope_fingerprint']=ctx['scope_fingerprint']
+    if c['stage_id']=='S4':require(bool(refs),'SURVEY_SELECTION_EMPTY','The planned organization produced no selected knowledge; readiness remains open')
+    if c['stage_id']=='S3':
+        c['write_guards']=[{'object_id':oid,'expected_parent':obj['selected_revision']}
+            for oid,obj in sorted(snapshot['objects'].items()) if obj.get('selected_revision') in refs]
+    return c

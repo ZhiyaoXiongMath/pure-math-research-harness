@@ -44,8 +44,11 @@ def purpose(snapshot, obligation, consumer, role):
     return identity({'responsibility':responsibility_key(snapshot,obligation,consumer),'role':role}, 'PURPOSE-')
 
 def dependency_inputs(snapshot,definition):
+    from .corrections import resolve_dependency
     refs=set()
-    for dep in definition.get('dependency_bindings',[]):
+    for original in definition.get('dependency_bindings',[]):
+        dep=resolve_dependency(snapshot,original)
+        if dep is None:continue
         ref=dep.get('binding_ref')
         if ref in snapshot.get('records',{}):refs.add(ref)
         if ref in snapshot.get('obligations',{}):
@@ -88,12 +91,21 @@ def validate_condition(condition):
     walk(condition,1); return condition
 
 def dependency_met(snapshot, dep):
+    from .corrections import resolve_dependency
+    dep=resolve_dependency(snapshot,dep)
+    if dep is None:return False
     threshold=dep.get('threshold')
     require(threshold in THRESHOLDS, 'DEPENDENCY_THRESHOLD_INVALID', str(threshold))
     ref=dep.get('binding_ref'); scope=dep.get('scope',{})
     if threshold=='ARTIFACT_AVAILABLE':
         return ref in snapshot.get('records',{}) or ref in snapshot.get('artifacts',{}) or bool(snapshot.get('obligations',{}).get(ref,{}).get('projection',{}).get('evidence_refs'))
     if threshold=='WORK_DISPOSITION_RECORDED':
+        if dep.get('binding_id'):
+            bid=dep['binding_id']
+            if dep.get('allow_deferred') and bid in snapshot.get('retired_consumers',{}):return True
+            return any(r.get('acceptance_state')=='ACCEPTED'
+                and any(b.get('binding_id')==bid for b in snapshot.get('tasks',{}).get(r['task_id'],{}).get('obligation_bindings',[]))
+                for r in snapshot.get('requests',{}).values())
         p=snapshot.get('obligations',{}).get(ref,{}).get('projection',{})
         return bool(p.get('attempt_refs')) or p.get('work_state')=='DEFERRED'
     if threshold=='HUMAN_DECISION_RECORDED':
@@ -143,11 +155,13 @@ def eligible(snapshot, obligation, consumer, role, *, method_ref=None):
     result=keys(snapshot,obligation,consumer,role,method_ref)
     def wait(code, **extra):return {**result,'state':'WAIT','code':code,**extra}
     iid=consumer['instance_id']; instance=snapshot.get('instances',{}).get(iid,{})
-    if instance.get('status')!='ACTIVE':return wait('INSTANCE_PAUSED')
+    from .reports import dispatch_authorized
+    report_authorized=bool(consumer.get('report_context')) and dispatch_authorized(snapshot,consumer)
+    if instance.get('status')!='ACTIVE' and not report_authorized:return wait('INSTANCE_PAUSED')
     if consumer.get('report_context') and snapshot.get('reports',{}).get(consumer['report_context']['report_id'],{}).get('status')=='ABANDONED':
         return wait('REPORT_ABANDONED')
     mission=snapshot.get('missions',{}).get(consumer.get('mission_id'),{})
-    if mission.get('status')!='ACTIVE':return wait('AUTHORIZATION_REQUIRED')
+    if mission.get('status')!='ACTIVE' and not report_authorized:return wait('AUTHORIZATION_REQUIRED')
     if consumer.get('retired') or p['work_state'] in {'DEFERRED','RETIRED_WITH_REASON'}:return wait('CONSUMER_INACTIVE')
     if p.get('consumer_resolutions',{}).get(consumer['binding_id'])=='SATISFIED_FOR_CONSUMER':return wait('CONSUMER_SATISFIED')
     for request in snapshot.get('requests',{}).values():
@@ -190,3 +204,117 @@ def validate_graph(items):
             if dep.get('binding_ref') in items:walk(dep['binding_ref'])
         visiting.remove(oid); done.add(oid)
     for oid in items:walk(oid)
+
+
+def branch_context(snapshot, consumer):
+    """Actual dispositions for exact selected bindings, never a role-count proxy.
+
+    This small context carries the original attempts, open conditions and source
+    identities. Native evidence records still enter the ordinary premise closure.
+    It is for mathematical synthesis, not independent review verdict prompting.
+    """
+    selected = consumer.get('entry_basis', {}).get('synthesis_branches', [])
+    result = []
+    from .corrections import resolve_dependency
+    for declared in selected:
+        resolved=resolve_dependency(snapshot,{'binding_ref':declared['obligation_id'],'binding_id':declared['binding_id'],
+                                             'threshold':'WORK_DISPOSITION_RECORDED'})
+        require(resolved is not None,'DEPENDENCY_PENDING','The selected correction chain is ambiguous or cyclic')
+        branch={**declared,'obligation_id':resolved['binding_ref'],'binding_id':resolved['binding_id']}
+        if resolved.get('correction_chain'):
+            branch.update(original_binding_id=declared['binding_id'],correction_chain=resolved['correction_chain'])
+        oid, bid = branch['obligation_id'], branch['binding_id']
+        o = snapshot.get('obligations', {}).get(oid, {})
+        bindings = [c for c in o.get('definition', {}).get('consumer_bindings', [])
+                    if c['binding_id'] == bid and c['mission_id'] == consumer['mission_id']
+                    and c['instance_id'] == consumer['instance_id']]
+        require(len(bindings) == 1 and bindings[0]['stage_id'] == branch['stage_id']
+                and bindings[0]['role'] == branch['role'], 'DEPENDENCY_PENDING', 'Selected branch identity differs from its actual duty')
+        requests = [r for r in snapshot.get('requests', {}).values()
+                    if r.get('mission_id') == consumer['mission_id'] and r.get('acceptance_state') == 'ACCEPTED'
+                    and any(b['binding_id'] == bid for b in snapshot.get('tasks', {}).get(r['task_id'], {}).get('obligation_bindings', []))]
+        ids = {r['request_id'] for r in requests}
+        accounts = [deepcopy(a) for a in o.get('projection', {}).get('attempt_accounts', []) if a['request_id'] in ids]
+        retired = snapshot.get('retired_consumers', {}).get(bid)
+        evidence = set()
+        for r in requests:
+            # Only effects for this exact branch contribute evidence. Older
+            # attempts under another mission cannot silently satisfy this one.
+            for ref in o.get('projection', {}).get('evidence_refs', []):
+                if any(p.get('record_ref') == ref and p.get('task_id') == r['task_id']
+                       for p in snapshot.get('production_events', {}).values()):evidence.add(ref)
+        result.append({**deepcopy(branch), 'accepted_requests': [{'request_id':r['request_id'], 'task_id':r['task_id'],
+                       'capture_ref':r.get('capture_ref')} for r in sorted(requests,key=lambda r:r['request_id'])],
+                       'attempt_accounts':accounts, 'evidence_refs':sorted(evidence),
+                       'retirement':deepcopy(retired),
+                       'disposition':'RECORDED' if requests and accounts else 'DEFERRED' if retired else 'PENDING'})
+    return result
+
+
+def validate_branch_dispositions(snapshot, consumer):
+    basis = consumer.get('entry_basis', {})
+    if 'synthesis_branches' in basis:
+        for branch in branch_context(snapshot, consumer):
+            require(branch['disposition'] == 'RECORDED' or
+                    branch['disposition'] == 'DEFERRED' and branch.get('required') is False,
+                    'DEPENDENCY_PENDING', 'Every selected branch needs its actual accepted attempt or an explicitly permitted reasoned deferral')
+        return
+    if consumer.get('stage_id') == 'P7' and consumer.get('role') == 'SYNTHESIS' and basis.get('analysis_route') == 'COMPARATIVE':
+        for role in ('LEARN', 'DIRECT'):
+            bid = basis.get('branch_dispositions', {}).get(role)
+            require(isinstance(bid,str) and any(t.get('mission_id') == consumer['mission_id'] and t.get('stage_id') == 'P7'
+                    and t.get('role') == role and any(x['binding_id'] == bid for x in t.get('obligation_bindings', []))
+                    and snapshot['requests'][t['request_id']].get('acceptance_state') == 'ACCEPTED'
+                    for t in snapshot.get('tasks', {}).values()),
+                    'DEPENDENCY_PENDING', 'Comparative synthesis needs actual accepted branch work dispositions')
+
+
+def task_plan_context(snapshot, consumer):
+    """Small exact upstream mathematical accounts, excluding review verdicts.
+
+    A gap account is real scientific input even when it produced no new record.
+    Independent tasks still never receive an upstream independent review verdict.
+    """
+    from .workflows.registry import INDEPENDENT
+    basis=consumer.get('entry_basis',{})
+    if not basis.get('research_plan'):return None
+    owner=next((o for o in snapshot.get('obligations',{}).values()
+                if any(c['binding_id']==consumer['binding_id'] for c in o['definition']['consumer_bindings'])),None)
+    if owner is None:return None
+    selected=[]
+    from .corrections import resolve_dependency
+    for original in owner['definition']['dependency_bindings']:
+        dep=resolve_dependency(snapshot,original)
+        if dep is None:continue
+        upstream=snapshot.get('obligations',{}).get(dep.get('binding_ref'),{})
+        for c in upstream.get('definition',{}).get('consumer_bindings',[]):
+            if c['binding_id']!=dep.get('binding_id') or c['mission_id']!=consumer['mission_id']:continue
+            if consumer['role'] in INDEPENDENT and c['role'] in INDEPENDENT:continue
+            selected.append({'key':c.get('entry_basis',{}).get('research_plan',{}).get('branch_key',c['binding_id']),
+                'obligation_id':dep['binding_ref'],'binding_id':c['binding_id'],'stage_id':c['stage_id'],'role':c['role'],
+                'required':not dep.get('allow_deferred',False)})
+    selected=list({b['binding_id']:b for b in selected}.values())
+    shadow=deepcopy(consumer);shadow.setdefault('entry_basis',{})['synthesis_branches']=selected
+    result={'plan':deepcopy(basis['research_plan']), 'dependency_work':branch_context(snapshot,shadow),
+            'synthesis_work':branch_context(snapshot,consumer) if consumer.get('role')=='SYNTHESIS' else [],
+            'independent_review_verdicts_excluded':consumer.get('role') in INDEPENDENT}
+    if basis.get('autoflow'):
+        result['reused_prerequisites']=deepcopy(basis['autoflow'].get('reused_work',{}))
+    if consumer.get('stage_id')=='P11':
+        # The global account must see actual failures and unperformed duties,
+        # including work which was not a dependency of the successful route.
+        global_branches=[b for b in basis['research_plan']['selected_branches'] if b['binding_id']!=consumer['binding_id']]
+        shadow['entry_basis']['synthesis_branches']=global_branches
+        result['global_gap_inventory']=branch_context(snapshot,shadow)
+        for branch in result['global_gap_inventory']:
+            if branch['role'] in INDEPENDENT:
+                branch['attempt_accounts']=[];branch['evidence_refs']=[]
+                branch['review_verdict_excluded']=True
+    return result
+
+
+def plan_input_refs(snapshot,consumer):
+    """Exact extra mathematical evidence needed by a global P11 account."""
+    if consumer.get('stage_id')!='P11':return []
+    context=task_plan_context(snapshot,consumer) or {}
+    return sorted({ref for b in context.get('global_gap_inventory',[]) for ref in b['evidence_refs']})

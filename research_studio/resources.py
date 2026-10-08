@@ -1,4 +1,4 @@
-"""Small bounded preparation helpers; no scientific policy or host limits change."""
+"""Shared physical-resource admission; estimates are not OS process limits."""
 from contextlib import contextmanager
 from pathlib import Path
 import fcntl
@@ -136,7 +136,7 @@ def bounded_canonical(value, max_bytes=SERIALIZED_BYTES, *, code='RESOURCE_LIMIT
 
 
 def disk_preflight(path, temporary_bytes):
-    require(type(temporary_bytes) is int and 0 <= temporary_bytes <= TOTAL_TEMPORARY_BYTES,
+    require(type(temporary_bytes) is int and 0 <= temporary_bytes,
             'RESOURCE_LIMIT', 'Temporary preparation budget is outside the supported range.')
     path = Path(path)
     while not path.exists(): path = path.parent
@@ -146,42 +146,100 @@ def disk_preflight(path, temporary_bytes):
     return {'free_bytes': free, 'temporary_bytes': temporary_bytes, 'margin_bytes': DISK_MARGIN_BYTES}
 
 
-def _process_start(pid):
-    try: return Path('/proc/' + str(pid) + '/stat').read_text().rsplit(')', 1)[1].split()[19]
-    except (OSError, IndexError): return None
+def memory_available():
+    """Linux physical availability, including reclaimable cache, without rlimits."""
+    values={}
+    try:
+        for line in Path('/proc/meminfo').read_text().splitlines():
+            name,raw=line.split(':',1);values[name]=int(raw.strip().split()[0])*1024
+    except (OSError,ValueError,IndexError):
+        raise PMRSError('RESOURCE_WAIT','Cannot estimate available memory; existing requests are preserved.')
+    require('MemAvailable' in values and 'MemTotal' in values,'RESOURCE_WAIT','Physical memory availability is unavailable.')
+    return {'available':values['MemAvailable'],'total':values['MemTotal'],
+            'margin':min(2*1024*MIB,max(256*MIB,values['MemTotal']//20))}
+
+
+PHASE_MEMORY={'prepare':MAX_PREPARATION_MEMORY,'client':96*MIB,'capture':256*MIB,
+              'admission':512*MIB,'render':1024*MIB,'disk':0}
+
+
+def _physical_clean(rows):
+    from .host_pool import alive
+    for token,row in list(rows.items()):
+        if not alive(row):
+            if row.get('phase')=='disk' and row.get('owner','').startswith('work-'):
+                try:
+                    from .store import Store
+                    snapshot=Store(Path(row['root'])).read_snapshot();task=snapshot.get('tasks',{}).get(row['owner'][5:],{})
+                    state=snapshot.get('requests',{}).get(task.get('request_id'),{}).get('execution_state')
+                    if state in {'RESERVED','SENT','UNKNOWN','CAPTURED'}:row['persistent']=True
+                except (PMRSError,OSError,ValueError):
+                    # A disappearing native store is not permission to discard
+                    # a disk promise attached to potentially sent evidence.
+                    row['persistent']=True
+            if row.get('persistent'):
+                row['memory_bytes']=0;row['phase']='disk'
+            else:rows.pop(token)
 
 
 @contextmanager
-def reserve(root, *, owner, temporary_bytes, memory_bytes, max_preparations=MAX_PREPARATIONS):
-    """Project-local OS-locked reservations; stale process leases are reclaimable."""
-    require(type(max_preparations) is int and 1<=max_preparations<=MAX_PREPARATIONS,'RESOURCE_LIMIT','Preparation concurrency must respect the existing project limit, at most two.')
-    require(isinstance(owner, str) and 0 < len(owner) <= 200, 'RESOURCE_LIMIT', 'A bounded preparation owner is required.')
-    require(type(temporary_bytes) is int and 0 <= temporary_bytes <= MAX_TEMPORARY_BYTES
-            and type(memory_bytes) is int and 0 <= memory_bytes <= MAX_PREPARATION_MEMORY,
-            'RESOURCE_LIMIT', 'This preparation exceeds the supported per-task resource budget.')
-    folder = safe_path(Path(root), '.runtime/resources'); folder.mkdir(parents=True, exist_ok=True)
-    lock_path = folder / 'reservations.lock'; ledger = folder / 'reservations.json'
-    token = uuid.uuid4().hex; pid = os.getpid(); start = _process_start(pid)
-    require(start is not None, 'RESOURCE_WAIT', 'Cannot establish this preparation process identity.')
-    @contextmanager
-    def locked():
-        fd = os.open(lock_path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
-        with os.fdopen(fd, 'a+b') as lock:
-            fcntl.flock(lock, fcntl.LOCK_EX)
-            rows = json.loads(read(ledger, 65536)) if ledger.exists() else {}
-            rows = {k: v for k, v in rows.items() if _process_start(v['pid']) == v['process_start']}
-            yield rows
-            atomic(ledger, canonical(rows))
-    with locked() as rows:
-        require(len(rows) < max_preparations and sum(r['memory_bytes'] for r in rows.values()) + memory_bytes <= TOTAL_PREPARATION_MEMORY
-                and sum(r['temporary_bytes'] for r in rows.values()) + temporary_bytes <= TOTAL_TEMPORARY_BYTES,
-                'RESOURCE_WAIT', 'Other preparations hold the available resource budget. Wait for them to finish, then resume this original request.')
-        disk_preflight(root, sum(r['temporary_bytes'] for r in rows.values()) + temporary_bytes)
-        rows[token] = {'pid': pid, 'process_start': start, 'owner': owner, 'temporary_bytes': temporary_bytes, 'memory_bytes': memory_bytes}
-    try:
-        yield {'token': token, 'temporary_bytes': temporary_bytes, 'memory_bytes': memory_bytes}
+def reserve(root, *, owner, temporary_bytes, memory_bytes, max_preparations=MAX_PREPARATIONS, phase='prepare'):
+    """Shared phase lease; only short preparation consumes the two prep slots.
+
+    Disk is accounted by st_dev, across projects and processes. A caller retaining
+    uncertain working evidence sets lease['retain']=True; its disk lease survives
+    process exit until cleanup releases that exact owner. Physical memory does not.
+    """
+    from .host_pool import ledger,process_start
+    require(phase in PHASE_MEMORY,'RESOURCE_LIMIT','Unknown physical resource phase.')
+    require(type(max_preparations) is int and 1<=max_preparations<=MAX_PREPARATIONS,'RESOURCE_LIMIT','Preparation concurrency must be one or two.')
+    require(isinstance(owner,str) and 0<len(owner)<=200,'RESOURCE_LIMIT','A bounded resource owner is required.')
+    require(type(temporary_bytes) is int and 0<=temporary_bytes<=MAX_TEMPORARY_BYTES
+            and type(memory_bytes) is int and 0<=memory_bytes<=PHASE_MEMORY[phase],
+            'RESOURCE_LIMIT','This phase exceeds its supported single-job resource estimate; reduce its explicit scope.')
+    root=safe_path(Path(root));existing=root
+    while not existing.exists():existing=existing.parent
+    device=existing.stat().st_dev;project=str(root.resolve());token=uuid.uuid4().hex
+    lease={'token':token,'temporary_bytes':temporary_bytes,'memory_bytes':memory_bytes,'phase':phase,'retain':False}
+    with ledger('physical-resources') as data:
+        rows=data.setdefault('leases',{});_physical_clean(rows)
+        if phase=='prepare':
+            available=(sum(r['phase']=='prepare' for r in rows.values())<MAX_PREPARATIONS
+                       and sum(r['phase']=='prepare' and r['root']==project for r in rows.values())<max_preparations)
+            if not available:
+                exc=PMRSError('RESOURCE_WAIT','Short input preparations are busy; resume this original request when one finishes.')
+                exc.resource='PREPARATION_SLOT';raise exc
+        memory=memory_available();reserved=sum(r['memory_bytes'] for r in rows.values())
+        require(memory_bytes<=memory['total']-memory['margin'],'RESOURCE_LIMIT','This job cannot fit the supported physical-memory estimate.')
+        require(memory['available']>=reserved+memory_bytes+memory['margin'],'RESOURCE_WAIT','Waiting for available physical memory; existing evidence and request identities are preserved.')
+        disk_reserved=sum(r['temporary_bytes'] for r in rows.values() if r['device']==device)
+        disk_preflight(existing,disk_reserved+temporary_bytes)
+        rows[token]={'pid':os.getpid(),'start':process_start(os.getpid()),'root':project,'device':device,
+                     'owner':owner,'temporary_bytes':temporary_bytes,'memory_bytes':memory_bytes,'phase':phase,'persistent':False}
+    try:yield lease
     finally:
-        with locked() as rows: rows.pop(token, None)
+        with ledger('physical-resources') as data:
+            rows=data.setdefault('leases',{})
+            if lease['retain'] and temporary_bytes and token in rows:
+                rows[token].update(persistent=True,memory_bytes=0,phase='disk')
+            else:rows.pop(token,None)
+
+
+def release_owner(root,owner):
+    """Release only this task's reconstructible working-copy reservation."""
+    from .host_pool import ledger
+    project=str(Path(root).resolve())
+    with ledger('physical-resources') as data:
+        rows=data.setdefault('leases',{});_physical_clean(rows)
+        for token,row in list(rows.items()):
+            if row['root']==project and row['owner']==owner:rows.pop(token)
+
+
+def resource_status():
+    from .host_pool import ledger
+    with ledger('physical-resources') as data:
+        rows=data.setdefault('leases',{});_physical_clean(rows)
+        return {'leases':list(rows.values()),'memory':memory_available()}
 
 
 def directory_usage(path, *, max_bytes, max_files=4096):

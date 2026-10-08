@@ -23,9 +23,15 @@ def _source_tainted(ref,snapshot,seen=None):
 
 def build_packet(snapshot,roots,blob_get,*,independent=False,required_source_refs=(),sibling_tasks=(),max_bytes=MAX_CONTEXT_BYTES,include_method_sources=False,selection_modes=None,blob_size=None,budget_blob_hashes=()):
     selected=relations.premise_closure(roots,snapshot,include_method_sources=include_method_sources)|set(required_source_refs)
+    # Relevant reverse evidence is part of judging an exact target. The rest
+    # of the available source library is not implicitly a task input.
+    opposing={edge['source_ref'] for edge in relations.edges(snapshot)
+        if edge['type']=='COUNTEREXAMPLE_TO' and edge['target_ref'] in selected and edge['assertion_state']!='WITHDRAWN'}
+    selected |= relations.premise_closure(opposing,snapshot,include_method_sources=include_method_sources)
     record_map={};bodies={};sources={};source_bodies={};read_set=[];input_manifest=[]
     allrecords=snapshot.get('records',{});all_sources=snapshot.get('sources',{})
-    kept=[r for r in relations.edges(snapshot) if r['source_ref'] in selected and r['target_ref'] in selected and relations.is_premise(r)]
+    kept=[r for r in relations.edges(snapshot) if r['source_ref'] in selected and r['target_ref'] in selected
+          and (relations.is_premise(r) or r['type']=='COUNTEREXAMPLE_TO' and r['assertion_state']!='WITHDRAWN')]
     metadata={'records':{r:allrecords[r] for r in selected if r in allrecords},
               'sources':{r:all_sources[r] for r in selected if r in all_sources},'relations':kept,'roots':list(roots)}
     metadata_bytes=resources.json_bytes(metadata,min(max_bytes,resources.METADATA_BYTES),code='CONTEXT_LIMIT')

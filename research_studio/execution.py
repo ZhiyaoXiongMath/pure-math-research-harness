@@ -4,7 +4,7 @@ from .util import identity,require,canonical,PMRSError,immutable,loads,read,sha
 from . import obligations
 
 EVENT_TYPES={'PREPARE','RESERVE','SENT','UNKNOWN','CAPTURE','SETTLE','VISIT_OPENED','VISIT_DISPOSED',
-             'NATIVE_RESTORED','ASSIGN_OBLIGATION','COVERAGE_PLAN_REGISTERED','PREPARE_REPAIR'}
+             'ROUND_ACCOUNTED','NATIVE_RESTORED','ASSIGN_OBLIGATION','COVERAGE_PLAN_REGISTERED','PREPARE_REPAIR'}
 
 def event(event_type,payload,*,event_id=None):
     e={'actor':'host','capability_ref':'CAP-HOST','event_type':event_type,'payload':deepcopy(payload)}
@@ -23,7 +23,7 @@ def apply_event(snapshot,e):
     require(e['actor']=='host' and cap.get('actor')=='host','AUTHORIZATION_REQUIRED','Execution requires host capability')
     s=deepcopy(snapshot);p=e['payload'];kind=e['event_type']
     if kind=='PREPARE':
-        from .scheduler import budget_remaining,project_remaining
+        from .scheduler import budget_remaining,project_remaining,aggregate_project_remaining
         from .workflows.registry import validate_assignment
         task=deepcopy(p['task']);candidate=p['candidate'];c=candidate['consumer']
         from .workflow_instances import validate_discovery_scope
@@ -41,7 +41,8 @@ def apply_event(snapshot,e):
             require(task[k]==candidate[k]==current[k],'STALE_READ','Related research inputs changed')
         assignment=validate_assignment(c['stage_id'],o['definition']['type'],c['role'],c.get('entry_basis',{}))
         require(task['stage_spec_digest']==assignment['stage_spec_digest'],'STAGE_SPEC_CHANGED','Activity contract changed')
-        require(project_remaining(s)>=1 and budget_remaining(s,candidate['budget_grant_id'])>=1,'BUDGET_EXHAUSTED','All unresolved reservations count against the budget')
+        require((task.get('budget_domain','SCIENCE')!='SCIENCE' or project_remaining(s)>=1) and aggregate_project_remaining(s)>=1
+                and budget_remaining(s,candidate['budget_grant_id'])>=1,'BUDGET_EXHAUSTED','All unresolved reservations count against the applicable budget')
         existing=[r['sample_slot'] for r in s.get('requests',{}).values() if r['attempt_group_key']==task['attempt_group_key']]
         require(task['sample_slot']==max(existing,default=0)+1,'WRITE_CAS_CONFLICT','Host sample slot was concurrently allocated')
         require(task['context_budget']['input_tokens']+task['context_budget']['prompt_overhead_tokens']+task['context_budget']['reserved_output_tokens']+task['context_budget']['safety_margin_tokens']<=task['context_budget']['context_window_tokens'],
@@ -51,14 +52,18 @@ def apply_event(snapshot,e):
         request.update(execution_state='PREPARED',acceptance_state='NOT_SUBMITTED',execution_kind=None,
                        execution_id=identity({'request':task['request_id']},'EXECUTION-'),budget_grant_id=candidate['budget_grant_id'],
                        reserved_calls=1,capture_ref=None,usage=None,fenced=False,receipt_ref=None)
+        if task.get('budget_domain'):request['budget_domain']=task['budget_domain']
         s.setdefault('requests',{})[request['request_id']]=request
         grant=s['retry_grants'][c['retry_grant_id']]
         grant['remaining_uses']=current['remaining_uses']-1
         ledger=s.setdefault('attempt_groups',{}).setdefault(task['attempt_group_key'],{'request_ids':[],'highest_sample_slot':0})
         ledger['request_ids'].append(request['request_id']);ledger['highest_sample_slot']=task['sample_slot']
-        s.setdefault('scheduler_state',{}).setdefault('last_instance_by_tier',{})[str(candidate['priority'])]=task['instance_id']
+        scheduler_state=s.setdefault('scheduler_state',{})
+        scheduler_state.setdefault('last_instance_by_tier',{})[str(candidate['priority'])]=task['instance_id']
+        from .scheduler import ordinary_preparations_since_account
+        scheduler_state['ordinary_preparations_since_account']=0 if o['definition']['type'] in {'REPORT','ACCOUNT'} else min(8,ordinary_preparations_since_account(snapshot)+1)
     elif kind=='PREPARE_REPAIR':
-        from .scheduler import budget_remaining,project_remaining
+        from .scheduler import budget_remaining,project_remaining,aggregate_project_remaining
         require(set(p)=={'original_request_id','repair_kind','task'},'EXECUTION_EVENT_INVALID','Typed finite repair request required')
         original=_request(s,p['original_request_id']);origin=original.get('repair_of',original['request_id']);root=_request(s,origin)
         frozen=s['tasks'][root['task_id']];task=deepcopy(p['task']);repair_kind=p['repair_kind']
@@ -70,29 +75,46 @@ def apply_event(snapshot,e):
         if repair_kind=='TRANSPORT':require(original['execution_state']=='CANCELLED_BEFORE_SEND','REPAIR_NOT_ALLOWED','UNKNOWN or sent requests cannot be retried as transport repairs')
         else:require(original['execution_state']=='SETTLED' and original['acceptance_state']=='REJECTED_CONTRACT' and original.get('admission_error') in {'RESPONSE_SCHEMA_INVALID','DUPLICATE_JSON_KEY','UNKNOWN_FIELD'},
             'REPAIR_NOT_ALLOWED','Only a recorded format rejection permits a format repair')
-        allowed={'task_id','request_id','input_packet_ref','prompt_ref','context_budget','repair_of','repair_kind','repair_index'}
+        allowed={'task_id','request_id','input_packet_ref','prompt_ref','context_budget','context_budget_details','repair_of','repair_kind','repair_index'}
         require({k:v for k,v in task.items() if k not in allowed}=={k:v for k,v in frozen.items() if k not in allowed},
             'EXECUTOR_CONTRACT_CHANGED','Repair cannot change science scope, sample, model, executor or permissions')
         require(task['task_id'] not in s['tasks'] and task['request_id'] not in s['requests'],'EXISTING_REQUEST','Reuse registered repair request')
-        require(s['instances'][root['instance_id']]['status']=='ACTIVE' and project_remaining(s)>=1 and budget_remaining(s,root['budget_grant_id'])>=1,
-            'BUDGET_EXHAUSTED','Repairs consume the same finite project and mission budget')
+        from .reports import dispatch_authorized,dispatch_current
+        report_authorized=bool(frozen.get('report_context')) and dispatch_authorized(s,frozen)
+        if frozen.get('report_context'):dispatch_current(s,frozen['report_context'])
+        require((report_authorized or s['instances'][root['instance_id']]['status']=='ACTIVE')
+            and (root.get('budget_domain','SCIENCE')!='SCIENCE' or project_remaining(s)>=1)
+            and aggregate_project_remaining(s)>=1 and budget_remaining(s,root['budget_grant_id'])>=1,
+            'BUDGET_EXHAUSTED','Repairs consume the original finite budget domain and grant')
         from .context import validate_budget
         validate_budget(task['context_budget']);s['tasks'][task['task_id']]=task
         r={k:root[k] for k in ('instance_id','mission_id','purpose_key','responsibility_key','attempt_group_key','attempt_key','sample_slot','input_fingerprint','budget_grant_id')}
         r.update(request_id=task['request_id'],task_id=task['task_id'],execution_id=identity(task['request_id'],'EXECUTION-'),execution_state='PREPARED',
             acceptance_state='NOT_SUBMITTED',execution_kind=None,reserved_calls=1,capture_ref=None,usage=None,fenced=False,receipt_ref=None,
             repair_of=origin,repair_kind=repair_kind,repair_index=count+1)
+        if root.get('budget_domain'):r['budget_domain']=root['budget_domain']
         s['requests'][r['request_id']]=r
     elif kind=='RESERVE':
         r=_request(s,p['request_id']);task=s['tasks'][r['task_id']]
+        assistant_task=task.get('purpose')=='PROJECT_ASSISTANT'
+        report_authorized=False
+        if assistant_task:
+            from .assistant import validate_dispatch
+            validate_dispatch(s,task)
+        if task.get('report_context'):
+            from .reports import dispatch_current,dispatch_authorized
+            dispatch_current(s,task['report_context'])
+            report_authorized=dispatch_authorized(s,task)
         require(r['execution_state']=='PREPARED' and not r['fenced'],'EXISTING_REQUEST','A sent, uncertain or captured request cannot be resent')
-        require(s['instances'][r['instance_id']]['status']=='ACTIVE','TASK_FENCED','Workflow is paused')
+        require(assistant_task or report_authorized or s['instances'][r['instance_id']]['status']=='ACTIVE','TASK_FENCED','Workflow is paused')
+        require(assistant_task or task.get('report_context') or s['instances'][r['instance_id']]['current_mission_id']==r['mission_id'],
+                'TASK_FENCED','A superseded research mission cannot send an old unstarted request; original captures remain recoverable.')
         active=sum(x['execution_state'] in {'RESERVED','SENT','UNKNOWN'} and x.get('unknown_disposition')!='ABANDON_UNKNOWN' for x in s.get('requests',{}).values())
         require(active<s.get('max_workers',1),'BUDGET_OR_WORKER_LIMIT','Uncertain requests retain worker reservations')
         require(p['executor_contract']==task['executor_contract'] and p['model_policy']==task['model_policy'],
                 'EXECUTOR_CONTRACT_CHANGED','No silent executor, permission, model, effort or tier change')
         from .changes import live_check
-        live_check(task,s)
+        if not assistant_task:live_check(task,s)
         require(p['execution_kind'] in {'MODEL','SYNTHETIC_TEST_ONLY'},'EXECUTION_EVENT_INVALID','Unknown execution provenance')
         if p['execution_kind']=='SYNTHETIC_TEST_ONLY':require(s.get('synthetic_test_only') is True,'SYNTHETIC_PROJECT_REQUIRED','Fake output cannot qualify real research')
         r.update(execution_state='RESERVED',execution_kind=p['execution_kind'])
@@ -127,7 +149,10 @@ def apply_event(snapshot,e):
     elif kind=='VISIT_OPENED':
         from .workflows.registry import spec,validate_assignment
         visit=deepcopy(p['visit']);iid=visit['instance_id'];mission=s['missions'][visit['mission_id']]
-        require(s['instances'][iid]['status']=='ACTIVE' and mission['instance_id']==iid,'AUTHORIZATION_REQUIRED','Active authorized mission required')
+        from .reports import dispatch_authorized
+        report_visit=bool(visit['assigned_obligation_bindings']) and all(any(c.get('binding_id')==b['binding_id'] and c.get('report_context') and dispatch_authorized(s,c)
+            for c in s['obligations'][b['obligation_id']]['definition']['consumer_bindings']) for b in visit['assigned_obligation_bindings'])
+        require((s['instances'][iid]['status']=='ACTIVE' or report_visit) and mission['instance_id']==iid,'AUTHORIZATION_REQUIRED','Active authorized mission or exact report authorization required')
         contract=spec(visit['stage_id'])
         require(contract['workflow_kind']==s['instances'][iid]['kind'] and contract['digest']==visit['stage_spec_digest'],
                 'STAGE_SPEC_CHANGED','Workflow activity mismatch')
@@ -151,6 +176,9 @@ def apply_event(snapshot,e):
                 require(any(s['records'].get(ref,{}).get('kind')=='Argument' and s['records'][ref]['data'].get('mode')=='REDUCTION' for ref in records),
                     'STAGE_PRODUCT_MISSING','An assigned P6 reduction cannot be fulfilled by a gap or a completed task')
         visit.update(outcome=disposition['outcome'],exit_evidence=deepcopy(disposition),unperformed_duties=disposition['unperformed_bindings'])
+    elif kind=='ROUND_ACCOUNTED':
+        from .rounds import apply
+        apply(s,p)
     elif kind=='NATIVE_RESTORED':
         require(set(p)=={'backup_identity'} and p['backup_identity'],'EXECUTION_EVENT_INVALID','Exact backup identity required')
         for instance in s.get('instances',{}).values():
@@ -175,9 +203,11 @@ def apply_event(snapshot,e):
         require(set(p)=={'instance_id','mission_id','obligation','retry_grant','authorization_basis_ref'},
                 'EXECUTION_EVENT_INVALID','Exact bounded host assignment required')
         iid=p['instance_id'];mission=s.get('missions',{}).get(p['mission_id'],{})
-        require(mission.get('instance_id')==iid and mission.get('status')=='ACTIVE'
-                and s['instances'][iid]['status']=='ACTIVE','AUTHORIZATION_REQUIRED','Host assignment requires an active authorized mission')
         proposed=p['obligation'];d=proposed['definition'];oid=d['obligation_id'];scope=mission['authorized_scope']
+        from .reports import dispatch_authorized
+        report_assignment=d['type']=='REPORT' and bool(d['consumer_bindings']) and all(c.get('report_context') and dispatch_authorized(s,c) for c in d['consumer_bindings'])
+        require(mission.get('instance_id')==iid and ((mission.get('status')=='ACTIVE' and s['instances'][iid]['status']=='ACTIVE') or report_assignment),
+                'AUTHORIZATION_REQUIRED','Host assignment requires an active mission or exact independent report authorization')
         old_obligation=s.get('obligations',{}).get(oid)
         require(HASH.fullmatch(str(d['criterion_body_ref'])) and p['authorization_basis_ref'],
                 'OBLIGATION_INVALID','Host assignment requires a concrete persistent criterion and basis')
@@ -188,9 +218,11 @@ def apply_event(snapshot,e):
                 if p.get('workflow_instance_id')==iid and s.get('tasks',{}).get(p.get('task_id'),{}).get('mission_id')==mission['mission_id'])
         require(set(d['target_refs'])<=allowed and all(ref in s['records'] for ref in d['target_refs']),
                 'AUTHORIZATION_REQUIRED','Assigned responsibility is outside the existing mission target scope')
-        if d['type']=='REPORT':require(scope.get('reports') is True or 'REPORT' in scope.get('obligation_types',[]),
+        if d['type']=='REPORT':require(report_assignment or scope.get('reports') is True or 'REPORT' in scope.get('obligation_types',[]),
                                       'AUTHORIZATION_REQUIRED','Formal reporting must be requested within the mission budget')
-        else:require(scope.get('allow_derived_work') is True,'AUTHORIZATION_REQUIRED','Mission has no authority to add derived research work')
+        else:
+            from .corrections import is_exact_authorization
+            require(scope.get('allow_derived_work') is True or is_exact_authorization(s,p),'AUTHORIZATION_REQUIRED','Mission has no authority to add derived research work')
         expected=obligations.make(oid,d['type'],d['target_refs'],d['criterion_body_ref'],consumer_bindings=d['consumer_bindings'],
             dependencies=d['dependency_bindings'],scope_context_refs=d['scope_context_refs'],effect=d['effect_on_goal'],
             created_by=d['created_by'],reason_code=d['reason_code'],alias_of=d['alias_of'])
@@ -225,8 +257,14 @@ def apply_event(snapshot,e):
 
 def reserve(store,request_id,*,execution_kind='MODEL',executor_contract=None,model_policy=None):
     s=store.read_snapshot();r=_request(s,request_id);t=s['tasks'][r['task_id']]
+    if t.get('report_context'):
+        from .reports import dispatch_current
+        dispatch_current(s,t['report_context'])
     from .changes import live_check
-    live_check(t,s,store.read_blob)
+    if t.get('purpose')=='PROJECT_ASSISTANT':
+        from .assistant import validate_dispatch
+        validate_dispatch(s,t)
+    else:live_check(t,s,store.read_blob)
     receipt=store.commit_execution(event('RESERVE',{'request_id':request_id,'execution_kind':execution_kind,
         'executor_contract':executor_contract or t['executor_contract'],'model_policy':model_policy or t['model_policy']}))
     return {'execution_id':r['execution_id'],'receipt':receipt}
@@ -243,7 +281,14 @@ def seal_capture(store,request_id,raw_bytes,*,execution_id=None,usage=None):
 
 def capture(store,request_id,raw_bytes,*,execution_id=None,usage=None):
     seal=seal_capture(store,request_id,raw_bytes,execution_id=execution_id,usage=usage)
-    return store.commit_execution(event('CAPTURE',{k:seal[k] for k in ('request_id','execution_id','capture_ref','usage')}))
+    result=store.commit_execution(event('CAPTURE',{k:seal[k] for k in ('request_id','execution_id','capture_ref','usage')}))
+    _release_model_slot(store,request_id)
+    return result
+
+def _release_model_slot(store,request_id):
+    if store.read_snapshot()['requests'][request_id].get('execution_kind')=='MODEL':
+        from .host_pool import release
+        release(store,request_id)
 
 def recover_capture_seal(store,request_id):
     s=store.read_snapshot();r=_request(s,request_id);task=s['tasks'][r['task_id']]
@@ -256,9 +301,23 @@ def recover_capture_seal(store,request_id):
         'ORIGINAL_BYTES_MISMATCH','Capture seal differs from frozen request')
     store.read_blob(seal['capture_ref'])
     store.commit_execution(event('CAPTURE',{k:seal[k] for k in ('request_id','execution_id','capture_ref','usage')}))
+    _release_model_slot(store,request_id)
     return True
 
 def recover(store,request_id,*,check_only=False):
+    from . import resources
+    # A completed local transport may have sealed its original files before
+    # capture publication ran out of physical resources. Recover those exact
+    # bytes; this path never sends a request or invents a new attempt.
+    snapshot=store.read_snapshot();request=_request(snapshot,request_id)
+    if not check_only and not request.get('capture_ref') and (store.root/'runs'/request['task_id']/'capture.json').exists():
+        from .runner import recover_transport
+        return recover_transport(store,request['task_id'])
+    with resources.reserve(store.root,owner='admit-'+request_id,temporary_bytes=64*resources.MIB,
+                           memory_bytes=resources.PHASE_MEMORY['admission'],phase='admission'):
+        return _recover(store,request_id,check_only=check_only)
+
+def _recover(store,request_id,*,check_only=False):
     from .changes import validate_response
     s=store.read_snapshot();r=_request(s,request_id);t=deepcopy(s['tasks'][r['task_id']])
     def cleaned(result):
@@ -275,9 +334,17 @@ def recover(store,request_id,*,check_only=False):
         s=store.read_snapshot();r=_request(s,request_id)
     if not r['capture_ref']:return {'state':'WAIT','code':'UNKNOWN_REQUIRES_EVIDENCE' if r['execution_state']=='UNKNOWN' else 'EXISTING_REQUEST','model_calls':0}
     require(not r['fenced'],'TASK_FENCED','Captured bytes retained after cancellation')
-    if not check_only:require(s['instances'][r['instance_id']]['status']=='ACTIVE','TASK_FENCED','Pause preserves capture; human resume is required before admission')
+    assistant_task=t.get('purpose')=='PROJECT_ASSISTANT'
+    report_authorized=False
+    if t.get('report_context'):
+        from .reports import dispatch_authorized
+        report_authorized=dispatch_authorized(s,t)
+    if not check_only:require(assistant_task or report_authorized or s['instances'][r['instance_id']]['status']=='ACTIVE','TASK_FENCED','Pause preserves capture; human resume is required before admission')
     raw=store.read_blob(r['capture_ref'])
     try:
+        if assistant_task:
+            from .assistant import recover as recover_assistant
+            return cleaned(recover_assistant(store,request_id,check_only=check_only))
         proposal=validate_response(t,s,raw,mode='preflight' if check_only else 'live',blob_get=store.read_blob)
         if check_only:return {'state':'VALIDATED','proposal':proposal,'model_calls':0}
         receipt=store.commit(proposal)
@@ -285,7 +352,7 @@ def recover(store,request_id,*,check_only=False):
         # admission receipt atomically. No second settlement can race that HEAD.
         return cleaned({'state':'ACCEPTED','receipt':receipt,'model_calls':0})
     except PMRSError as exc:
-        if exc.code in {'RESOURCE_DISK_LOW','RESOURCE_WAIT','RESOURCE_LIMIT'}:
+        if exc.code in {'RESOURCE_DISK_LOW','RESOURCE_WAIT','RESOURCE_LIMIT','TASK_FENCED'}:
             # Preparation/publication failure is not a scientific disposition.
             # Keep the original capture recoverable, with its consumed budget.
             raise
@@ -314,9 +381,21 @@ def prepare_repair(store,request_id,repair_kind):
              'recorded_error':previous.get('admission_error')}
         prompt+='\n\nThis is a finite format repair of the preserved original capture. Produce a new complete response for this new task/request binding. Do not change the scientific claim, introduce evidence, or treat the original rejection as mathematical failure.'
     task['input_packet_ref']=store.blob(canonical(packet));task['prompt_ref']=store.blob(prompt.encode())
-    policy=Engine().policy(store,root['instance_id']);capacity=deepcopy(policy.get('capacity',{}))
+    if frozen.get('report_context'):
+        # The original frozen grant owns repairs, even if a later report role
+        # obtains a separately authorized grant.
+        policy=deepcopy(s['budget_grants'][root['budget_grant_id']].get('execution_policy',{}))
+    else:policy=Engine().policy(store,root['instance_id'])
+    capacity=deepcopy(policy.get('capacity',{}))
     require(capacity.get('model_id')==task['model_policy']['model'],'CONTEXT_LIMIT','Repair retains the frozen model')
-    task['context_budget']=token_preflight(canonical({'task':task,'prompt':prompt,'packet':packet}),capacity,
-       reserved_output_tokens=frozen['context_budget']['reserved_output_tokens'],safety_margin_tokens=frozen['context_budget']['safety_margin_tokens'])
+    from .tasks import request_budget
+    for _ in range(6):
+        budget,details=request_budget(task,prompt,packet,capacity,
+            reserved_output_tokens=frozen['context_budget']['reserved_output_tokens'],
+            prompt_overhead_tokens=frozen['context_budget']['prompt_overhead_tokens'],
+            safety_margin_tokens=frozen['context_budget']['safety_margin_tokens'])
+        if task.get('context_budget')==budget and task.get('context_budget_details')==details:break
+        task['context_budget']=budget;task['context_budget_details']=details
+    else:raise PMRSError('CONTEXT_LIMIT','Repair input accounting did not converge.')
     receipt=store.commit_execution(event('PREPARE_REPAIR',{'original_request_id':request_id,'repair_kind':repair_kind,'task':task}))
     return {**receipt,'task_id':task['task_id'],'request_id':task['request_id']}

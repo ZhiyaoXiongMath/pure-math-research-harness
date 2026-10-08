@@ -20,7 +20,7 @@ from . import activity
 
 class Workspace:
     def __init__(self,root,*,create=True):
-        self.root=safe_path(Path(root));self.engine=Engine();self.login=Login();self.jobs={};self.lock=threading.RLock();self.project_locks={};self.object_labels={}
+        self.root=safe_path(Path(root));self.engine=Engine();self.login=Login();self.jobs={};self.assistant_jobs={};self.lock=threading.RLock();self.project_locks={};self.object_labels={};self.assistant_sections={}
         if create:
             for directory in ('projects','uploads','downloads','actions','runtime'):
                 (self.root/directory).mkdir(parents=True,exist_ok=True,mode=0o700)
@@ -111,13 +111,23 @@ class Workspace:
                                 'active_requests':sum(r['execution_state'] in {'RESERVED','SENT'} for r in s.get('requests',{}).values())},
            'project_jobs':project_jobs,'jobs':project_jobs,'activity':activity.project(s,instance),
            'read_only':True,'model_calls':0}
-        grants=[g for g in s['budget_grants'].values() if not instance or g['instance_id']==instance]
+        grants=[g for g in s['budget_grants'].values() if g.get('budget_domain','SCIENCE')=='SCIENCE'
+                and (not instance or g.get('instance_id')==instance)]
         remaining=sum(budget_remaining(s,g['budget_grant_id']) for g in grants);total=project_remaining(s)
         v['synthetic']=s['synthetic_test_only'];v['budget']={'project':s['project_budget'],'grants':grants,
-            'remaining_calls':remaining if remaining!=float('inf') else None,'project_remaining_calls':total if total!=float('inf') else None}
-        v['tasks']=[{k:t.get(k) for k in ('task_id','instance_id','stage_id','role','model_policy','model_policy_resolution','request_id')} for t in s['tasks'].values() if not instance or t['instance_id']==instance]
+            'remaining_calls':remaining if remaining!=float('inf') else None,'project_remaining_calls':total if total!=float('inf') else None,'max_workers':s.get('max_workers',1),'project_max_workers':8,'host_model_pool':10}
+        v['tasks']=[{k:t.get(k) for k in ('task_id','instance_id','stage_id','role','model_policy','model_policy_resolution','request_id')}
+                    for t in s['tasks'].values() if t.get('purpose')!='PROJECT_ASSISTANT' and (not instance or t['instance_id']==instance)]
         from .workflows.registry import spec
         for task in v['tasks']:task['activity_label']=spec(task['stage_id'])['ui_labels']['zh-CN']
+        frozen_bindings={b['binding_id'] for t in s['tasks'].values() for b in t.get('obligation_bindings',[])}
+        v['pending_work']=[{'obligation_id':oid,'binding_id':c['binding_id'],'stage_id':c['stage_id'],'role':c['role'],
+                           'branch_key':c.get('entry_basis',{}).get('research_plan',{}).get('branch_key'),
+                           'dependencies':len(o['definition'].get('dependency_bindings',[]))}
+            for oid,o in s.get('obligations',{}).items() for c in o['definition']['consumer_bindings']
+            if (not instance or c['instance_id']==instance) and c['binding_id'] not in frozen_bindings
+            and c['binding_id'] not in s.get('retired_consumers',{})
+            and c['mission_id']==s['instances'][c['instance_id']].get('current_mission_id')]
         v['missions']=[m for m in s['missions'].values() if not instance or m['instance_id']==instance]
         selected=s['instances'].get(instance,{})
         mission=s['missions'].get(selected.get('current_mission_id'),{})
@@ -129,7 +139,17 @@ class Workspace:
         if selected.get('kind')=='SURVEY':
             from . import survey
             v['survey']=survey.status(s,instance)
-        v['control_fingerprint']=identity({k:v[k] for k in ('tasks','execution','missions','reports','workflow','model_configuration','activity','project_jobs','project_execution','budget')} | {'survey':v.get('survey')})
+        from . import rounds,corrections
+        runtime=next((j.get('result') or ({'state':'FAULT','error':j.get('error')} if j.get('error') else {})
+            for j in reversed(project_jobs) if j.get('instance_id')==instance),{})
+        v['round_result']=rounds.describe(s,instance,runtime) if instance else None
+        v['corrections']=corrections.pending(s,instance) if instance else []
+        v['correctable_work']=[{'binding_id':c['binding_id'],'stage_id':c['stage_id'],'role':c['role'],
+            'description':store.read_blob(o['definition']['criterion_body_ref']).decode('utf-8')[:300]}
+            for o in s['obligations'].values() for c in o['definition']['consumer_bindings']
+            if c['instance_id']==instance and c['mission_id']==selected.get('current_mission_id')
+            and o['definition']['type'] not in {'REPORT','CONTROL'}]
+        v['control_fingerprint']=identity({k:v[k] for k in ('tasks','pending_work','execution','missions','reports','workflow','model_configuration','activity','project_jobs','project_execution','budget','round_result','corrections')} | {'survey':v.get('survey')})
         return v
 
     def workflow_inputs(self,key,query='',offset=0,limit=100):
@@ -148,6 +168,81 @@ class Workspace:
         return {'commit':s['knowledge_commit'],'statements':statements[offset:offset+limit],'sources':sources[offset:offset+limit],'records':records[offset:offset+limit],
                 'next_offset':offset+limit if max(len(records),len(sources))>offset+limit else None,
                 'read_only':True,'model_calls':0}
+
+    def assistant_status(self,key,session_id=None,offset=0,limit=30):
+        """Conversation reads never run a model, recover a capture, or revise a report."""
+        from . import assistant
+        require(type(offset) is int and offset>=0 and type(limit) is int and 1<=limit<=100,
+                'PAGE_INVALID','Select a bounded conversation page.')
+        store=self.project(key);result=assistant.status(store,session_id,offset=offset,limit=limit)
+        result['jobs']=[deepcopy(job) for (project,turn),job in self.assistant_jobs.items()
+                        if project==key and (not session_id or job['session_id']==session_id)]
+        snapshot=store.read_snapshot()
+        context=result.get('context') or {}
+        if context.get('report_id') in snapshot['reports']:
+            result['report_versions']=self.report_versions(key,snapshot['reports'][context['report_id']])
+            # Cache only the small directory of this exact immutable manuscript,
+            # never full old reports on every status poll.
+            body_hash=context.get('body_hash')
+            if body_hash:
+                from .report_revisions import sections
+                if body_hash not in self.assistant_sections:
+                    if len(self.assistant_sections)>=16:self.assistant_sections.pop(next(iter(self.assistant_sections)))
+                    self.assistant_sections[body_hash]=sections(store.read_blob(body_hash))
+                result['context']={**context,'sections':deepcopy(self.assistant_sections[body_hash])}
+        for turn in result.get('turns',[]):
+            action=turn.get('action') or {};rid=action.get('report_id')
+            if rid in snapshot['reports']:
+                entry=snapshot['reports'][rid]
+                action['report_state']=entry['status']
+                action['versions']=self.report_versions(key,entry)
+                revision=action.get('revision');name=action.get('profile')
+                profiles={}
+                for profile in action.get('synchronized_profiles',[name] if name else []):
+                    current=entry['profiles'].get(profile,{})
+                    value=next((v for v in [current,*current.get('history',[])] if v.get('revision')==revision),{})
+                    if value:profiles[profile]=value
+                selected=profiles.get(name,{})
+                preservation=selected.get('revision_check',{})
+                semantic=(selected.get('semantic') or {}).get('revision_check',{})
+                action['change_summary']={**deepcopy(preservation),'summary':semantic.get('summary'),
+                    'requirements_verdict':semantic.get('verdict')}
+                action['unmet_requirements']=semantic.get('unmet_requirement_refs',[])+semantic.get('uncertain_requirement_refs',[])
+                action['checks']={profile:{'semantic':(value.get('semantic') or {}).get('verdict'),
+                    'requirements':(value.get('semantic') or {}).get('revision_check',{}),
+                    'rendered':bool(value.get('render')),'reviewed_pages':len(value.get('visual',{})),
+                    'total_pages':len((value.get('render') or {}).get('pages',[]))} for profile,value in profiles.items()}
+                turn['action']=action
+        latest=(result.get('turns') or [{}])[-1]
+        grant=snapshot['budget_grants'].get((latest.get('action') or {}).get('budget_grant_id'))
+        if grant:
+            from .scheduler import budget_remaining
+            remaining=budget_remaining(snapshot,grant['budget_grant_id'])
+            result['report_budget']={'max_calls':grant['max_calls'],'remaining':remaining,
+                'used':grant['max_calls']-remaining,'budget_domain':grant.get('budget_domain','SCIENCE')}
+        return result
+
+    @staticmethod
+    def report_versions(key,entry):
+        rows=[]
+        for profile,current in entry['profiles'].items():
+            for value in [*current.get('history',[]),current]:
+                row={'profile':profile,'revision':value['revision'],'body_sha256':value.get('body_sha256'),
+                     'raw_body_sha256':value.get('raw_body_sha256'),'current':value is current,
+                     'semantic_status':(value.get('semantic') or {}).get('verdict'),
+                     'rendered':bool(value.get('render')),'visual_pages':len(value.get('visual',{}))}
+                if value.get('render'):
+                    row['url']='/api/report-file?project='+key+'&report='+entry['report_id']+'&profile='+profile+'&revision='+str(value['revision'])
+                rows.append(row)
+        return rows
+
+    def assistant_evidence(self,key,session_id):
+        from . import assistant
+        import json
+        result=assistant.export_summary(self.project(key),session_id)
+        return {'summary_text':json.dumps(result,ensure_ascii=False,indent=2) if isinstance(result,dict) else str(result),
+                'collected_at':result.get('exported_at',result.get('collected_at',now())) if isinstance(result,dict) else now(),
+                'model_calls':0}
 
     def _operation_id(self,key=None,operation_id=None):
         require((key is None)!=(operation_id is None),'IDEMPOTENCY_REQUIRED','请指定一个原操作编号。')
@@ -218,8 +313,9 @@ class Workspace:
         require(isinstance(name,str) and 1<=len(name)<=80 and all(c in 'abcdefghijklmnopqrstuvwxyz-' for c in name),'ACTION_INVALID','操作名称无效。')
         require(isinstance(p,dict),'ACTION_INVALID','表单格式无效。')
         require(name in {'quit','login','setup-status','setup-configure','setup-select','setup-install','check-environment',
-                'create','example','upload-archive','restore','add-source','new-workflow','configure-discovery','start','pause',
+                'create','example','upload-archive','restore','add-source','new-workflow','configure-discovery','start','plan-work','defer-work','request-correction','extend-budget','pause',
                 'continue','end','recover','reconcile','report','revise-report','abandon-report','configure','handoff','export',
+                'assistant-open','assistant-authorize','assistant-send','assistant-recover',
                 'survey-activity','survey-retrieve','survey-freeze','survey-plan','survey-source-status'},
                 'ACTION_UNKNOWN','未登记的操作。')
         path=self.root/'actions'/(identity(key)+'.json');digest=identity({'action':name,'payload':p})
@@ -315,6 +411,29 @@ class Workspace:
             result=restore(source,out)
             return {'project':wid,'summary':result,'model_calls':0}
         store=self.project(p.get('project'));iid=p.get('instance')
+        if name.startswith('assistant-'):
+            from . import assistant
+            if name=='assistant-open':
+                context=deepcopy(p.get('context') or {})
+                for source,destination in (('instance','instance_id'),('task_id','task_id'),('request_id','request_id'),
+                        ('report_id','report_id'),('profile','profile'),('revision','revision'),('body_hash','body_hash')):
+                    if p.get(source) is not None:context[destination]=p[source]
+                return assistant.open_session(store,context,operation_id=identity(key))
+            sid=p.get('session_id')
+            if name=='assistant-authorize':return assistant.authorize(store,sid,p['max_calls'],operation_id=identity(key))
+            if name=='assistant-send':
+                result=assistant.submit(store,sid,p['text'],operation_id=identity(key),report_allowance=p.get('report_calls'))
+                self.launch_assistant(p['project'],sid,result['turn_id'])
+                return result
+            # Recovery always names the original turn and therefore the original
+            # request. A new finite report allowance does not add assistant calls.
+            current=assistant.status(store,sid)
+            require(any(t['turn_id']==p.get('turn_id') for t in current.get('turns',[])),
+                    'ASSISTANT_TURN_UNKNOWN','Select a turn in this exact conversation.')
+            if p.get('report_calls') is not None:
+                assistant.authorize_report(store,sid,p['turn_id'],p['report_calls'],operation_id=identity(key))
+            self.launch_assistant(p['project'],sid,p['turn_id'])
+            return {'session_id':sid,'turn_id':p['turn_id'],'state':'QUEUED','model_calls':0}
         if name=='add-source':
             raw=self._raw(p) if p.get('data') else str(p.get('text','')).encode()
             result=store.commit(changes.prepare_material_input(store.read_snapshot(),raw,title=str(p.get('filename','补充材料')),media_type=str(p.get('media_type','text/plain')),blob_get=store.read_blob))
@@ -335,7 +454,7 @@ class Workspace:
             from .demo import policy as demo_policy
             config=demo_policy() if store.read_snapshot()['synthetic_test_only'] else policy()
             result=survey.start_activity(store,iid,p['stage'],p['intent'],max_calls=int(p['max_calls']),
-                max_workers=int(p.get('max_workers',1)),policy=config,model_overrides=p.get('model_overrides',[]),
+                max_workers=int(p.get('max_workers',store.read_snapshot().get('max_workers',1))),policy=config,model_overrides=p.get('model_overrides',[]),
                 allow_reports=p.get('allow_reports'),selected_refs=p.get('selected_refs'),source_refs=p.get('source_refs'),
                 role=p.get('role'),max_research_attempts=int(p.get('max_research_attempts',1)))
             if p['stage']!='S5':self.launch(p['project'],iid)
@@ -350,14 +469,27 @@ class Workspace:
                 if incoming.get(field):merged.pop(field+'_ref',None)
             merged.update(incoming)
             return self.engine.configure_discovery(store,iid,self._discovery_form({**p,'discovery_scope':merged}))
+        if name=='extend-budget':return self.engine.extend_budget(store,iid,p['added_calls'],p['reason'])
+        if name=='request-correction':return self.engine.request_correction(store,iid,p['binding_id'],p['instruction'],p['success_criterion'])
+        if name=='defer-work':return self.engine.defer_work(store,iid,p['binding_id'],p['reason'])
+        if name=='plan-work':
+            from .codex_client import policy
+            from .demo import policy as demo_policy
+            config=demo_policy() if store.read_snapshot()['synthetic_test_only'] else policy()
+            require(type(p.get('run',False)) is bool,'ACTION_INVALID','Explicit run choice required')
+            result=self.engine.plan_work(store,iid,p['intent'],p['items'],mission_id=p.get('mission_id'),
+                max_calls=int(p.get('max_calls',8)),max_workers=int(p.get('max_workers',store.read_snapshot().get('max_workers',1))),
+                policy=config,allow_reports=p.get('allow_reports',False))
+            if p.get('run'):self.launch(p['project'],iid)
+            return result
         if name=='start':
             from .codex_client import policy
             from .demo import policy as demo_policy
             synthetic=store.read_snapshot()['synthetic_test_only'];config=demo_policy() if synthetic else policy()
             if p.get('model_override'):config['model_override']=p['model_override']
             require(type(p.get('report_first',False)) is bool,'ACTION_INVALID','报告前置选项必须明确选择。')
-            result=self.engine.start_round(store,iid,p['intent'],max_calls=int(p['max_calls']),max_workers=int(p.get('max_workers',1)),policy=config,
-                model_overrides=p.get('model_overrides',[]),report_first_actions=['CONTINUE','END','ADOPT','ADOPT_HANDOFF'] if p.get('report_first') else [])
+            result=self.engine.start_round(store,iid,p['intent'],max_calls=int(p['max_calls']),max_workers=int(p.get('max_workers',store.read_snapshot().get('max_workers',1))),policy=config,
+                model_overrides=p.get('model_overrides',[]),selected_refs=p.get('selected_refs'),source_refs=p.get('source_refs'),report_first_actions=['CONTINUE','END','ADOPT','ADOPT_HANDOFF'] if p.get('report_first') else [])
             self.launch(p['project'],iid);return result
         if name=='pause':return self.engine.pause(store,iid,'用户在网页中暂停研究；保留在途请求及捕获。')
         if name in ('continue','end'):
@@ -415,38 +547,127 @@ class Workspace:
         with self.lock:
             if report and report_id is None:report_id=self.project(key).read_snapshot().get('active_reports',{}).get(iid)
             require(not report or bool(report_id),'REPORT_REQUIRED','Select an exact report before scheduling it.')
-            current=self.jobs.get((key,iid))
-            if current and current['state'] in {'RUNNING','QUEUED'}:
+            # One Web driver serves every authorized instance in this project.
+            # A late report is observed by the driver's host-only planning hook.
+            current=next((j for (p,_),j in self.jobs.items() if p==key and
+                          (j['state'] in {'RUNNING','QUEUED'} or j.get('retry_pending'))),None)
+            if current:
                 if report:
                     current['report_requested']=True
                     if report_id!=current.get('running_report_id') and report_id not in current['report_ids']:current['report_ids'].append(report_id)
                 return current
-            project_lock=self.project_locks.setdefault(key,threading.Lock())
             job={'state':'QUEUED','instance_id':iid,'kind':'REPORT' if report else 'RESEARCH','started_at':now(),'report_requested':report,
-                 'report_ids':[report_id] if report else [],'running_report_id':None};self.jobs[(key,iid)]=job
+                 'report_ids':[report_id] if report else [],'running_report_id':None,'retry_pending':False};self.jobs[(key,iid)]=job
             def work():
                 try:
-                    with project_lock:
-                        job['state']='RUNNING'
-                        store=self.project(key);synthetic=store.read_snapshot()['synthetic_test_only']
-                        from .runner import CodexExecutor
-                        from .demo import executor as demo_executor
-                        executor=demo_executor() if synthetic else CodexExecutor()
-                        result=self.engine.run_round(store,iid,executor=executor) if not report else None
+                    store=self.project(key);synthetic=store.read_snapshot()['synthetic_test_only']
+                    from .runner import CodexExecutor
+                    from .demo import executor as demo_executor
+                    executor=demo_executor() if synthetic else CodexExecutor()
+                    def retry_same(operation,selected_instance):
                         while True:
-                            with self.lock:
-                                if not job['report_ids']:
-                                    job.update(state='WAITING',result=result,finished_at=now(),running_report_id=None);break
-                                selected_report=job['report_ids'].pop(0);job['running_report_id']=selected_report
-                            from . import reports
-                            from .render import Renderer
-                            job['kind']='REPORT'
-                            result=reports.run(store,iid,executor=executor,policy=self.engine.policy(store,iid),renderer=Renderer(),report_id=selected_report)
+                            job.update(state='RUNNING',retry_pending=False)
+                            result=operation()
+                            if result.get('state') not in {'RESOURCE_WAIT','WAITING_RESOURCE','COORDINATOR_ACTIVE'}:return result
+                            if store.read_snapshot()['instances'][selected_instance]['status']!='ACTIVE':return {**result,'state':'PAUSED'}
+                            job.update(state='WAITING_RESOURCE',result=result,retry_pending=True)
+                            # The coordinator and preparation leases have already
+                            # been released. Re-enter the same frozen request.
+                            threading.Event().wait(.75)
+                    result=retry_same(lambda:self.engine.run_round(store,iid,executor=executor),iid) if not report else None
+                    while True:
+                        with self.lock:
+                            if not job['report_ids']:
+                                job.update(state='WAITING',result=result,finished_at=now(),running_report_id=None,retry_pending=False);break
+                            selected_report=job['report_ids'].pop(0);job['running_report_id']=selected_report
+                        from . import reports
+                        from .render import Renderer
+                        report_instance=store.read_snapshot()['reports'][selected_report]['scope']['instance_ids'][0]
+                        job['kind']='REPORT'
+                        result=retry_same(lambda:reports.run(store,report_instance,executor=executor,
+                            policy=self.engine.policy(store,report_instance),renderer=Renderer(),report_id=selected_report),report_instance)
                 except Exception as e:
-                    job.update(state='BLOCKED',error=getattr(e,'code','EXECUTION_FAILED'),message=str(e),finished_at=now())
+                    code=getattr(e,'code','EXECUTION_FAILED')
+                    job.update(state='WAITING_RESOURCE' if code in {'RESOURCE_WAIT','RESOURCE_DISK_LOW'} else 'BLOCKED',error=code,message=str(e),finished_at=now(),retry_pending=False)
             threading.Thread(target=work,name='pmrs-'+iid[-12:],daemon=True).start();return job
 
-    def live_jobs(self):return any(j['state'] in {'RUNNING','QUEUED'} for j in self.jobs.values())
+    def launch_assistant(self,key,session_id,turn_id):
+        """Run one original assistant turn, then only its authorized report action.
+
+        This driver never resumes a research instance or invokes run_round.
+        All durable state remains in the native service and operation ledger.
+        """
+        with self.lock:
+            current=self.assistant_jobs.get((key,turn_id))
+            if current and (current['state'] in {'RUNNING','QUEUED','REPORT_RUNNING'} or current.get('retry_pending')):
+                return current
+            job={'session_id':session_id,'turn_id':turn_id,'state':'QUEUED','started_at':now(),'retry_pending':False}
+            self.assistant_jobs[(key,turn_id)]=job
+            def work():
+                from . import assistant,reports
+                store=self.project(key)
+                try:
+                    synthetic=store.read_snapshot()['synthetic_test_only']
+                    from .demo import policy as demo_policy,executor as report_demo_executor
+                    from .runner import CodexExecutor
+                    executor=assistant.demo_executor() if synthetic else CodexExecutor()
+                    policy=demo_policy() if synthetic else None
+                    while True:
+                        job.update(state='RUNNING',retry_pending=False)
+                        result=assistant.run_turn(store,turn_id,executor=executor,policy=policy)
+                        if result.get('state') not in {'RESOURCE_WAIT','WAITING_RESOURCE'}:break
+                        job.update(state='WAITING_RESOURCE',result=result,retry_pending=True)
+                        threading.Event().wait(.75)
+                    job['result']=result
+                    if result.get('state') not in {'ACCEPTED','EXACT_DUPLICATE'}:
+                        job.update(state=result.get('state','BLOCKED'),finished_at=now(),retry_pending=False)
+                        return
+                    # The helper checks accepted output and the actual original
+                    # user message. A model's proposed action has no authority.
+                    authorization=assistant.revision_authorization(store,turn_id)
+                    if authorization is not None:
+                        action=reports.revise_from_assistant(store,authorization,
+                            operation_id=identity({'assistant_turn':turn_id},'REPORT-ACTION-'))
+                        assistant.record_action(store,turn_id,action)
+                        rid=action['report_id'];entry=store.read_snapshot()['reports'][rid]
+                        # A new human allowance event extends only this original
+                        # report. Repeated recovery of the same event adds zero.
+                        reports.extend_revision_budget(store,rid,authorization)
+                        iid=entry['scope']['instance_ids'][0]
+                        from .render import Renderer
+                        report_executor=report_demo_executor(blob_get=store.read_blob) if synthetic else CodexExecutor()
+                        while True:
+                            job.update(state='REPORT_RUNNING',report_id=rid,retry_pending=False)
+                            result=reports.run(store,iid,executor=report_executor,
+                                policy=reports.policy_for_report(store,rid),renderer=Renderer(),report_id=rid)
+                            if result.get('state') not in {'RESOURCE_WAIT','WAITING_RESOURCE','COORDINATOR_ACTIVE'}:break
+                            job.update(state='WAITING_RESOURCE',result=result,retry_pending=True)
+                            threading.Event().wait(.75)
+                        from .scheduler import budget_remaining
+                        exhausted=(result.get('state')=='WAIT' and not result.get('code') and
+                            budget_remaining(store.read_snapshot(),action['budget_grant_id'])<=0)
+                        if exhausted:result={**result,'state':'WAITING_REPORT_BUDGET','code':'REPORT_BUDGET_REQUIRED'}
+                        assistant.record_action(store,turn_id,{**action,'result':result,
+                            **({'state':'WAITING_REPORT_BUDGET','error':'REPORT_BUDGET_REQUIRED'} if exhausted else {})})
+                        job['result']=result
+                    job.update(state='COMPLETED' if result.get('state') in {'ACCEPTED','EXACT_DUPLICATE','COMPLETED_CURRENT_REPORT'}
+                               else result.get('state','BLOCKED'),finished_at=now(),retry_pending=False)
+                except Exception as error:
+                    code=getattr(error,'code','ASSISTANT_EXECUTION_FAILED')
+                    job.update(state='WAITING_REPORT_BUDGET' if code=='REPORT_BUDGET_REQUIRED' else 'BLOCKED',
+                               error=code,finished_at=now(),retry_pending=False)
+                    # Store only a stable public error code here. Captured model
+                    # bytes and bounded diagnostic evidence retain their native
+                    # identities; raw process errors can contain sensitive text.
+                    try:
+                        previous=assistant.turn_status(store,turn_id).get('action') or {}
+                        assistant.record_action(store,turn_id,{**previous,'state':job['state'],'error':code})
+                    except (PMRSError,ValueError,KeyError,OSError):pass
+            threading.Thread(target=work,name='pmrs-assistant-'+turn_id[-12:],daemon=True).start()
+            return job
+
+    def live_jobs(self):return any(j['state'] in {'RUNNING','QUEUED','REPORT_RUNNING'} or j.get('retry_pending')
+                                  for j in [*self.jobs.values(),*self.assistant_jobs.values()])
 
     def recover_backend_state(self):
         """Startup reconciliation only; ordinary readers never change a store."""

@@ -78,7 +78,7 @@ class Repairs(unittest.TestCase):
         for name,raw in exact.items():
             source=s['sources'][scope[name+'_ref']]
             self.assertEqual(self.store.read_blob(source['blob_hash']),raw.encode())
-            self.assertEqual(base64.b64decode(packet['source_bytes_base64'][source['blob_hash']]),raw.encode())
+            self.assertEqual(self.store.read_blob(packet['material_refs'][source['blob_hash']]['sha256']),raw.encode())
         self.assertCode('DISCOVERY_SCOPE_IMMUTABLE',lambda:self.e.configure_discovery(self.store,iid,{'allowed_axes':'Alter every assumption.'}))
 
     def test_r03_two_named_instances_of_each_kind_preserve_old_targets(self):

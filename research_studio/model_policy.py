@@ -66,6 +66,11 @@ def capability_check(config,capabilities):
     return {'source':capabilities['source'],'revision':capabilities['revision'],'executor':capabilities.get('executor'),
             'capability_digest':identity(capabilities),'supported':True}
 
+def resolve_assistant(capabilities):
+    config={'model':'gpt-6-astra','reasoning_effort':'xhigh','service_tier':'default'}
+    return {'policy_version':VERSION,'workflow_kind':None,'stage_id':None,'role':'PROJECT_ASSISTANT','purpose':'PROJECT_ASSISTANT',
+            'call_model':True,'rule_id':'PROJECT_ASSISTANT',**config,'capability':capability_check(config,capabilities),'override_applied':False}
+
 
 def resolve(workflow_kind,stage_id,role,purpose='DEFAULT',*,override=None,capabilities=None,require_capability=True):
     row=spec(stage_id)

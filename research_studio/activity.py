@@ -75,6 +75,11 @@ def _instance(snapshot, iid):
             stage['visit_ids'].append(vid)
             stage['status'] = 'VISITED'
             recent = [visit['stage_id']]
+    for delivery in snapshot.get('round_deliveries',{}).values():
+        if delivery['instance_id']==iid:
+            summary=delivery['summary'];stage=stages[summary['stage_id']]
+            stage['status']='VISITED';stage['record_refs'].extend(summary.get('produced_refs',[]))
+            if delivery['mission_id']==instance.get('current_mission_id'):recent=[summary['stage_id']]
     tasks = {tid: t for tid, t in snapshot.get('tasks', {}).items() if t['instance_id'] == iid}
     running, waiting = set(), set()
     for tid, task in tasks.items():
