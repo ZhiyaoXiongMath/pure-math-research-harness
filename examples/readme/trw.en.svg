@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="864" viewBox="0 0 960 864" role="img" aria-labelledby="figure-title" lang="en">
+  <title id="figure-title">TRW workflow responsibilities and main paths</title>
+  <defs>
+    <marker id="arrow-main" viewBox="0 0 10 10" refX="8.2" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#355f9f" />
+    </marker>
+    <marker id="arrow-return" viewBox="0 0 10 10" refX="8.2" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#4b6179" />
+    </marker>
+    <marker id="arrow-human" viewBox="0 0 10 10" refX="8.2" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#986316" />
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="960" height="864" rx="20" fill="#f4f7fb" />
+  <rect x="0.75" y="0.75" width="958.5" height="862.5" rx="20" fill="none" stroke="#dae3ed" stroke-width="1.5" />
+  <text x="44" y="57" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="32" font-weight="700" fill="#152a43" text-anchor="start">TRW · Fixed-target research</text>
+  <text x="44" y="94" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="20" font-weight="400" fill="#4b6179" text-anchor="start">Work on one exact statement, preserving assumptions, quantifiers and open questions</text>
+  <rect x="45" y="133" width="270" height="312" rx="15" fill="#ffffff" stroke="#d8e1eb" stroke-width="1.5" />
+  <rect x="64" y="152" width="5" height="27" rx="2.5" fill="#355f9f" />
+  <text x="82" y="173" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#355f9f" text-anchor="start">P0–P3</text>
+  <text x="65" y="210" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="21" font-weight="700" fill="#152a43" text-anchor="start">Preparation &amp; scope</text>
+  <text x="65" y="251" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#355f9f" text-anchor="start">P0</text>
+  <text x="113" y="251" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#152a43" text-anchor="start">Target &amp; scope</text>
+  <text x="65" y="289" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#355f9f" text-anchor="start">P1</text>
+  <text x="113" y="289" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#152a43" text-anchor="start">Context &amp; notation</text>
+  <text x="65" y="327" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#355f9f" text-anchor="start">P2</text>
+  <text x="113" y="327" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#152a43" text-anchor="start">Relations &amp; routes</text>
+  <text x="65" y="365" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#355f9f" text-anchor="start">P3</text>
+  <text x="113" y="365" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#152a43" text-anchor="start">Select work</text>
+  <rect x="345" y="133" width="270" height="312" rx="15" fill="#ffffff" stroke="#d8e1eb" stroke-width="1.5" />
+  <rect x="364" y="152" width="5" height="27" rx="2.5" fill="#355f9f" />
+  <text x="382" y="173" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#355f9f" text-anchor="start">P4–P8</text>
+  <text x="365" y="210" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="21" font-weight="700" fill="#152a43" text-anchor="start">Research work</text>
+  <text x="365" y="251" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#355f9f" text-anchor="start">P4</text>
+  <text x="413" y="251" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#152a43" text-anchor="start">Derive &amp; construct</text>
+  <text x="365" y="289" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#355f9f" text-anchor="start">P5</text>
+  <text x="413" y="289" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#152a43" text-anchor="start">Identify gaps</text>
+  <text x="365" y="327" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#355f9f" text-anchor="start">P6</text>
+  <text x="413" y="327" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#152a43" text-anchor="start">AND/OR reductions</text>
+  <text x="365" y="365" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#355f9f" text-anchor="start">P7</text>
+  <text x="413" y="365" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#152a43" text-anchor="start">Analyze obligations</text>
+  <text x="365" y="403" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#355f9f" text-anchor="start">P8</text>
+  <text x="413" y="403" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#152a43" text-anchor="start">Repair &amp; falsify</text>
+  <rect x="645" y="133" width="270" height="312" rx="15" fill="#ffffff" stroke="#d8e1eb" stroke-width="1.5" />
+  <rect x="664" y="152" width="5" height="27" rx="2.5" fill="#167769" />
+  <text x="682" y="173" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#167769" text-anchor="start">P9–P12</text>
+  <text x="665" y="210" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="21" font-weight="700" fill="#152a43" text-anchor="start">Review &amp; integration</text>
+  <text x="665" y="251" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#355f9f" text-anchor="start">P9</text>
+  <text x="713" y="251" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#152a43" text-anchor="start">Independent review</text>
+  <text x="665" y="289" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#355f9f" text-anchor="start">P10</text>
+  <text x="713" y="289" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#152a43" text-anchor="start">Integrate results</text>
+  <text x="665" y="327" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#355f9f" text-anchor="start">P11</text>
+  <text x="713" y="327" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#152a43" text-anchor="start">Account for change</text>
+  <text x="665" y="365" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#355f9f" text-anchor="start">P12</text>
+  <text x="713" y="365" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#152a43" text-anchor="start">Review assembly</text>
+  <path d="M 316 290 L 341 290" fill="none" stroke="#355f9f" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-main)" />
+  <path d="M 616 290 L 641 290" fill="none" stroke="#355f9f" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-main)" />
+  <path d="M 780 447 L 780 544" fill="none" stroke="#355f9f" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-main)" />
+  <path d="M 697 447 L 697 496 L 480 496 L 480 449" fill="none" stroke="#4b6179" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-return)" stroke-dasharray="7 6" />
+  <text x="589" y="478" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="400" fill="#4b6179" text-anchor="middle">Concrete gap · return</text>
+  <rect x="545" y="548" width="370" height="150" rx="15" fill="#ffffff" stroke="#d8e1eb" stroke-width="1.5" />
+  <rect x="564" y="567" width="5" height="27" rx="2.5" fill="#167769" />
+  <text x="582" y="586" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#167769" text-anchor="start">P13</text>
+  <text x="565" y="620" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="23" font-weight="700" fill="#152a43" text-anchor="start">Progress &amp; optional reports</text>
+  <text x="565" y="655" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="400" fill="#4b6179" text-anchor="start">Present progress and open boundaries</text>
+  <text x="565" y="682" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="400" fill="#4b6179" text-anchor="start">Formal reports only when requested</text>
+  <rect x="45" y="548" width="370" height="150" rx="15" fill="#ffffff" stroke="#d8e1eb" stroke-width="1.5" />
+  <rect x="64" y="567" width="5" height="27" rx="2.5" fill="#986316" />
+  <text x="82" y="586" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="18" font-weight="700" fill="#986316" text-anchor="start">P14</text>
+  <text x="65" y="620" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="23" font-weight="700" fill="#152a43" text-anchor="start">Researcher decision</text>
+  <text x="65" y="656" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#4b6179" text-anchor="start">Continue · pause · end · hand off</text>
+  <path d="M 542 641 L 419 641" fill="none" stroke="#986316" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-human)" />
+  <text x="480" y="620" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="16" font-weight="400" fill="#986316" text-anchor="middle">Human decision</text>
+  <text x="45" y="752" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#4b6179" text-anchor="start">Responsibilities and registered main paths; not an automatic sequence.</text>
+  <text x="45" y="781" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#4b6179" text-anchor="start">Return for a concrete question within the authorized scope and budget.</text>
+  <text x="45" y="810" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#4b6179" text-anchor="start">Accepted results or completed stages and reports do not establish a proof.</text>
+</svg>
