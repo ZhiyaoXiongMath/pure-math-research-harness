@@ -7,6 +7,7 @@ from copy import deepcopy
 from ..util import identity, require
 from .trw import STAGES as TRW
 from .tfdw import STAGES as TFDW
+from .survey import STAGES as SURVEY
 
 REQUIRED = {'workflow_kind', 'stage_id', 'version', 'purpose', 'allowed_obligation_types',
             'roles', 'input_binding_rule_ids', 'output_contract_ids', 'empty_outcome_policy',
@@ -15,10 +16,10 @@ REQUIRED = {'workflow_kind', 'stage_id', 'version', 'purpose', 'allowed_obligati
 ROUTES = {'SOURCE_APPLICATION': ('LEARN',), 'DIRECT_ANALYSIS': ('DIRECT',),
           'COMPARATIVE': ('LEARN', 'DIRECT', 'SYNTHESIS')}
 INDEPENDENT = {'PROOF', 'COUNTEREXAMPLE', 'INDEPENDENT', 'SPECIALIST',
-               'FORMULATION_REVIEW', 'ADVERSARIAL_REVIEW', 'REPORT_SEMANTIC', 'REPORT_VISUAL'}
+               'FORMULATION_REVIEW', 'ADVERSARIAL_REVIEW', 'REPORT_SEMANTIC', 'REPORT_VISUAL', 'READINESS_REVIEW', 'COVERAGE_REVIEW'}
 
 def compile_registry(rows=None):
-    rows = deepcopy(TRW + TFDW if rows is None else rows)
+    rows = deepcopy(TRW + TFDW + SURVEY if rows is None else rows)
     compiled = {}
     for row in rows:
         require(REQUIRED <= row.keys(), 'STAGE_SPEC_INVALID', 'Missing activity contract fields')

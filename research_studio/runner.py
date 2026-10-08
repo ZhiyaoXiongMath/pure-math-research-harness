@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor
 import base64,fcntl,json,os,shutil,signal,subprocess,tempfile,time
 from .util import require,read,sha,canonical,immutable,PMRSError
-from . import tasks,execution,scheduler
+from . import tasks,execution,scheduler,resources
 
 def environment():
     env=dict(os.environ)
@@ -63,7 +63,7 @@ class FakeExecutor:
         if self.fault_at==name:raise SimulatedCrash(name)
     def execute(self,store,task_id):
         t=tasks.load(store,task_id);rid=t['request_id'];s=store.read_snapshot();r=s['requests'][rid]
-        if r['execution_state']=='CAPTURED':return execution.recover(store,rid)
+        if r['execution_state']=='CAPTURED':return _recover_clean(store,rid)
         require(r['execution_state']=='PREPARED','EXISTING_REQUEST','Fake executors also cannot repeat uncertain sends')
         self._fault('AFTER_FREEZE')
         result=execution.reserve(store,rid,execution_kind='SYNTHETIC_TEST_ONLY')
@@ -76,7 +76,93 @@ class FakeExecutor:
         self._fault('AFTER_CAPTURE_BLOB_BEFORE_RECEIPT')
         execution.capture(store,rid,raw,execution_id=result['execution_id'],usage={'calls':1,'test_only':True})
         self._fault('AFTER_CAPTURE_RECEIPT_BEFORE_ADMISSION')
-        return execution.recover(store,rid)
+        return _recover_clean(store,rid)
+
+
+def materialize_task_inputs(store, task, work, *, reserved=False):
+    if reserved:return _materialize_task_inputs(store,task,work)
+    with resources.reserve(store.root,owner='materialize-'+task['task_id'],temporary_bytes=256*resources.MIB,memory_bytes=resources.MAX_PREPARATION_MEMORY,max_preparations=min(2,store.read_snapshot().get('max_workers',1))):
+        return _materialize_task_inputs(store,task,work)
+
+def _materialize_task_inputs(store, task, work):
+    """Prepare only frozen role inputs, one bounded independent file at a time."""
+    work=Path(work)
+    require(not work.exists(),'EXISTING_REQUEST','Do not replace prior execution work')
+    body=resources.bounded_canonical(task,resources.METADATA_BYTES,code='CONTEXT_LIMIT')
+    files={'packet.json':task['input_packet_ref'],'prompt.md':task['prompt_ref']}
+    for name,digest in task.get('report_context',{}).get('files',{}).items():
+        require('/' not in name and '\\' not in name and name not in {'.','..'},'PATH_INVALID','Report file name must be a basename')
+        files['report-inputs/'+name]=digest
+    size=len(body);largest=len(body)
+    for digest in files.values():
+        info=resources.blob_info(store,digest);size+=info['bytes'];largest=max(largest,info['bytes'])
+        require(info['bytes']<=resources.SERIALIZED_BYTES and size<=256*resources.MIB,'RESOURCE_LIMIT','Task working inputs exceed their bounded disk budget.')
+    require(size+largest<=256*resources.MIB,'RESOURCE_LIMIT','Task input copies and atomic staging exceed the reserved disk budget.')
+    resources.disk_preflight(store.root,size+largest)
+    manifest={'task.json':{'sha256':sha(body),'bytes':len(body)}}
+    work.mkdir(parents=True,mode=0o700)
+    try:
+        immutable(work/'task.json',body)
+        for name,digest in files.items():
+            copied=resources.copy_blob(store,digest,work/name)
+            manifest[name]={'sha256':digest,'bytes':copied['bytes']}
+        return {'files':manifest,'copied_bytes':size,'peak_copy_chunk_bytes':resources.CHUNK_BYTES}
+    except BaseException:
+        # This directory was newly created by this preparation, before any
+        # reservation or remote send. It contains no capture evidence.
+        shutil.rmtree(work)
+        raise
+
+
+def verify_task_inputs(work, manifest):
+    for name,item in manifest.items():
+        require(resources.hash_file(Path(work)/name,item['bytes'])==item['sha256'],
+                'ORIGINAL_BYTES_MISMATCH','Frozen task material changed during execution.')
+
+
+def cleanup_task_inputs(store,task_id):
+    """Reclaim named reconstructible input copies only after sealed settlement."""
+    from .util import safe_path,loads
+    snapshot=store.read_snapshot();task=snapshot.get('tasks',{}).get(task_id)
+    if not task:return {'removed_files':0,'removed_bytes':0,'protected':True}
+    request=snapshot['requests'][task['request_id']]
+    if request['execution_state']!='SETTLED' or not request.get('capture_ref'):
+        return {'removed_files':0,'removed_bytes':0,'protected':True}
+    work=safe_path(store.root,'runs/'+task_id+'/work')
+    if not work.exists():return {'removed_files':0,'removed_bytes':0,'protected':False}
+    seal_path=safe_path(store.root,'execution/captures/'+task['request_id']+'.json')
+    if not seal_path.exists():return {'removed_files':0,'removed_bytes':0,'protected':True}
+    seal=loads(read(seal_path))
+    require(seal.get('task_id')==task_id and seal.get('request_id')==task['request_id']
+            and seal.get('execution_id')==request['execution_id'] and seal.get('capture_ref')==request['capture_ref']
+            and seal.get('task_digest')==sha(canonical(task)) and seal.get('input_manifest_hash')==task['input_manifest_hash'],
+            'ORIGINAL_BYTES_MISMATCH','Settled task input cleanup requires its exact capture seal.')
+    require(resources.hash_file(store.root/'blobs'/request['capture_ref'],16*resources.MIB)==request['capture_ref'],
+            'ORIGINAL_BYTES_MISMATCH','Settled capture must remain intact before input cleanup.')
+    files={'task.json':sha(canonical(task)),'packet.json':task['input_packet_ref'],'prompt.md':task['prompt_ref']}
+    for name,digest in task.get('report_context',{}).get('files',{}).items():
+        require('/' not in name and '\\' not in name and name not in {'.','..'},'PATH_INVALID','Report input must be a basename')
+        files['report-inputs/'+name]=digest
+    removed=0;size=0
+    for name,digest in files.items():
+        path=safe_path(store.root,'runs/'+task_id+'/work/'+name)
+        if path.exists():
+            require(resources.hash_file(path,resources.SERIALIZED_BYTES)==digest,'ORIGINAL_BYTES_MISMATCH','Do not delete changed task inputs as if they were a verified cache.')
+            size+=resources.file_info(path)['bytes'];path.unlink();removed+=1
+    folder=safe_path(store.root,'runs/'+task_id+'/work/report-inputs')
+    if folder.exists():
+        try:folder.rmdir()
+        except OSError:pass  # Unknown user/task output is not an input cache.
+    return {'removed_files':removed,'removed_bytes':size,'protected':False}
+
+
+def cleanup_task_inputs_safely(store,task_id):
+    try:return cleanup_task_inputs(store,task_id)
+    except (PMRSError,OSError,ValueError,KeyError):
+        return {'state':'PRESERVED','warning':'Input cache cleanup was not completed; captured evidence and the original request outcome are preserved. No request was repeated.'}
+
+def _recover_clean(store,request_id):
+    return execution.recover(store,request_id)
 
 
 class CodexExecutor:
@@ -84,23 +170,18 @@ class CodexExecutor:
         require(isinstance(timeout,(int,float)) and 0<timeout<=14400,'TIMEOUT_INVALID','Bounded timeout required')
         self.binary=binary;self.timeout=timeout
     def execute(self,store,task_id):
+        with resources.reserve(store.root,owner='task-'+task_id,temporary_bytes=256*resources.MIB,memory_bytes=resources.MAX_PREPARATION_MEMORY,max_preparations=min(2,store.read_snapshot().get('max_workers',1))):
+            return self._execute(store,task_id)
+    def _execute(self,store,task_id):
         t=tasks.load(store,task_id);rid=t['request_id'];s=store.read_snapshot();r=s['requests'][rid]
-        if r['execution_state']=='CAPTURED':return execution.recover(store,rid)
+        if r['execution_state']=='CAPTURED':return _recover_clean(store,rid)
         require(r['execution_state']=='PREPARED','EXISTING_REQUEST','Inspect uncertain requests; no automatic resend')
         require(t['executor_contract'].get('executor')=='codex' and t['executor_contract'].get('sandbox')=='required',
                 'SAFETY_BOUNDARY_UNAVAILABLE','The frozen executor contract must explicitly select isolated Codex')
         probe=doctor(self.binary);require(probe['ready'],'SAFETY_BOUNDARY_UNAVAILABLE',str(probe.get('error','Codex is missing')))
         binary=probe['binary'];work=store.root/'runs'/task_id/'work'
-        require(not work.exists(),'EXISTING_REQUEST','Do not replace prior execution work')
-        work.mkdir(parents=True,mode=0o700)
-        packet=store.read_blob(t['input_packet_ref']);prompt=store.read_blob(t['prompt_ref'])
-        files={'task.json':canonical(t),'packet.json':packet,'prompt.md':prompt}
+        inputs=materialize_task_inputs(store,t,work,reserved=True)
         context=t.get('report_context')
-        if context:
-            for name,h in context['files'].items():
-                require('/' not in name and '\\' not in name and name not in {'.','..'},'PATH_INVALID','Report file name must be a basename')
-                files['report-inputs/'+name]=store.read_blob(h)
-        for name,data in files.items():immutable(work/name,data)
         response=work/'response.json';m=t['model_policy']
         from .model_policy import codex_arguments
         command=[binary,'--no-daemon','exec','--ignore-user-config','--ignore-rules','--skip-git-repo-check','--ephemeral','--json','--color','never',
@@ -109,8 +190,13 @@ class CodexExecutor:
             for page in context['pages']+context.get('context_pages',[]):
                 command+=['--image',str(work/'report-inputs'/(page['id']+'.png'))]
         command+=['-']
-        immutable(work.parent/'command.json',canonical(command))
-        reservation=execution.reserve(store,rid,execution_kind='MODEL');eid=reservation['execution_id'];process=None;start=time.monotonic()
+        try:
+            immutable(work.parent/'command.json',canonical(command))
+            reservation=execution.reserve(store,rid,execution_kind='MODEL')
+        except BaseException:
+            shutil.rmtree(work)
+            raise
+        eid=reservation['execution_id'];process=None;start=time.monotonic();last_resource_check=start
         try:
             with (work.parent/'events.jsonl').open('wb') as log,(work.parent/'stderr.log').open('wb') as err:
                 process=subprocess.Popen(command,cwd=work,stdin=subprocess.PIPE,stdout=log,stderr=err,env=environment(),start_new_session=True)
@@ -119,9 +205,11 @@ class CodexExecutor:
                 while process.poll() is None:
                     require(time.monotonic()-start<self.timeout,'MODEL_TIMEOUT','Uncertain requests retain their reservations')
                     require(all(p.stat().st_size<=64*1024**2 for p in (work.parent/'events.jsonl',work.parent/'stderr.log')),'MODEL_LOG_LIMIT','Bounded output exceeded')
+                    if time.monotonic()-last_resource_check>=1:
+                        resources.directory_usage(work.parent,max_bytes=256*resources.MIB,max_files=4096);last_resource_check=time.monotonic()
                     time.sleep(.1)
             require(process.returncode==0,'MODEL_PROCESS_FAILED',read(work.parent/'stderr.log',64*1024**2)[-3000:].decode(errors='replace'))
-            for name,data in files.items():require(read(work/name,128*1024**2)==data,'ORIGINAL_BYTES_MISMATCH',name)
+            verify_task_inputs(work,inputs['files'])
             raw=read(response,16*1024**2)
             immutable(work.parent/'capture.json',canonical({'task_id':task_id,'request_id':rid,'execution_id':eid,'response_sha256':sha(raw),
                 'elapsed_seconds':time.monotonic()-start,'task_sha256':sha(canonical(t)),'command_sha256':sha(canonical(command))}))
@@ -135,19 +223,24 @@ class CodexExecutor:
             if current['execution_state'] in {'RESERVED','SENT'}:
                 store.commit_execution(execution.event('UNKNOWN',{'request_id':rid,'execution_id':eid,'reason':str(exc)}))
             raise
-        return execution.recover(store,rid)
+        return _recover_clean(store,rid)
 
 
 def recover_transport(store,task_id):
     t=tasks.load(store,task_id);s=store.read_snapshot();r=s['requests'][t['request_id']]
-    if r['capture_ref']:return execution.recover(store,t['request_id'])
+    if r['capture_ref']:return _recover_clean(store,t['request_id'])
     root=store.root/'runs'/task_id;seal=json.loads(read(root/'capture.json'));raw=read(root/'work/response.json',16*1024**2)
     require(seal.get('execution_id')==r['execution_id'] and seal.get('task_id')==task_id
             and seal.get('task_sha256')==sha(canonical(t)) and seal.get('response_sha256')==sha(raw)
             and seal.get('command_sha256')==sha(read(root/'command.json')),'ORIGINAL_BYTES_MISMATCH','Original transport seal differs')
-    for name,expected in {'task.json':canonical(t),'packet.json':store.read_blob(t['input_packet_ref']),'prompt.md':store.read_blob(t['prompt_ref'])}.items():
-        require(read(root/'work'/name,128*1024**2)==expected,'ORIGINAL_BYTES_MISMATCH',name)
-    execution.capture(store,t['request_id'],raw,execution_id=r['execution_id']);return execution.recover(store,t['request_id'])
+    manifest={'task.json':{'sha256':sha(canonical(t)),'bytes':len(canonical(t))}}
+    references={'packet.json':t['input_packet_ref'],'prompt.md':t['prompt_ref']}
+    for name,digest in t.get('report_context',{}).get('files',{}).items():
+        require('/' not in name and '\\' not in name and name not in {'.','..'},'PATH_INVALID','Report input must be a basename')
+        references['report-inputs/'+name]=digest
+    for name,digest in references.items():manifest[name]={'sha256':digest,'bytes':resources.blob_info(store,digest)['bytes']}
+    verify_task_inputs(root/'work',manifest)
+    execution.capture(store,t['request_id'],raw,execution_id=r['execution_id']);return _recover_clean(store,t['request_id'])
 
 
 @contextmanager

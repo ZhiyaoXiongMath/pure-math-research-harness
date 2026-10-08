@@ -118,7 +118,10 @@ def isolated(work,command,timeout=180):
                 try:os.killpg(proc.pid,signal.SIGKILL)
                 except ProcessLookupError:pass
                 proc.wait();raise
-        b=read(output,64*1024**2)
+        try:
+            b=read(output,64*1024**2)
+        finally:
+            output.unlink(missing_ok=True)
         require(proc.returncode==0,'PDF_ISOLATED_TOOL_FAILED',b[-4000:].decode(errors='replace'))
         return b
 
@@ -133,17 +136,33 @@ def doctor():
             'model_calls':0,'network_downloads':0,'message_zh':'工具存在不等于已通过隔离编译；正式报告仍需实际编译与全页审查。'}
 
 class Renderer:
-    def __call__(self,body,*,synthetic=False):
-        text=validate_tex(body.decode());tex=(PREAMBLE+text+'\n\\end{document}\n').encode()
-        bins={n:tool(n) for n in TOOLS};cache=safe_path(cache_root());require(cache.is_dir(),'PDF_CACHE_MISSING','Warm trusted offline TeX resources before running PMRS')
+    def resource_estimate(self):
+        _, files, total = self._cache_inventory()
+        return {'temporary_bytes':total + 256*1024**2, 'memory_bytes':256*1024**2,
+                'cache_bytes':total, 'cache_files':len(files)}
+
+    def _cache_inventory(self):
+        from .resources import file_info
+        cache=safe_path(cache_root());require(cache.is_dir(),'PDF_CACHE_MISSING','Warm trusted offline TeX resources before running PMRS')
         files={};total=0
         for p in sorted(cache.rglob('*')):
-            require(not p.is_symlink(),'PDF_CACHE_SYMLINK',str(p))
+            require(not p.is_symlink(),'PDF_CACHE_SYMLINK','Offline cache cannot contain symbolic links.')
             if p.is_file():
-                b=read(p,256*1024**2);total+=len(b);require(total<=256*1024**2,'PDF_CACHE_LIMIT','Offline cache exceeds 256 MiB');files[str(p.relative_to(cache))]=b
+                size=file_info(p)['bytes'];total+=size
+                require(total<=256*1024**2 and len(files)<8192,'PDF_CACHE_LIMIT','Offline cache exceeds its 256 MiB or 8192-file preparation budget.')
+                files[str(p.relative_to(cache))]=(p,size)
+        return cache,files,total
+
+    def __call__(self,body,*,synthetic=False):
+        from .resources import hash_file, copy_file, disk_preflight
+        text=validate_tex(body.decode());tex=(PREAMBLE+text+'\n\\end{document}\n').encode()
+        bins={n:tool(n) for n in TOOLS};cache,files,total=self._cache_inventory()
+        disk_preflight(Path(tempfile.gettempdir()),total+256*1024**2)
         with tempfile.TemporaryDirectory(prefix='pmrs-render-') as tmp:
-            work=Path(tmp)
-            for p,b in files.items():f=work/'.cache/tectonic'/p;f.parent.mkdir(parents=True,exist_ok=True);f.write_bytes(b)
+            work=Path(tmp);cache_hashes={}
+            for name,(source,size) in files.items():
+                result=copy_file(source,work/'.cache/tectonic'/name,size)
+                cache_hashes[name]=result['sha256']
             (work/'report.tex').write_bytes(tex)
             isolated(work,[bins['tectonic'],'--untrusted','--only-cached','--keep-logs','--outdir',str(work),str(work/'report.tex')],240)
             pdf=read(work/'report.pdf',64*1024**2);require(pdf.startswith(b'%PDF-'),'PDF_NOT_GENERATED','A valid PDF header is required')
@@ -163,9 +182,9 @@ class Renderer:
             for family in ('DejaVu Serif','DejaVu Sans','DejaVu Sans Mono'):
                 f=isolated(work,[bins['fc-match'],'--format=%{file}',family]).decode()
                 require(f.startswith('/usr/'),'PDF_FONT_PATH','Only mounted system font files are allowed');fonts[family]=sha(read(Path(f)))
-            sem={'grammar':tex_semantic_identity(),'template':sha(PREAMBLE.encode()),'compiler':sha(read(Path(bins['tectonic']),256*1024**2)),
-                 'cache':identity({p:sha(b) for p,b in files.items()})}
-            env={'tools':{n:sha(read(Path(p),256*1024**2)) for n,p in bins.items()},'fonts':fonts,
+            sem={'grammar':tex_semantic_identity(),'template':sha(PREAMBLE.encode()),'compiler':hash_file(Path(bins['tectonic']),256*1024**2),
+                 'cache':identity(cache_hashes)}
+            env={'tools':{n:hash_file(Path(p),256*1024**2) for n,p in bins.items()},'fonts':fonts,
                  'ca_bundle':sha(read(ca_bundle(),4*1024**2)),
                  'seccomp':sha(compile_filter()),'verifier':sha(VERIFIER.encode()),'offline':True,'all_pages_rendered':True,
                  'namespace_isolated':True,'warnings':[l for l in compile_log.splitlines() if 'Overfull' in l or 'Warning:' in l]}

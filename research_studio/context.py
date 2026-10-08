@@ -4,6 +4,7 @@ from .util import require, canonical, sha
 from . import contracts as C, relations
 from .knowledge import validate_record, validate_locator
 from .assurance import validate_scope, coverage, validate_requirement
+from . import resources
 
 MAX_CONTEXT_BYTES=32*1024*1024
 def _source_tainted(ref,snapshot,seen=None):
@@ -20,10 +21,48 @@ def _source_tainted(ref,snapshot,seen=None):
     return any(_source_tainted(r,snapshot,seen) for r in parents)
 
 
-def build_packet(snapshot,roots,blob_get,*,independent=False,required_source_refs=(),sibling_tasks=(),max_bytes=MAX_CONTEXT_BYTES,include_method_sources=False,selection_modes=None):
+def build_packet(snapshot,roots,blob_get,*,independent=False,required_source_refs=(),sibling_tasks=(),max_bytes=MAX_CONTEXT_BYTES,include_method_sources=False,selection_modes=None,blob_size=None,budget_blob_hashes=()):
     selected=relations.premise_closure(roots,snapshot,include_method_sources=include_method_sources)|set(required_source_refs)
     record_map={};bodies={};sources={};source_bodies={};read_set=[];input_manifest=[]
     allrecords=snapshot.get('records',{});all_sources=snapshot.get('sources',{})
+    kept=[r for r in relations.edges(snapshot) if r['source_ref'] in selected and r['target_ref'] in selected and relations.is_premise(r)]
+    metadata={'records':{r:allrecords[r] for r in selected if r in allrecords},
+              'sources':{r:all_sources[r] for r in selected if r in all_sources},'relations':kept,'roots':list(roots)}
+    metadata_bytes=resources.json_bytes(metadata,min(max_bytes,resources.METADATA_BYTES),code='CONTEXT_LIMIT')
+    hashes=set()
+    def locator_hashes(value):
+        if isinstance(value,dict):
+            if set(value)==C.LOCATOR_FIELDS:hashes.add(value['blob_hash'])
+            else:
+                for child in value.values():locator_hashes(child)
+        elif isinstance(value,list):
+            for child in value:locator_hashes(child)
+    for ref in selected:
+        if ref in allrecords:
+            hashes.add(allrecords[ref]['body_sha256']);locator_hashes(allrecords[ref]['data'])
+        elif ref in all_sources:hashes.add(all_sources[ref]['blob_hash'])
+    hashes.update(budget_blob_hashes)
+    owner=getattr(blob_get,'__self__',None)
+    if blob_size is None and owner is not None and hasattr(owner,'root'):
+        blob_size=lambda digest:resources.blob_info(owner,digest)['bytes']
+    sizes={};unique_bytes=0
+    if blob_size is not None:
+        for digest in sorted(hashes):
+            length=blob_size(digest)
+            require(type(length) is int and length>=0,'CONTEXT_LIMIT','Invalid local input size')
+            unique_bytes+=length;sizes[digest]=length
+            require(unique_bytes+metadata_bytes<=max_bytes,'CONTEXT_LIMIT','Complete input exceeds the supported storage budget before body reads; select an explicit smaller coverage scope.')
+    cache={};actual_bytes=0
+    def get(digest):
+        nonlocal actual_bytes
+        if digest not in cache:
+            raw=blob_get(digest)
+            require(isinstance(raw,bytes) and sha(raw)==digest,'ORIGINAL_BYTES_MISMATCH','Frozen input bytes differ')
+            require(digest not in sizes or len(raw)==sizes[digest],'ORIGINAL_BYTES_MISMATCH','Input size changed after preflight')
+            actual_bytes+=len(raw)
+            require(actual_bytes+metadata_bytes<=max_bytes,'CONTEXT_LIMIT','Complete input exceeds the supported storage budget; no evidence was omitted.')
+            cache[digest]=raw
+        return cache[digest]
     for ref in sorted(selected):
         if ref in allrecords:
             record=allrecords[ref]
@@ -32,7 +71,7 @@ def build_packet(snapshot,roots,blob_get,*,independent=False,required_source_ref
                 require(not _source_tainted(ref,snapshot),'FORBIDDEN_REVIEW_DERIVATIVE','Prior verdict or preparation derivative in independent input')
                 producers=[p for p in snapshot.get('production_events',{}).values() if p.get('record_ref')==ref]
                 require(not producers or not all(p.get('task_id') in sibling_tasks for p in producers),'FORBIDDEN_REVIEW_DERIVATIVE','Sibling output not an independent input')
-            body=blob_get(record['body_sha256'])
+            body=get(record['body_sha256'])
             require(sha(body)==record['body_sha256'],'ORIGINAL_BYTES_MISMATCH',ref)
             if independent:
                 # Declared review references inside a purported self-contained
@@ -56,7 +95,7 @@ def build_packet(snapshot,roots,blob_get,*,independent=False,required_source_ref
             def locators(value):
                 if isinstance(value,dict):
                     if set(value)==C.LOCATOR_FIELDS:
-                        validate_locator(value,blob_get);bodies[value['blob_hash']]=blob_get(value['blob_hash'])
+                        validate_locator(value,get);bodies[value['blob_hash']]=get(value['blob_hash'])
                     else:
                         for v in value.values():locators(v)
                 elif isinstance(value,list):
@@ -65,20 +104,20 @@ def build_packet(snapshot,roots,blob_get,*,independent=False,required_source_ref
         elif ref in all_sources:
             source=all_sources[ref]
             if independent:require(not _source_tainted(ref,snapshot),'FORBIDDEN_REVIEW_DERIVATIVE','Source is review/preparation material or a derivative')
-            h=source['blob_hash'];raw=blob_get(h)
+            h=source['blob_hash'];raw=get(h)
             require(sha(raw)==h,'ORIGINAL_BYTES_MISMATCH',ref)
             sources[ref]=deepcopy(source);source_bodies[h]=raw
             input_manifest.append({'kind':'source','ref':ref,'sha256':h})
         elif ref in snapshot.get('inferences',{}):continue
         else:raise C.PMRSError('INCOMPLETE_CONTEXT','Required exact material missing: '+str(ref))
-    byte_count=sum(len(b) for b in {**bodies,**source_bodies}.values())+len(canonical(record_map))+len(canonical(sources))
+    byte_count=actual_bytes+metadata_bytes
     require(byte_count<=max_bytes,'CONTEXT_LIMIT','Required full material exceeds frozen storage budget; create an explicit CoveragePlan')
-    kept=[deepcopy(r) for r in relations.edges(snapshot) if r['source_ref'] in selected and r['target_ref'] in selected and relations.is_premise(r)]
+    kept=deepcopy(kept)
     return {'records':record_map,'bodies':bodies,'sources':sources,'source_bodies':source_bodies,'roots':list(roots),
         'relations':kept,'read_set':read_set,'input_manifest':input_manifest,'input_manifest_hash':C.digest(input_manifest),
         'independent':independent,'excluded_verdicts':independent,'complete':True,'bytes':byte_count}
 
-def token_preflight(serialized_request,capacity,*,reserved_output_tokens,prompt_overhead_tokens=0,safety_margin_tokens=0,token_counter=None):
+def token_preflight(serialized_request,capacity,*,reserved_output_tokens,prompt_overhead_tokens=0,safety_margin_tokens=0,token_counter=None,additional_input_bytes=0):
     require(isinstance(serialized_request,bytes),'CONTEXT_LIMIT','Count the actual serialized request bytes')
     required={'model_id','capacity_source','capacity_revision','context_window_tokens','model_max_output_tokens','tokenizer_revision'}
     require(isinstance(capacity,dict) and required<=set(capacity),'CONTEXT_LIMIT','Missing frozen model capacity source or counter revision')
@@ -89,6 +128,10 @@ def token_preflight(serialized_request,capacity,*,reserved_output_tokens,prompt_
         require(capacity.get('tokenizer_byte_bound_verified') is True and capacity.get('token_count_bound')=='UTF8_BYTES',
             'CONTEXT_LIMIT','No exact tokenizer or attested conservative token bound for this model')
         count=len(serialized_request);method='CONSERVATIVE_BOUND'
+    require(type(additional_input_bytes) is int and additional_input_bytes>=0,'CONTEXT_LIMIT','Invalid separately materialized input byte count')
+    if additional_input_bytes:
+        require(capacity.get('tokenizer_byte_bound_verified') is True and capacity.get('token_count_bound')=='UTF8_BYTES','CONTEXT_LIMIT','Separate frozen files require an attested conservative byte bound')
+        count+=additional_input_bytes;method='CONSERVATIVE_BOUND'
     value={k:capacity[k] for k in required}
     value.update(reserved_output_tokens=reserved_output_tokens,prompt_overhead_tokens=prompt_overhead_tokens,
        safety_margin_tokens=safety_margin_tokens,input_tokens=count,token_count_method=method)
@@ -164,7 +207,7 @@ def build_coverage_packet(snapshot,part,blob_get,*,independent=True,required_sou
     require(targets.isdisjoint(full),'CONTEXT_LIMIT','A target required as a full premise cannot also be sliced')
     roots=sorted(targets|full)
     packet=build_packet(snapshot,roots,blob_get,independent=independent,required_source_refs=required_source_refs,
-                        sibling_tasks=sibling_tasks,max_bytes=256*1024*1024)
+                        sibling_tasks=sibling_tasks,max_bytes=MAX_CONTEXT_BYTES)
     slices={}
     for ref in sorted(targets):
         require(ref in packet['records'],'INCOMPLETE_CONTEXT','Partial target must be an exact scientific record')

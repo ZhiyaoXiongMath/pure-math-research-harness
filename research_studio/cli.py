@@ -21,7 +21,7 @@ def parser():
     wf=sub.add_parser('workflow');ws=wf.add_subparsers(dest='operation',required=True)
     for name in ('new','list','configure-discovery'):
         q=ws.add_parser(name);q.add_argument('project',type=Path)
-        if name=='new':q.add_argument('--kind',choices=['TRW','TFDW'],required=True);q.add_argument('--name');q.add_argument('--target');q.add_argument('--target-text',type=Path)
+        if name=='new':q.add_argument('--kind',choices=['TRW','TFDW','SURVEY'],required=True);q.add_argument('--name');q.add_argument('--target');q.add_argument('--target-text',type=Path);q.add_argument('--survey-scope',type=Path)
         if name=='configure-discovery':q.add_argument('--instance',required=True)
         if name!='list':q.add_argument('--brief',type=Path);q.add_argument('--immutable-background',type=Path);q.add_argument('--allowed-axes',type=Path)
     kn=sub.add_parser('knowledge');ks=kn.add_subparsers(dest='operation',required=True)
@@ -29,10 +29,27 @@ def parser():
         q=ks.add_parser(name);q.add_argument('project',type=Path);q.add_argument('--instance');q.add_argument('--commit')
         if name=='current':q.add_argument('--query');q.add_argument('--offset',type=int,default=0);q.add_argument('--limit',type=int,default=25)
         if name=='diff':q.add_argument('--from',dest='from_commit',required=True)
+    survey=sub.add_parser('survey',help='Scoped literature survey and optional English manuscript')
+    ss=survey.add_subparsers(dest='operation',required=True)
+    new=ss.add_parser('init');new.add_argument('--out',type=Path,required=True);new.add_argument('--scope',type=Path,required=True);new.add_argument('--title',default='Literature survey')
+    for name in ('status','activity','retrieve','freeze','plan','source-status'):
+        q=ss.add_parser(name);q.add_argument('project',type=Path);q.add_argument('--instance',required=True)
+        if name=='activity':
+            q.add_argument('--stage',choices=['S1','S2','S3','S4','S5'],required=True);q.add_argument('--intent',required=True)
+            q.add_argument('--max-calls',type=int,required=True);q.add_argument('--max-workers',type=int,default=1);q.add_argument('--model-overrides',type=Path)
+            q.add_argument('--allow-reports',action='store_true',default=None)
+            q.add_argument('--selected-refs',type=Path);q.add_argument('--source-refs',type=Path);q.add_argument('--role')
+        if name=='retrieve':q.add_argument('--plan-ref',required=True)
+        if name=='freeze':q.add_argument('--selected-refs',type=Path);q.add_argument('--question-ids',type=Path)
+        if name=='source-status':
+            q.add_argument('--source-ref',required=True);q.add_argument('--withdrawn',action='store_true');q.add_argument('--version-conflict',action='store_true');q.add_argument('--reason',required=True)
+        if name=='plan':
+            q.add_argument('--snapshot-ref',required=True);q.add_argument('--profile',choices=['minimal','thematic','lecture'],required=True)
+            q.add_argument('--settings',type=Path)
     hf=sub.add_parser('handoff');hs=hf.add_subparsers(dest='operation',required=True)
     for name in ('prepare','adopt'):
         q=hs.add_parser(name);q.add_argument('project',type=Path);q.add_argument('--instance',required=True)
-        if name=='prepare':q.add_argument('--direction',choices=['TRW_TO_TFDW','TFDW_TO_TRW'],required=True);q.add_argument('--scope',type=Path,required=True)
+        if name=='prepare':q.add_argument('--direction',choices=['TRW_TO_TFDW','TFDW_TO_TRW','SURVEY_TO_TRW','SURVEY_TO_TFDW'],required=True);q.add_argument('--scope',type=Path,required=True)
         else:q.add_argument('--handoff',required=True);q.add_argument('--decision',type=Path,required=True)
     for name in ('status','audit','rebuild-index','orphans','schedule','prepare','run','pause','decide','resume','report','source','preflight','recover','cancel','reconcile','authorize','start','configure','ui'):
         q=sub.add_parser(name);q.add_argument('project',type=Path)
@@ -45,7 +62,7 @@ def parser():
             q.add_argument('--action',required=True);q.add_argument('--note',required=True);q.add_argument('--snapshot',required=True);q.add_argument('--candidate');q.add_argument('--report-ref')
         if name=='resume':q.add_argument('--decision',required=True)
         if name=='run':q.add_argument('--max-tasks',type=int,default=32)
-        if name=='report':q.add_argument('--check-only',action='store_true');q.add_argument('--prepare-only',action='store_true');q.add_argument('--render-only',action='store_true');q.add_argument('--profile',choices=['lecture','minimal'])
+        if name=='report':q.add_argument('--check-only',action='store_true');q.add_argument('--prepare-only',action='store_true');q.add_argument('--render-only',action='store_true');q.add_argument('--profile',choices=['lecture','minimal','thematic']);q.add_argument('--plan-ref')
         if name=='source':q.add_argument('--file',type=Path,required=True);q.add_argument('--media-type',default='application/octet-stream')
         if name=='preflight':q.add_argument('--task',required=True);q.add_argument('--response',type=Path,required=True)
         if name in {'recover','cancel','reconcile'}:q.add_argument('--request',required=True)
@@ -82,12 +99,29 @@ def execute(a):
         from . import portability
         if a.operation=='restore':return portability.restore(a.source,a.out)
         return portability.export_project(Store(a.project),a.out)
+    if cmd=='survey' and a.operation=='init':
+        e.create_survey(a.out,loads(read(a.scope)),title=a.title)
+        state=Store(a.out).read_snapshot()
+        return {'path':str(a.out),'instance_id':next(iter(state['instances'])),'project_id':state['project_id'],'model_calls':0}
     store=Store(a.project)
+    if cmd=='survey':
+        from . import survey
+        if a.operation=='status':return survey.status(store.read_snapshot(),a.instance)
+        if a.operation=='retrieve':return survey.retrieve(store,a.instance,a.plan_ref)
+        if a.operation=='freeze':return survey.freeze_knowledge(store,a.instance,selected_refs=loads(read(a.selected_refs)) if a.selected_refs else None,question_ids=loads(read(a.question_ids)) if a.question_ids else None)
+        if a.operation=='source-status':return survey.mark_source(store,a.instance,a.source_ref,withdrawn=a.withdrawn,version_conflict=a.version_conflict,reason=a.reason)
+        if a.operation=='plan':return survey.create_output_plan(store,a.instance,a.snapshot_ref,profile=a.profile,**(loads(read(a.settings)) if a.settings else {}))
+        from .codex_client import policy
+        result=survey.start_activity(store,a.instance,a.stage,a.intent,max_calls=a.max_calls,max_workers=a.max_workers,policy=policy(),
+            model_overrides=loads(read(a.model_overrides)) if a.model_overrides else None,allow_reports=a.allow_reports,
+            selected_refs=loads(read(a.selected_refs)) if a.selected_refs else None,
+            source_refs=loads(read(a.source_refs)) if a.source_refs else None,role=a.role)
+        return result if a.stage=='S5' else e.run_round(store,a.instance)
     if cmd=='workflow':
         if a.operation=='list':return {'instances':list(store.read_snapshot()['instances'].values()),'model_calls':0}
         scope={key:read(path) for key,path in [('phenomenon',a.brief),('immutable_background',a.immutable_background),('allowed_axes',a.allowed_axes)] if path}
         if a.operation=='configure-discovery':return e.configure_discovery(store,a.instance,scope)
-        return e.new_workflow(store,a.kind,name=a.name,target_ref=a.target,target=read(a.target_text) if a.target_text else None,discovery_scope=scope)
+        return e.new_workflow(store,a.kind,name=a.name,target_ref=a.target,target=read(a.target_text) if a.target_text else None,discovery_scope=scope,survey_scope=loads(read(a.survey_scope)) if a.survey_scope else None)
     if cmd=='knowledge':
         from . import views
         s=store.read_snapshot(a.commit)
@@ -128,9 +162,12 @@ def execute(a):
     if cmd=='report':
         from . import reports
         from .render import Renderer
-        if a.check_only or a.prepare_only:return reports.prepare(store,a.instance,check_only=a.check_only)
-        if a.render_only:return reports.render(store,Renderer(),a.instance,a.profile)
-        return reports.run(store,a.instance,policy=e.policy(store,a.instance),renderer=Renderer())
+        if a.check_only:return reports.prepare(store,a.instance,check_only=True,plan_ref=a.plan_ref)
+        is_survey=store.read_snapshot()['instances'][a.instance]['kind']=='SURVEY'
+        rid=reports.create(store,a.instance,plan_ref=a.plan_ref,profiles=[a.profile] if is_survey and a.profile else None)
+        if a.prepare_only:return reports.prepare(store,a.instance,report_id=rid)
+        if a.render_only:return reports.render(store,Renderer(),a.instance,a.profile,report_id=rid)
+        return reports.run(store,a.instance,policy=e.policy(store,a.instance),renderer=Renderer(),report_id=rid)
     if cmd=='ui':
         from .ui import serve
         serve(store,a.port);return {'closed':True}

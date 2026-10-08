@@ -1,0 +1,22 @@
+{
+  "topic": "Finite geometric sums over the real numbers.",
+  "questions": [
+    "What is the exact formula for G_n(q)=sum_{k=0}^{n-1} q^k, including q = 1?"
+  ],
+  "objects": [
+    "A real number q and a positive integer n."
+  ],
+  "conditions": [
+    "Only finite sums are considered."
+  ],
+  "include": [
+    "Definition, q != 1 formula, q = 1 case, and multiply-and-subtract mechanism."
+  ],
+  "exclude": [
+    "Infinite series, convergence, matrices, and historical priority claims."
+  ],
+  "delivery_goal": "KNOWLEDGE_ONLY",
+  "entry": "NEW_TOPIC",
+  "selected_refs": [],
+  "source_refs": []
+}

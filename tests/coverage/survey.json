@@ -1,0 +1,106 @@
+{
+  "schema": "pmrs.test-coverage/1",
+  "acceptance": [
+    {
+      "case_id": "SV01",
+      "assertions": [
+        {
+          "assertion_id": "SV01.a1",
+          "test_ids": [
+            "tests.test_survey.Survey.test_creation_has_no_target_or_calls",
+            "tests.test_survey.Survey.test_native_knowledge_only_and_independent_readiness",
+            "tests.test_survey_surface.SurveyWorkspaceTests.test_create_named_paused_survey_and_independent_explicit_new_operation",
+            "tests.test_survey.SurveyRecovery.test_handoff_and_ended_update_are_paused",
+            "tests.test_survey_surface.SurveyWorkspaceTests.test_survey_handoffs_preserve_precise_inputs_and_never_start"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "SV02",
+      "assertions": [
+        {
+          "assertion_id": "SV02.a1",
+          "test_ids": [
+            "tests.test_survey.SurveyRecovery.test_actual_plan_mock_acquisition_versions_and_no_repeat",
+            "tests.test_survey.SurveyRecovery.test_query_failure_and_metadata_only_have_honest_states",
+            "tests.test_survey.SurveyRecovery.test_lost_retrieval_is_unknown_and_preserves_reservations",
+            "tests.test_survey.RetrievalBoundary.test_addresses_and_proxy_dns_are_bounded",
+            "tests.test_survey.ExtractionBoundary.test_pdf_stream_extraction_stops_on_stdout_or_stderr_limit",
+            "tests.test_survey.PdfProvenance.test_original_pdf_and_registered_text_are_distinct_frozen_inputs",
+            "tests.test_survey.UploadedPdf.test_selected_upload_gets_host_extraction_without_creating_model_task"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "SV03",
+      "assertions": [
+        {
+          "assertion_id": "SV03.a1",
+          "test_ids": [
+            "tests.test_survey.Survey.test_related_only_invalidation_and_original_history",
+            "tests.test_survey.Survey.test_profiles_are_only_explicit_selections",
+            "tests.test_survey_reports.SurveyReports.test_consumed_source_withdrawal_rejects_captured_report_admission",
+            "tests.test_survey_reports.SurveyReports.test_stale_completed_report_cannot_mutate_through_a_new_event",
+            "tests.test_survey_reports.SurveyReports.test_unrelated_evidence_does_not_invalidate_frozen_report_selection",
+            "tests.test_survey.SurveyScopedReadiness.test_version_conflict_and_later_condition_finding_override_old_ready",
+            "tests.test_survey.SurveyScopedReadiness.test_proof_promises_require_actual_independent_checked_steps",
+            "tests.test_survey.SurveyScopedReadiness.test_unselected_pending_branch_is_disclosed_without_global_block",
+            "tests.test_survey.SurveyScopedReadiness.test_reading_wrong_version_or_unavailable_extent_is_rejected"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "SV04",
+      "assertions": [
+        {
+          "assertion_id": "SV04.a1",
+          "test_ids": [
+            "tests.test_survey_reports.SurveyReports.test_each_selected_profile_has_only_its_actual_pdf_and_independent_checks",
+            "tests.test_survey_reports.SurveyReports.test_knowledge_only_never_creates_an_implicit_report",
+            "tests.test_survey_reports.SurveyReports.test_running_report_stays_on_its_selected_plan_when_another_becomes_active",
+            "tests.test_survey_reports.SurveyReports.test_budget_and_unknown_preserve_existing_cost_without_resend",
+            "tests.test_survey_reports.SurveyReports.test_captured_author_recovery_uses_original_and_no_companion_profile",
+            "tests.test_survey_reports.SurveyReports.test_new_claim_review_blocks_delivery_without_writing_knowledge",
+            "tests.test_survey_reports.SurveyReports.test_all_actual_pages_are_checked_and_old_success_does_not_cover_new_failure",
+            "tests.test_survey_surface.SurveyWorkspaceTests.test_selected_output_authorization_is_host_only_and_dispatch_pins_report",
+            "tests.test_survey.SurveyScopedReadiness.test_survey_override_is_exact_and_frozen_tasks_do_not_change",
+            "tests.test_survey_reports.SurveyReports.test_cli_prepare_honors_an_explicit_older_output_plan",
+            "tests.test_survey_reports.SurveyReports.test_latest_plan_is_acceptance_ordered_when_clock_timestamps_tie",
+            "tests.test_survey_reports.SurveyReports.test_abandoned_pinned_report_cannot_dispatch_or_admit_captured_output",
+            "tests.test_survey_reports.SurveyReports.test_revision_and_abandonment_keep_the_dialog_report_after_another_becomes_active",
+            "tests.test_survey_reports.SurveyReports.test_selected_argument_root_can_report_its_reviewed_statement_dependency"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "SV05",
+      "assertions": [
+        {
+          "assertion_id": "SV05.a1",
+          "test_ids": [
+            "tests.test_final_operation_recovery.DesktopOriginRecoveryTests.test_survey_response_loss_restart_new_origin_and_new_intent",
+            "tests.test_survey_surface.LocaleHostTests.test_preference_survives_new_server_and_changed_port_without_research_write",
+            "tests.test_survey_surface.SurveyWorkspaceTests.test_progress_updates_host_execution_without_knowledge_commit_change"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "SV06",
+      "assertions": [
+        {
+          "assertion_id": "SV06.a1",
+          "test_ids": [
+            "tests.test_ui_localization.DisplayLocalizationTests.test_canonical_resources_include_all_literal_and_stage_keys",
+            "tests.test_ui_localization.DisplayLocalizationTests.test_host_preferences_default_and_fallback_do_not_write",
+            "tests.test_ui_localization.DisplayLocalizationTests.test_browser_display_invariants"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -186,11 +186,12 @@ def status():
             'model_calls': 0, 'network_calls': 0}
 
 
-def select(kind):
+def select(kind,*,ui_locale='en'):
     if kind not in FIELDS: raise ValueError('Unknown dependency selector')
     picker = shutil.which('zenity')
     if not picker: raise ValueError('未找到图形文件选择器；可在页面路径栏选择本地路径，或从 Ubuntu 软件中心安装 Zenity。')
-    args = [picker, '--file-selection', '--title=选择 ' + kind]
+    from .localization import translate
+    args = [picker, '--file-selection', '--title=' + translate('native.select_'+kind,ui_locale)]
     if kind == 'tectonic_cache': args.append('--directory')
     result = subprocess.run(args, capture_output=True, text=True, timeout=300)
     if result.returncode == 1: return {'cancelled': True, 'model_calls': 0}

@@ -132,11 +132,18 @@ class OperationRecoveryHTTPTests(unittest.TestCase):
         self.assertEqual(len(list((self.w.root/'actions').glob('*.json'))),1)
         with patch('research_studio.codex_client.status',side_effect=AssertionError('No CLI inspection for graph')):
             status,graph,_=self.req('GET','/api/workflow-graph')
-        self.assertEqual(status,200);self.assertIn('policy',graph);self.assertEqual(len(graph['workflows']),2)
+        self.assertEqual(status,200);self.assertIn('policy',graph);self.assertEqual(len(graph['workflows']),3)
 
 
 class DesktopOriginRecoveryTests(unittest.TestCase):
     def test_response_loss_real_service_restart_changed_port_recovers_without_resend(self):
+        self.restart_case({'kind':'TRW','title':'Lost response restart','text':'For every integer n, n + 0 = n.'})
+
+    def test_survey_response_loss_restart_new_origin_and_new_intent(self):
+        self.restart_case({'kind':'SURVEY','title':'Survey response recovery','survey_scope':{
+            'topic':'Finite geometric sums','questions':['What is the exact finite sum including q=1?']}})
+
+    def restart_case(self,payload):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)/'workspace';log=Path(tmp)/'desktop.log';processes=[]
             package_root=Path(__file__).resolve().parents[1]
@@ -171,7 +178,7 @@ class DesktopOriginRecoveryTests(unittest.TestCase):
                 self.assertEqual(code,200)
                 return headers['Set-Cookie'].split(';')[0],result['csrf'],result['workspace_id']
             try:
-                first,r1=start();auth1=login(r1);payload={'kind':'TRW','title':'Lost response restart','text':'For every integer n, n + 0 = n.'}
+                first,r1=start();auth1=login(r1)
                 # Send the actual production POST, close before reading its response.
                 request(r1,'POST','/api/action/create',payload,*auth1,drop=True)
                 receipt_file=root/'actions'/(identity('restart-action-1234567890')+'.json')

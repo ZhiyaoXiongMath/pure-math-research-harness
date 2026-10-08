@@ -1,6 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
+require('../research_studio/static/i18n.js').setLocale('zh-CN');
 const {OperationLifecycle,indexedOperationStorage}=require('../research_studio/static/workbench.js');
 function memory(){let row=null;return {get:async()=>row,claim:async x=>{if(row)return false;row=structuredClone(x);return true;},clear:async k=>{if(row?.key===k)row=null;}};}
 function server(){

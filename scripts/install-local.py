@@ -132,7 +132,7 @@ def verify_wheel(raw):
         return {n: archive.read(n) for n in names}
 
 
-def desktop_entry(launcher, version='4.0.0'):
+def desktop_entry(launcher, version='4.1.0'):
     value = str(launcher).replace('%', '%%').replace('\\', '\\\\').replace('"', '\\"').replace('`', '\\`').replace('$', '\\$')
     return ('[Desktop Entry]\nType=Application\nName=Pure Math Research Studio ' + version + '\nName[zh_CN]=纯数学研究工作室 ' + version + '\n'
             'Comment=Shared mathematical research workspace\nExec="' + value + '"\n'

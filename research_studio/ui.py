@@ -139,7 +139,9 @@ def app_handler(workspace,bootstrap_token):
             require(value is None or value==workspace.workspace_id,'WORKSPACE_MISMATCH','当前地址对应另一个工作区，请重新打开页面；原操作不会重放。')
         def error(self,e):
             code=getattr(e,'code','INPUT_INVALID')
-            self.reply(403 if code in {'UNAUTHORIZED','SESSION_REQUIRED','CSRF_INVALID','WORKSPACE_MISMATCH'} else 404 if code=='ROUTE_NOT_FOUND' else 400,{'error':code,'message':str(e),'guidance':'请检查当前页面中的项目、研究范围和授权；详细诊断可用于维护。'})
+            self.reply(403 if code in {'UNAUTHORIZED','SESSION_REQUIRED','CSRF_INVALID','WORKSPACE_MISMATCH'} else 404 if code=='ROUTE_NOT_FOUND' else 400,
+                {'error':code,'message_key':'error.'+code,'params':{},'message':str(e),
+                 'guidance_key':'error.guidance','guidance':'Check the selected project, scope and authorization. Detailed diagnostics are available for maintenance.'})
         def do_GET(self):
             try:
                 path,q=self.route()
@@ -149,11 +151,12 @@ def app_handler(workspace,bootstrap_token):
                     self.reply(200,read(assets[name]),MIME.get(assets[name].suffix,'application/octet-stream'));return
                 session=self.session()
                 self.workspace_scope()
-                require(path in {'/api/session','/api/workspace','/api/operations','/api/operation','/api/workflow-graph',
+                require(path in {'/api/session','/api/preferences','/api/survey','/api/workspace','/api/operations','/api/operation','/api/workflow-graph',
                     '/api/progress','/api/workflow-inputs','/api/settings','/api/capabilities','/api/download','/api/status',
                     '/api/current','/api/frontier','/api/sources','/api/history','/api/source-file','/api/diff',
                     '/api/body','/api/reports','/api/report-file'},'ROUTE_NOT_FOUND','未找到页面。')
-                if path=='/api/session':result={'csrf':session['csrf'],'workspace_id':workspace.workspace_id,'model_calls':0}
+                if path=='/api/session':result={'csrf':session['csrf'],'workspace_id':workspace.workspace_id,**workspace.preferences()}
+                elif path=='/api/preferences':result=workspace.preferences()
                 elif path=='/api/workspace':result=workspace.list()
                 elif path=='/api/operations':result=workspace.operations(int(q.get('offset',0)),int(q.get('limit',50)))
                 elif path=='/api/operation':result=workspace.operation_status(q.get('key'),operation_id=q.get('id'))
@@ -175,6 +178,9 @@ def app_handler(workspace,bootstrap_token):
                 else:
                     store=workspace.project(q.get('project'));iid=q.get('instance') or None;s=store.read_snapshot(q.get('commit') or None)
                     if path=='/api/status':result=workspace.info(q['project'],iid,q.get('commit'))
+                    elif path=='/api/survey':
+                        from . import survey
+                        result=survey.status(s,iid)
                     elif path=='/api/current':result=views.current(s,store.read_blob,instance_id=iid,query=q.get('query'),offset=int(q.get('offset',0)),limit=int(q.get('limit',20)),include_body=False)
                     elif path=='/api/frontier':result=views.frontier(s,store.read_blob,instance_id=iid)
                     elif path=='/api/sources':result=views.sources(s,store.read_blob,instance_id=iid)
@@ -218,9 +224,12 @@ def app_handler(workspace,bootstrap_token):
                     require(isinstance(p.get('token'),str) and hmac.compare_digest(p['token'],bootstrap_token),'UNAUTHORIZED','启动会话已失效，请从桌面重新打开。')
                     sid=secrets.token_urlsafe(32);session={'csrf':secrets.token_urlsafe(32)}
                     with session_lock:sessions[sid]=session
-                    self.reply(200,{**session,'workspace_id':workspace.workspace_id},cookie='pmrs_session='+sid+'; HttpOnly; SameSite=Strict; Path=/');return
+                    self.reply(200,{**session,'workspace_id':workspace.workspace_id,**workspace.preferences()},cookie='pmrs_session='+sid+'; HttpOnly; SameSite=Strict; Path=/');return
                 session=self.session();require(hmac.compare_digest(self.headers.get('X-PMRS-CSRF',''),session['csrf']),'CSRF_INVALID','页面会话已变化，请刷新。')
                 self.workspace_scope()
+                if path=='/api/preferences':
+                    require(set(p)=={'ui_locale'},'ACTION_INVALID','Only the display language preference is accepted.')
+                    self.reply(200,workspace.set_preferences(p['ui_locale']));return
                 if path=='/api/operation/ack':
                     require(set(p)=={'id','digest'},'ACTION_INVALID','确认只接受原操作回执编号与摘要。')
                     self.reply(200,workspace.acknowledge_operation(p['id'],p['digest']));return

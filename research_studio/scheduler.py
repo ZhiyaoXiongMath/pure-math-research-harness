@@ -33,6 +33,11 @@ def plan(snapshot,authorized_instances,policy=None):
     for rid,r in sorted(snapshot.get('requests',{}).items()):
         if r['instance_id'] not in allowed:continue
         status=r['execution_state'];purpose=r['purpose_key']
+        ctx=snapshot.get('tasks',{}).get(r['task_id'],{}).get('report_context',{})
+        if snapshot.get('reports',{}).get(ctx.get('report_id'),{}).get('status')=='ABANDONED':
+            waits.append({'request_id':rid,'code':'REPORT_ABANDONED'})
+            if status in obligations.PENDING:seen_purposes.add(purpose)
+            continue
         if status=='CAPTURED' and not r.get('fenced') and snapshot['instances'][r['instance_id']]['status']=='ACTIVE':
             actions.append({'action':'RECOVER','request_id':rid,'reason':'PERSISTED_CAPTURE_FIRST'})
         elif status=='PREPARED' and not r.get('fenced') and snapshot['instances'][r['instance_id']]['status']=='ACTIVE':

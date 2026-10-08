@@ -144,6 +144,8 @@ def eligible(snapshot, obligation, consumer, role, *, method_ref=None):
     def wait(code, **extra):return {**result,'state':'WAIT','code':code,**extra}
     iid=consumer['instance_id']; instance=snapshot.get('instances',{}).get(iid,{})
     if instance.get('status')!='ACTIVE':return wait('INSTANCE_PAUSED')
+    if consumer.get('report_context') and snapshot.get('reports',{}).get(consumer['report_context']['report_id'],{}).get('status')=='ABANDONED':
+        return wait('REPORT_ABANDONED')
     mission=snapshot.get('missions',{}).get(consumer.get('mission_id'),{})
     if mission.get('status')!='ACTIVE':return wait('AUTHORIZATION_REQUIRED')
     if consumer.get('retired') or p['work_state'] in {'DEFERRED','RETIRED_WITH_REASON'}:return wait('CONSUMER_INACTIVE')

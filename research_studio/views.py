@@ -12,6 +12,8 @@ def scope_refs(snapshot,instance_id=None):
     if instance.get('target_ref'):roots.add(instance['target_ref'])
     if instance.get('discovery_brief_ref'):roots.add(instance['discovery_brief_ref'])
     roots.update(instance.get('discovery_scope',{}).values())
+    roots.update(instance.get('survey_scope',{}).get('selected_refs',[]))
+    roots.update(instance.get('survey_scope',{}).get('source_refs',[]))
     for event in snapshot.get('production_events',{}).values():
         task=snapshot.get('tasks',{}).get(event.get('task_id'),{})
         if task.get('instance_id')==instance_id and event.get('record_ref') in snapshot['records']:
@@ -106,9 +108,10 @@ def frontier(snapshot,blob_get,*,instance_id=None):
 
 def sources(snapshot,blob_get,*,instance_id=None):
     refs=scope_refs(snapshot,instance_id) if instance_id else None
+    is_survey=bool(instance_id and snapshot.get('instances',{}).get(instance_id,{}).get('kind')=='SURVEY')
     rows=[]
     for sid,source in snapshot.get('sources',{}).items():
-        if refs is not None and sid not in refs:continue
+        if refs is not None and sid not in refs and not is_survey:continue
         if source.get('visibility')=='OPERATOR_ONLY':continue
         digest=source['blob_hash'];raw=blob_get(digest)
         uses=[u for e in edges(snapshot) if e['type']=='USED_SOURCE' and e['target_ref']==sid for u in e['evidence_bindings']]
@@ -117,6 +120,11 @@ def sources(snapshot,blob_get,*,instance_id=None):
                      'media_type':source.get('media_type','application/octet-stream'),'filename':source.get('original_filename','Original material'),
                      'text':raw.decode('utf-8',errors='replace') if source.get('media_type','').startswith('text/') else None,
                      'authority':'SOURCE_CLAIM_NOT_NATIVE_PROOF'})
+        if is_survey:
+            from .survey import source_details
+            rows[-1]['in_selected_scope']=sid in refs
+            rows[-1]['survey_source_status']=deepcopy(snapshot.get('survey_source_status',{}).get(sid,{}))
+            rows[-1]['survey_source_details']=source_details(snapshot,sid)
     return {'commit':snapshot['knowledge_commit'],'sources':rows}
 
 

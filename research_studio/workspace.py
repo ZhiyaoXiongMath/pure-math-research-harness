@@ -40,6 +40,18 @@ class Workspace:
         require(isinstance(key,str) and key.startswith('WP-') and len(key)==35 and all(c in '0123456789abcdef' for c in key[3:]),'PROJECT_UNKNOWN','请选择工作区中的项目。')
         store=Store(safe_path(self.root,'projects/'+key));store.read_snapshot();return store
 
+    def preferences(self):
+        """Host-owned presentation preferences, independent of research authority."""
+        from .localization import load_preferences
+        value=load_preferences(self.root)
+        return {'ui_locale':value['ui_locale'],'model_calls':0}
+
+    def set_preferences(self,ui_locale):
+        require(ui_locale in {'en','zh-CN'},'UI_LOCALE_INVALID','Choose English or Simplified Chinese.')
+        with self.lock:
+            atomic(self.root/'runtime/preferences.json',canonical({'ui_locale':ui_locale}))
+        return self.preferences()
+
     def list(self):
         rows=[]
         for path in sorted((self.root/'projects').glob('WP-*')):
@@ -112,21 +124,29 @@ class Workspace:
         grant=s['budget_grants'].get(mission.get('budget_grant_id'),{})
         v['model_configuration']={'instance_id':instance,'mission_id':selected.get('current_mission_id'),
             'model_overrides':grant.get('execution_policy',{}).get('model_overrides',[])}
+        from .report_catalog import catalog
+        v['reports']=catalog(store,s,instance)
+        if selected.get('kind')=='SURVEY':
+            from . import survey
+            v['survey']=survey.status(s,instance)
+        v['control_fingerprint']=identity({k:v[k] for k in ('tasks','execution','missions','reports','workflow','model_configuration','activity','project_jobs','project_execution','budget')} | {'survey':v.get('survey')})
         return v
 
     def workflow_inputs(self,key,query='',offset=0,limit=100):
         store=self.project(key);s=store.read_snapshot()
         require(type(offset) is int and offset>=0 and type(limit) is int and 1<=limit<=100,'PAGE_INVALID','请选择有效的材料范围。')
-        statements=[];sources=[];query=query.casefold()
+        statements=[];sources=[];records=[];query=query.casefold()
         for ref,r in sorted(s['records'].items()):
-            if r['kind']!='Statement':continue
             body=store.read_blob(r['body_sha256']).decode()
-            if not query or query in body.casefold():statements.append({'ref':ref,'title':body[:100],'body':body})
+            if not query or query in body.casefold():
+                item={'ref':ref,'kind':r['kind'],'title':body[:100],'body':body}
+                if r['kind']!='Assessment':records.append(item)
+                if r['kind']=='Statement':statements.append(item)
         for ref,r in sorted(s['sources'].items()):
             title=r.get('original_filename') or r.get('title') or r.get('filename') or ref
             if not query or query in title.casefold():sources.append({'source_ref':ref,'title':title,'bytes':r.get('bytes'),'media_type':r.get('media_type')})
-        return {'commit':s['knowledge_commit'],'statements':statements[offset:offset+limit],'sources':sources[offset:offset+limit],
-                'next_offset':offset+limit if max(len(statements),len(sources))>offset+limit else None,
+        return {'commit':s['knowledge_commit'],'statements':statements[offset:offset+limit],'sources':sources[offset:offset+limit],'records':records[offset:offset+limit],
+                'next_offset':offset+limit if max(len(records),len(sources))>offset+limit else None,
                 'read_only':True,'model_calls':0}
 
     def _operation_id(self,key=None,operation_id=None):
@@ -199,7 +219,8 @@ class Workspace:
         require(isinstance(p,dict),'ACTION_INVALID','表单格式无效。')
         require(name in {'quit','login','setup-status','setup-configure','setup-select','setup-install','check-environment',
                 'create','example','upload-archive','restore','add-source','new-workflow','configure-discovery','start','pause',
-                'continue','end','recover','reconcile','report','revise-report','abandon-report','configure','handoff','export'},
+                'continue','end','recover','reconcile','report','revise-report','abandon-report','configure','handoff','export',
+                'survey-activity','survey-retrieve','survey-freeze','survey-plan','survey-source-status'},
                 'ACTION_UNKNOWN','未登记的操作。')
         path=self.root/'actions'/(identity(key)+'.json');digest=identity({'action':name,'payload':p})
         with self.lock:
@@ -239,7 +260,7 @@ class Workspace:
             from . import setup
             if name=='setup-status':return setup.status()
             if name=='setup-configure':return setup.configure(p.get('paths',{}))
-            if name=='setup-select':return setup.select(p.get('kind'))
+            if name=='setup-select':return setup.select(p.get('kind'),ui_locale=self.preferences()['ui_locale'])
             if name=='setup-install':
                 require(p.get('confirmed') is True,'SETUP_CONFIRMATION_REQUIRED','请先确认所选组件及安装来源。')
                 return setup.start_install(p.get('component'),confirmed=True)
@@ -249,7 +270,15 @@ class Workspace:
             from .render import doctor as pdf_doctor
             return {'client':self.login.inspect(),'execution':doctor(),'pdf':pdf_doctor(),'model_calls':0}
         if name in ('create','example'):
-            kind=p.get('kind','TRW');require(kind in {'TRW','TFDW'},'WORKFLOW_KIND_INVALID','请选择研究方式。')
+            kind=p.get('kind','TRW');require(kind in {'TRW','TFDW','SURVEY'},'WORKFLOW_KIND_INVALID','Choose a workflow.')
+            if kind=='SURVEY':
+                title=str(p.get('title') or p.get('name') or 'Literature survey').strip()
+                require(0<len(title)<=200,'TITLE_INVALID','Project titles must contain 1–200 characters.')
+                wid='WP-'+identity(key)[:32]
+                result=self.engine.create_survey(self.root/'projects'/wid,p.get('survey_scope') or {},title=title,name=p.get('name') or title,synthetic=name=='example')
+                store=result if isinstance(result,Store) else self.project(wid)
+                iid=next(iter(store.read_snapshot()['instances']))
+                return {'project':wid,'instance_id':iid,'synthetic':name=='example','model_calls':0}
             require(p.get('discovery_scope') is None or isinstance(p['discovery_scope'],dict),'DISCOVERY_SCOPE_INVALID','探索范围须包含现象、背景和允许范围。')
             raw=self._raw(p) if p.get('data') else str(p.get('text') or p.get('discovery_scope',{}).get('phenomenon','')).encode()
             require(raw.strip(),'SOURCE_REQUIRED','请输入完整题目或现象，或选择文件。')
@@ -293,7 +322,24 @@ class Workspace:
         if name=='new-workflow':
             require(isinstance(p.get('name'),str) and p['name'].strip(),'INSTANCE_NAME_REQUIRED','请为新的研究流程填写可识别的名称。')
             scope=self._discovery_form(p) if p['kind']=='TFDW' else None
-            return self.engine.new_workflow(store,p['kind'],name=p['name'],target_ref=p.get('target_ref'),target=p.get('target_text'),discovery_scope=scope)
+            return self.engine.new_workflow(store,p['kind'],name=p['name'],target_ref=p.get('target_ref'),target=p.get('target_text'),discovery_scope=scope,survey_scope=p.get('survey_scope'))
+        if name.startswith('survey-'):
+            from . import survey
+            if name=='survey-source-status':return survey.mark_source(store,iid,p['source_ref'],withdrawn=p.get('withdrawn',False),version_conflict=p.get('version_conflict',False),reason=p['reason'])
+            if name=='survey-retrieve':return survey.retrieve(store,iid,p['plan_ref'])
+            if name=='survey-freeze':return survey.freeze_knowledge(store,iid,selected_refs=p.get('selected_refs'),question_ids=p.get('question_ids'))
+            if name=='survey-plan':
+                allowed=('view','audience','prerequisites','proof_promises','omissions','limitations','comparison_group')
+                return survey.create_output_plan(store,iid,p['snapshot_ref'],profile=p['profile'],**{k:p[k] for k in allowed if k in p})
+            from .codex_client import policy
+            from .demo import policy as demo_policy
+            config=demo_policy() if store.read_snapshot()['synthetic_test_only'] else policy()
+            result=survey.start_activity(store,iid,p['stage'],p['intent'],max_calls=int(p['max_calls']),
+                max_workers=int(p.get('max_workers',1)),policy=config,model_overrides=p.get('model_overrides',[]),
+                allow_reports=p.get('allow_reports'),selected_refs=p.get('selected_refs'),source_refs=p.get('source_refs'),
+                role=p.get('role'),max_research_attempts=int(p.get('max_research_attempts',1)))
+            if p['stage']!='S5':self.launch(p['project'],iid)
+            return result
         if name=='configure-discovery':
             existing=store.read_snapshot()['instances'][iid]
             incoming=p.get('discovery_scope') or {}
@@ -325,23 +371,24 @@ class Workspace:
             return self.engine.reconcile_unknown(store,iid,p['request_id'],p['disposition'],p['note'],not_sent_evidence_ref=p.get('not_sent_evidence_ref'))
         if name=='report':
             from . import reports
-            result=reports.create(store,iid);self.launch(p['project'],iid,report=True);return {'report_id':result}
+            result=reports.create(store,iid,profiles=p.get('profiles'),plan_ref=p.get('plan_ref'));self.launch(p['project'],iid,report=True,report_id=result);return {'report_id':result}
         if name=='revise-report':
             from . import reports
-            result=reports.revise(store,iid,p['profile'],p['reason']);self.launch(p['project'],iid,report=True);return result
+            result=reports.revise(store,iid,p['profile'],p['reason'],report_id=p.get('report_id'));self.launch(p['project'],iid,report=True,report_id=result['report_id']);return result
         if name=='abandon-report':
             from . import reports
-            return reports.abandon(store,iid,p['reason'])
+            return reports.abandon(store,iid,p['reason'],report_id=p.get('report_id'))
         if name=='configure':
             return self.engine.update_configuration(store,iid,p.get('model_overrides',[]),reset_scopes=p.get('reset_scopes',[]))
         if name=='handoff':
             direction=p['direction'];discovery=None
-            scope={'candidate_refs':[p['candidate_ref']]} if direction=='TFDW_TO_TRW' else {'target_refs':[store.read_snapshot()['instances'][iid]['target_ref']]}
-            if direction=='TRW_TO_TFDW':
+            is_survey=direction in {'SURVEY_TO_TRW','SURVEY_TO_TFDW'}
+            scope={'target_refs':[p.get('target_ref') or p.get('candidate_ref')]} if is_survey else {'candidate_refs':[p['candidate_ref']]} if direction=='TFDW_TO_TRW' else {'target_refs':[store.read_snapshot()['instances'][iid]['target_ref']]}
+            if direction in {'TRW_TO_TFDW','SURVEY_TO_TFDW'}:
                 discovery=self.engine.prepare_discovery_scope(store,self._discovery_form(p, str(p.get('brief','')).encode() or None))
                 scope['source_refs']=list(discovery.values());scope['discovery_scope']=discovery
             prepared=self.engine.prepare_handoff(store,iid,direction,scope)
-            s=store.read_snapshot();decision=self.engine.decide(store,iid,'ADOPT' if direction=='TFDW_TO_TRW' else 'ADOPT_HANDOFF',p['note'],snapshot_commit=s['knowledge_commit'],candidate_ref=p.get('candidate_ref'),report_ref=s.get('active_reports',{}).get(iid))
+            s=store.read_snapshot();decision=self.engine.decide(store,iid,'ADOPT' if direction=='TFDW_TO_TRW' else 'ADOPT_HANDOFF',p['note'],snapshot_commit=s['knowledge_commit'],candidate_ref=None if is_survey else p.get('candidate_ref'),report_ref=s.get('active_reports',{}).get(iid))
             if discovery:
                 decision['discovery_brief_ref']=discovery.get('phenomenon_ref');decision['discovery_scope']=discovery
             if p.get('name'):decision['name']=p['name']
@@ -364,14 +411,19 @@ class Workspace:
             require(not missing,'DISCOVERY_SCOPE_REQUIRED','请补充：'+'、'.join(missing)+'。也可先保存草稿，补齐后再开始。')
         return scope
 
-    def launch(self,key,iid,*,report=False):
+    def launch(self,key,iid,*,report=False,report_id=None):
         with self.lock:
+            if report and report_id is None:report_id=self.project(key).read_snapshot().get('active_reports',{}).get(iid)
+            require(not report or bool(report_id),'REPORT_REQUIRED','Select an exact report before scheduling it.')
             current=self.jobs.get((key,iid))
             if current and current['state'] in {'RUNNING','QUEUED'}:
-                if report:current['report_requested']=True
+                if report:
+                    current['report_requested']=True
+                    if report_id!=current.get('running_report_id') and report_id not in current['report_ids']:current['report_ids'].append(report_id)
                 return current
             project_lock=self.project_locks.setdefault(key,threading.Lock())
-            job={'state':'QUEUED','instance_id':iid,'kind':'REPORT' if report else 'RESEARCH','started_at':now(),'report_requested':report};self.jobs[(key,iid)]=job
+            job={'state':'QUEUED','instance_id':iid,'kind':'REPORT' if report else 'RESEARCH','started_at':now(),'report_requested':report,
+                 'report_ids':[report_id] if report else [],'running_report_id':None};self.jobs[(key,iid)]=job
             def work():
                 try:
                     with project_lock:
@@ -381,15 +433,15 @@ class Workspace:
                         from .demo import executor as demo_executor
                         executor=demo_executor() if synthetic else CodexExecutor()
                         result=self.engine.run_round(store,iid,executor=executor) if not report else None
-                        with self.lock:
-                            requested=job['report_requested']
-                            if not requested:job.update(state='WAITING',result=result,finished_at=now())
-                        if requested:
+                        while True:
+                            with self.lock:
+                                if not job['report_ids']:
+                                    job.update(state='WAITING',result=result,finished_at=now(),running_report_id=None);break
+                                selected_report=job['report_ids'].pop(0);job['running_report_id']=selected_report
                             from . import reports
                             from .render import Renderer
                             job['kind']='REPORT'
-                            result=reports.run(store,iid,executor=executor,policy=self.engine.policy(store,iid),renderer=Renderer())
-                            with self.lock:job.update(state='WAITING',result=result,finished_at=now())
+                            result=reports.run(store,iid,executor=executor,policy=self.engine.policy(store,iid),renderer=Renderer(),report_id=selected_report)
                 except Exception as e:
                     job.update(state='BLOCKED',error=getattr(e,'code','EXECUTION_FAILED'),message=str(e),finished_at=now())
             threading.Thread(target=work,name='pmrs-'+iid[-12:],daemon=True).start();return job

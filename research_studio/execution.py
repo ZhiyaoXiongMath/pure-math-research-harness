@@ -210,6 +210,7 @@ def apply_event(snapshot,e):
             validate_assignment(c['stage_id'],d['type'],c['role'],c.get('entry_basis',{}))
             if d['type']=='REPORT':
                 ctx=c.get('report_context',{});report=s.get('reports',{}).get(ctx.get('report_id'),{})
+                require(report.get('status')!='ABANDONED','REPORT_ABANDONED','An abandoned report cannot assign work.')
                 require(iid in report.get('scope',{}).get('instance_ids',[]) and ctx.get('snapshot_ref')==report.get('snapshot_ref'),
                         'REPORT_SCOPE_INVALID','Report assignment must bind the already frozen exact report')
         grant=deepcopy(p['retry_grant'])
@@ -260,10 +261,16 @@ def recover_capture_seal(store,request_id):
 def recover(store,request_id,*,check_only=False):
     from .changes import validate_response
     s=store.read_snapshot();r=_request(s,request_id);t=deepcopy(s['tasks'][r['task_id']])
+    def cleaned(result):
+        if not check_only:
+            from .runner import cleanup_task_inputs_safely
+            cleanup=cleanup_task_inputs_safely(store,t['task_id'])
+            if cleanup.get('warning'):result={**result,'cache_cleanup':cleanup}
+        return result
     if r['execution_state']=='SETTLED':
         if r['acceptance_state'] in {'ACCEPTED','EXACT_DUPLICATE'} and r.get('receipt_ref'):
-            return {'state':'EXACT_DUPLICATE','receipt_ref':r['receipt_ref'],'model_calls':0}
-        return {'state':r['acceptance_state'],'code':r.get('admission_error'),'capture_ref':r['capture_ref'],'model_calls':0}
+            return cleaned({'state':'EXACT_DUPLICATE','receipt_ref':r['receipt_ref'],'model_calls':0})
+        return cleaned({'state':r['acceptance_state'],'code':r.get('admission_error'),'capture_ref':r['capture_ref'],'model_calls':0})
     if not check_only and not r['capture_ref'] and recover_capture_seal(store,request_id):
         s=store.read_snapshot();r=_request(s,request_id)
     if not r['capture_ref']:return {'state':'WAIT','code':'UNKNOWN_REQUIRES_EVIDENCE' if r['execution_state']=='UNKNOWN' else 'EXISTING_REQUEST','model_calls':0}
@@ -276,11 +283,16 @@ def recover(store,request_id,*,check_only=False):
         receipt=store.commit(proposal)
         # The scientific transaction settles the request and its deterministic
         # admission receipt atomically. No second settlement can race that HEAD.
-        return {'state':'ACCEPTED','receipt':receipt,'model_calls':0}
+        return cleaned({'state':'ACCEPTED','receipt':receipt,'model_calls':0})
     except PMRSError as exc:
+        if exc.code in {'RESOURCE_DISK_LOW','RESOURCE_WAIT','RESOURCE_LIMIT'}:
+            # Preparation/publication failure is not a scientific disposition.
+            # Keep the original capture recoverable, with its consumed budget.
+            raise
         if not check_only:
             category='REJECTED_STALE' if exc.code in {'STALE_READ','STALE_QUERY','WRITE_CAS_CONFLICT','STALE_OBLIGATION_DEFINITION'} else 'REJECTED_CONTRACT'
             store.commit_execution(event('SETTLE',{'request_id':request_id,'acceptance_state':category,'receipt_ref':None,'error':exc.code}))
+            cleaned({})
         raise
 
 

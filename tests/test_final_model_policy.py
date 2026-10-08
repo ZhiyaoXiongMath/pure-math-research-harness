@@ -11,7 +11,7 @@ CAP={'source':'test-executor-capability','revision':'v1','executor':'codex','mod
     'gpt-6-astra':{'reasoning_efforts':['high','xhigh','max'],'service_tiers':['default']}}}
 
 class ModelPolicy(unittest.TestCase):
-    def test_every_registered_role_in_all_21_stages_is_resolved(self):
+    def test_every_registered_role_in_all_29_stages_is_resolved(self):
         expected={'P1':{'PLAN':'high'},'P2':{'PLAN':'xhigh'},'P3':{'PLAN':'xhigh'},
             'P4':dict.fromkeys(['RESEARCH','FALSIFY','PROOF','COUNTEREXAMPLE'],'max'),
             'P5':{'SYNTHESIS':'xhigh'},'P6':{'PLAN':'max'},
@@ -21,8 +21,10 @@ class ModelPolicy(unittest.TestCase):
             'P10':{'SYNTHESIS':'max'},'P11':{'SYNTHESIS':'xhigh'},'P12':{'INDEPENDENT':'max','SPECIALIST':'max'},
             'D0':{'PLAN':'high'},'D1':{'LEARN':'xhigh','RESEARCH':'xhigh'},'D2':dict.fromkeys(['PLAN','DIRECT','SYNTHESIS'],'max'),
             'D3':{'DIRECT':'max','RESEARCH':'max','FALSIFY':'max','LEARN':'xhigh','PROOF':'max','COUNTEREXAMPLE':'max'},
-            'D4':{'FORMULATION_REVIEW':'max','ADVERSARIAL_REVIEW':'max'},'D5':{'SYNTHESIS':'xhigh'}}
-        self.assertEqual(len(definition()['stages']),21)
+            'D4':{'FORMULATION_REVIEW':'max','ADVERSARIAL_REVIEW':'max'},'D5':{'SYNTHESIS':'xhigh'},
+            'S1':{'SEARCH_PLAN':'xhigh'},'S2':{'SOURCE_READ':'xhigh'},'S3':{'ORGANIZE':'xhigh','RECONSTRUCT':'max'},
+            'S4':{'READINESS_REVIEW':'max','COVERAGE_REVIEW':'xhigh'}}
+        self.assertEqual(len(definition()['stages']),29)
         for sid,row in definition()['stages'].items():
             for rc in row['roles']:
                 role=rc['role'];out=M.resolve(row['workflow_kind'],sid,role,capabilities=CAP)

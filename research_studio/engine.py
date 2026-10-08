@@ -1,4 +1,4 @@
-"""Thin application facade for the shared kernel and two independent workflows."""
+"""Thin application facade for the shared kernel and three independent workflows."""
 from copy import deepcopy
 from .store import Store
 from .util import read, loads, canonical, identity, require, PMRSError
@@ -10,6 +10,13 @@ class Engine:
         store=Store.create(root,title,synthetic=synthetic)
         store.commit(changes.prepare_source_input(store.read_snapshot(),problem,title=title,
                      purpose='PHENOMENON' if phenomenon else 'PROBLEM',blob_get=store.read_blob))
+        return store
+
+    def create_survey(self,root,scope,*,title='Mathematical survey',synthetic=False,name=None):
+        from .survey import normalize_scope
+        scope=normalize_scope({'records':{},'sources':{},'instances':{}},scope)
+        store=Store.create(root,title,synthetic=synthetic)
+        self.new_workflow(store,'SURVEY',name=name or title,survey_scope=scope)
         return store
 
     def prepare_discovery_scope(self,store,scope,*,brief=None):
@@ -59,8 +66,8 @@ class Engine:
     def configure_discovery(self,store,instance_id,discovery_scope):
         return self.update_discovery_scope(store,instance_id,discovery_scope)
 
-    def new_workflow(self,store,kind,*,name=None,target_ref=None,target=None,brief=None,discovery_scope=None):
-        require(kind in {'TRW','TFDW'},'WORKFLOW_KIND_INVALID',str(kind))
+    def new_workflow(self,store,kind,*,name=None,target_ref=None,target=None,brief=None,discovery_scope=None,survey_scope=None):
+        require(kind in {'TRW','TFDW','SURVEY'},'WORKFLOW_KIND_INVALID',str(kind))
         if name is not None:require(isinstance(name,str) and 0<len(name.strip())<=200,'INSTANCE_NAME_INVALID','研究流程名称须为 1–200 字符。')
         require(kind!='TRW' or not discovery_scope and brief is None,'DISCOVERY_SCOPE_INVALID','TRW uses a fixed target, not a discovery scope')
         require(not (target_ref and target is not None),'TARGET_REQUIRED','Choose an exact existing target or provide new original text')
@@ -72,10 +79,10 @@ class Engine:
             scope=self.prepare_discovery_scope(store,discovery_scope or {},brief=brief)
             source_ref=scope.get('phenomenon_ref')
         snapshot=store.read_snapshot();instance=W.new_instance(snapshot,kind,target_ref=target_ref,discovery_brief_ref=source_ref,
-                name=name,discovery_scope=scope)
+                name=name,discovery_scope=scope,survey_scope=survey_scope)
         receipt=store.commit_control(W.event(snapshot,'CREATE_INSTANCE',{'instance':instance}))
         return {**receipt,'instance_id':instance['instance_id'],'name':instance.get('name'),'status':'PAUSED','target_ref':target_ref,
-                'discovery_scope':deepcopy(scope),'model_calls':0}
+                'discovery_scope':deepcopy(scope),'survey_scope':deepcopy(instance.get('survey_scope')),'model_calls':0}
 
     def authorize(self,store,instance_id,mission,budget):
         mission=deepcopy(mission);budget=deepcopy(budget);snapshot=store.read_snapshot()
@@ -174,7 +181,7 @@ class Engine:
         return {**result,'instance_id':state['handoff_adoptions'][ref]['instance_id'],'status':'PAUSED','model_calls':0}
 
 
-def start_round(store,instance_id,intent,*,max_calls=8,max_workers=1,policy=None,model_overrides=None,max_research_attempts=1,allow_reports=True,report_first_actions=None):
+def start_round(store,instance_id,intent,*,max_calls=8,max_workers=1,policy=None,model_overrides=None,max_research_attempts=1,allow_reports=True,report_first_actions=None,stage=None,selected_refs=None,source_refs=None):
     """Translate one human round form into an exact, finite native authorization.
 
     No model is used to translate or normalize the supplied intent. Later English
@@ -187,6 +194,10 @@ def start_round(store,instance_id,intent,*,max_calls=8,max_workers=1,policy=None
             'AUTHORIZATION_REQUIRED','Finite per-responsibility sampling allowance required')
     if report_first_actions is not None:W.validate_report_first_actions(report_first_actions)
     s=store.read_snapshot();instance=W.select_instance(s,instance_id)
+    if instance['kind']=='SURVEY':
+        from .survey import start_activity
+        return start_activity(store,instance_id,stage,intent,max_calls=max_calls,max_workers=max_workers,policy=policy,
+            model_overrides=model_overrides,max_research_attempts=max_research_attempts,allow_reports=allow_reports,report_first_actions=report_first_actions,selected_refs=selected_refs,source_refs=source_refs)
     discovery_scope=W.validate_discovery_scope(s,instance)
     if model_overrides is not None:
         from .model_policy import merge_overrides
@@ -267,7 +278,7 @@ def derive_followups(store,instance_id):
     """
     from . import obligations as O,assurance,contracts as C
     s=store.read_snapshot();instance=W.select_instance(s,instance_id);mission=s['missions'].get(instance['current_mission_id'])
-    if not mission or instance['status']!='ACTIVE':return []
+    if not mission or instance['status']!='ACTIVE' or instance['kind']=='SURVEY':return []
     mid=mission['mission_id'];created=[]
     from .workflows import trw,tfdw
     workflow=trw if instance['kind']=='TRW' else tfdw

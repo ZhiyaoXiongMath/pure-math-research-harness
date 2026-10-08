@@ -43,20 +43,25 @@ def validate_discovery_scope(snapshot,instance,*,required=True):
         require(scope['phenomenon_ref']==instance.get('discovery_brief_ref'),'DISCOVERY_SCOPE_INVALID','Phenomenon and discovery brief must bind the same original source')
     return deepcopy(scope)
 
-def new_instance(snapshot,kind,*,target_ref=None,discovery_brief_ref=None,created_by_decision=None,instance_id=None,name=None,discovery_scope=None):
-    require(kind in {'TRW','TFDW'},'WORKFLOW_KIND_INVALID',str(kind))
+def new_instance(snapshot,kind,*,target_ref=None,discovery_brief_ref=None,created_by_decision=None,instance_id=None,name=None,discovery_scope=None,survey_scope=None):
+    require(kind in {'TRW','TFDW','SURVEY'},'WORKFLOW_KIND_INVALID',str(kind))
     if kind=='TRW':
         require(target_ref in snapshot.get('records',{}) and snapshot['records'][target_ref]['kind']=='Statement'
                 and discovery_brief_ref is None,'TARGET_REQUIRED','TRW requires an exact Statement revision')
-    else:
+    elif kind=='TFDW':
         require(target_ref is None and (discovery_brief_ref is not None or discovery_scope is not None),'DISCOVERY_BRIEF_REQUIRED','TFDW has a discovery brief or an explicit incomplete draft and no fixed target')
+    else:
+        from .survey import normalize_scope
+        require(target_ref is None and discovery_brief_ref is None,'SURVEY_SCOPE_INVALID','Survey has its own scope and no fabricated research target')
+        survey_scope=normalize_scope(snapshot,survey_scope)
     iid=instance_id or identity({'kind':kind,'target':target_ref,'brief':discovery_brief_ref,
         'decision':created_by_decision,'ordinal':len(snapshot.get('instances',{}))+1},'INSTANCE-')
     if name is not None:require(isinstance(name,str) and 0<len(name.strip())<=200,'INSTANCE_NAME_INVALID','研究流程名称须为 1–200 字符。')
-    row={'instance_id':iid,'kind':kind,'definition_version':'pmrs.trw/1' if kind=='TRW' else 'pmrs.tfdw/1',
+    row={'instance_id':iid,'kind':kind,'definition_version':{'TRW':'pmrs.trw/1','TFDW':'pmrs.tfdw/1','SURVEY':'pmrs.survey/1'}[kind],
             'definition_digest':REGISTRY['digest'],'created_by_decision':created_by_decision,'status':'PAUSED',
             'target_ref':target_ref,'discovery_brief_ref':discovery_brief_ref,'mission_ids':[],
             'current_mission_id':None,'input_knowledge_commit':snapshot.get('knowledge_commit'),'policy_refs':[]}
+    if survey_scope is not None:row['survey_scope']=deepcopy(survey_scope)
     if name is not None:row['name']=name
     if discovery_scope is not None:
         require(kind=='TFDW','DISCOVERY_SCOPE_INVALID','Only TFDW has discovery scope')
@@ -145,7 +150,7 @@ def apply_control(snapshot,e):
     if kind=='CREATE_INSTANCE':
         row=p['instance'];expected=new_instance(s,row['kind'],target_ref=row['target_ref'],discovery_brief_ref=row['discovery_brief_ref'],
                                               created_by_decision=row['created_by_decision'],instance_id=row['instance_id'],
-                                              name=row.get('name'),discovery_scope=row.get('discovery_scope'))
+                                              name=row.get('name'),discovery_scope=row.get('discovery_scope'),survey_scope=row.get('survey_scope'))
         require(row==expected and row['instance_id'] not in s.get('instances',{}),'CONTROL_EVENT_INVALID','Invalid or existing workflow instance')
         s.setdefault('instances',{})[row['instance_id']]=deepcopy(row)
     elif kind=='AUTHORIZE_MISSION' and set(p)=={'future_configuration'}:
@@ -163,6 +168,7 @@ def apply_control(snapshot,e):
         policy['configuration_authorized']=True;policy['configuration_event_ref']=e['event_id']
     elif kind=='AUTHORIZE_MISSION':
         instance=select_instance(s,iid);m=deepcopy(p['mission']);b=deepcopy(p['budget'])
+        require(instance['kind']!='SURVEY' or instance['status']!='ENDED','AUTHORIZATION_REQUIRED','An ended Survey requires a linked new instance')
         validate_discovery_scope(s,instance)
         from . import model_policy
         policy=b.setdefault('execution_policy',{})

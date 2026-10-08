@@ -1,200 +1,325 @@
-# Pure Math Research Studio 4.0.0
+# Pure Math Research Studio 4.1.0
 
-[English](README.en.md) · [下载安装包](https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/releases/tag/v4.0.0) · [验收记录](TEST-REPORT-4.0.0.md)
+[简体中文](README.zh-CN.md) · [Download](https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/releases/tag/v4.1.0) · [Validation record](TEST-REPORT-4.1.0.md)
 
-**把数学问题、研究过程和检查依据放在同一个本地工作台中。** PMRS 面向希望借助模型开展数学研究、同时保留精确材料和可追溯研究记录的使用者。你可以围绕一个确定命题推导、寻找反例、独立检查，也可以从现象出发，比较不同表述，逐步选出值得证明的命题。
+**Keep the mathematical question, the research process and the evidence for each check in one local workspace.** PMRS is for people who want to use models for mathematical research while retaining exact source material and traceable records. Work on a fixed statement through derivation, counterexample search and independent review, start from observations and compare formulations until you can select a statement worth proving, or investigate a literature topic and organize the evidence before optionally writing a survey.
 
-工作成果包括命题与论证正文、正反例、材料引用、检查范围、未解决问题和研究报告。任务、调用授权及原始响应都保存在本机项目中，便于暂停、回看和继续。
+Outputs include statements and arguments, examples and counterexamples, source references, review coverage, open questions and research reports. Tasks, call authorizations and original responses stay in the local project so you can pause, inspect and continue the work.
 
-**阅读顺序：**[选择工作流](#选择工作流) → [安装与打开](#安装与打开) → [运行一轮研究](#运行一轮研究) → [两个使用实例](#两个使用实例)。
+**Start here:** [choose a workflow](#choose-a-workflow) → [install and open](#install-and-open) → [run-a-round instructions](#run-a-round-of-research) → [three worked usage examples](#three-worked-usage-examples).
 
-## 选择工作流
+## Choose a workflow
 
-| 你现在有什么？ | 选择 | 主要产物 | 你接下来决定什么？ |
+| What do you have? | Choose | Main outputs | What do you decide next? |
 | --- | --- | --- | --- |
-| 一个有明确对象、假设、量词和结论的命题 | **TRW · 定题研究**（Targeted Research Workflow） | 推导或反驳、精确缺口、独立检查、进展与报告 | 继续、暂停、结束，或转向表述发现 |
-| 一些现象、样例或猜想族，还需要确定怎样表述问题 | **TFDW · 表述发现**（Theorem Formulation Discovery Workflow） | 正反证据、精确候选、候选之间的比较及未查范围 | 继续探索、保留候选，或采用一个候选开展 TRW |
+| A statement with precise objects, assumptions, quantifiers and a conclusion | **TRW · Targeted Research Workflow** | Derivation or refutation, exact gaps, independent checks, progress and reports | Continue, pause, end, or explore alternative formulations |
+| Observations, examples or a family of conjectures whose formulation needs work | **TFDW · Theorem Formulation Discovery Workflow** | Evidence, exact candidates, comparisons and unchecked scope | Keep exploring, retain candidates, or adopt one for a TRW |
 
-一个**项目**保存共同材料与知识；一个**流程实例**绑定一个研究目标或发现范围；一**轮研究**记录这次的目的、授权和调用上限。同一项目可有多个具名流程实例，共用材料并分别记录状态。采用候选会创建新的暂停实例，原流程仍保留。
+| A topic, question or selected body of existing knowledge to investigate and explain | **SURVEY · Survey Workflow** | Versioned searches, source readings, organized knowledge, scoped readiness reviews and optional English manuscripts | Stop after knowledge work, request a selected manuscript type, update the topic, or hand off a statement |
 
-### TRW：围绕精确命题开展研究
+A **project** holds shared knowledge and materials. A **workflow instance** binds a research target or discovery scope. A **research round** records the current intent, authorization and call limit. One project can contain several named instances that share materials and keep separate state. Adopting a candidate creates a new paused instance and preserves the original workflow.
 
-![TRW：准备、研究、独立检查与拼接、进展报告和研究者决定](examples/readme/trw.zh-CN.svg)
+### TRW: investigate an exact statement
 
-图中分组帮助你理解各类工作之间的关系。**P0–P14 是可用的研究活动，不是每轮必须依次经过的步骤。** 系统根据具体问题、依赖和剩余授权安排工作；当前网页启动 TRW 时，首项研究是 P4 的推导构造。点击图上节点用于阅读详情，不会强制启动该阶段。
+![TRW: frame, investigate, independently review and integrate, present progress, and record the researcher's decision](examples/readme/trw.en.svg)
 
-| 阶段 | 主要工作与可查看的结果 |
+The groups show how different kinds of work relate. **P0–P14 are available research activities, not a sequence that every round must execute.** Work is selected from concrete questions, dependencies and remaining authorization. In the current web UI, starting a TRW initially assigns derivation work at P4. Clicking a stage opens its details; it does not force that stage to execute.
+
+| Stage | Work and results to inspect |
 | --- | --- |
-| P0 · 目标授权 | 固定要研究的命题、已有知识入口和有限授权。 |
-| P1 · 语境记号 | 明确对象、定义、假设、量词与记号。 |
-| P2 · 关系路线 | 分辨必要、充分、等价关系及可能的研究路线。 |
-| P3 · 工作选择 | 选择有依据、范围有限的具体研究工作。 |
-| P4 · 推导构造 | 开展推导、构造、反例和失败探索，保存实际得到的内容。 |
-| P5 · 目标差距 | 比较已有结果与原目标，指出仍差哪一步。 |
-| P6 · 问题归约 | 将问题组织为 AND/OR 子问题，保留把局部成果提升回原目标的责任。 |
-| P7 · 义务分析 | 按需要应用来源、直接分析，或比较两条路线后综合。 |
-| P8 · 修补反例 | 针对具体缺口修补论证，开展定向反例探索。 |
-| P9 · 独立检查 | 独立审查证明与反例，记录实际检查和未检查的范围。 |
-| P10 · 结果拼接 | 在共同语境及同一见证要求下整合局部成果。 |
-| P11 · 变化盘点 | 对照起点查看新增、复用、支持变化和剩余问题。 |
-| P12 · 整体复查 | 独立复查拼接后的论证；开放部分仍可保留。 |
-| P13 · 进展报告 | 呈现当前进展；明确请求后制作正式研究报告。 |
-| P14 · 研究决定 | 记录你的继续、暂停、结束或交接选择。 |
+| P0 · Target and authorization | Fix the statement, existing knowledge entry points and bounded authorization. |
+| P1 · Context and notation | Clarify objects, definitions, assumptions, quantifiers and notation. |
+| P2 · Relations and routes | Distinguish necessary, sufficient and equivalent conditions and possible routes. |
+| P3 · Work selection | Select concrete, justified work with a limited scope. |
+| P4 · Derivation and construction | Attempt derivations, constructions, counterexamples and failed approaches; save what was actually obtained. |
+| P5 · Target gap | Compare existing results with the original target and identify what is still missing. |
+| P6 · Problem reduction | Organize AND/OR subproblems while retaining the work needed to lift local results to the original target. |
+| P7 · Obligation analysis | Apply a source, derive directly, or compare both routes and then synthesize, as needed. |
+| P8 · Repair and falsification | Repair a specific gap and search for targeted counterexamples. |
+| P9 · Independent checks | Review proofs and counterexamples independently, recording checked and unchecked scope. |
+| P10 · Integration | Combine local results under common context and same-witness requirements. |
+| P11 · Change accounting | Compare with the starting point: additions, reuse, support changes and open work. |
+| P12 · Assembled-argument review | Independently review the assembled argument; parts may remain open. |
+| P13 · Progress and reports | Present current progress; prepare formal reports when explicitly requested. |
+| P14 · Researcher decision | Record your choice to continue, pause, end or hand off. |
 
-例如，P4 的成果可直接进入 P9 检查；P9 发现缺口后可回到 P8 修补；P12 也可要求重新拼接。P0–P12 均可提前进入 P13 呈现已有进展，未解决的问题不会因此消失。重新进入阶段需要具体问题、输入及有限重试授权。
+For example, P4 results may go directly to P9 for review; a gap found at P9 may return to P8 for repair; P12 may request integration again. P0–P12 also allow early delivery to P13, preserving unresolved questions. Reentry needs a concrete question, inputs and bounded retry authorization.
 
-原固定目标的候选证明或反驳需要相应的独立双向审查。局部成果按明确需要的范围检查，不能把一项局部检查通过理解为整个命题已证明。
+A candidate proof or refutation of the original fixed target requires the corresponding independent dual review. Local results are checked against an explicitly required scope; passing a local check does not establish the whole statement.
 
-### TFDW：从现象形成值得研究的命题
+### TFDW: turn observations into a researchable statement
 
-![TFDW：现象范围、正反证据、候选构造、研究筛选、独立审查及人工交接](examples/readme/tfdw.zh-CN.svg)
+![TFDW: frame observations, collect evidence, formulate and probe candidates, review independently, and hand off by human choice](examples/readme/tfdw.en.svg)
 
-TFDW 的输入分为三部分：**观察到什么、哪些背景必须保持不变、允许沿哪些方向探索。** 这让模型比较候选时保留原问题的边界。当前网页启动 TFDW 时，首项工作是 D1 的证据学习。
+TFDW separates three inputs: **what you observed, what background must stay fixed, and what you permit the research to vary.** This preserves the question's boundaries when candidates are compared. Starting a TFDW in the current web UI initially assigns evidence-learning work at D1.
 
-| 阶段 | 主要工作与可查看的结果 |
+| Stage | Work and results to inspect |
 | --- | --- |
-| D0 · 现象范围 | 固定现象、不变背景与允许探索范围。 |
-| D1 · 正反证据 | 整理正例、反例、失败机制以及尚不清楚的范围。 |
-| D2 · 生成候选 | 沿明确变化轴提出精确候选，列出需要比较的问题。 |
-| D3 · 研究筛选 | 用区分例、局部推导和机制分析筛选候选。 |
-| D4 · 独立审查 | 审查表述、证据选择、逻辑比较及解释边界。 |
-| D5 · 候选选择 | 呈现候选前沿，记录你的选择，按需制作报告。 |
+| D0 · Phenomenon and scope | Fix the observations, immutable background and allowed exploration scope. |
+| D1 · Evidence and failures | Organize positive and negative examples, failure mechanisms and unknown coverage. |
+| D2 · Candidate formulations | Construct exact candidates along explicit axes of variation and identify comparisons to investigate. |
+| D3 · Discriminating research | Use distinguishing examples, local derivations and mechanism analysis to evaluate candidates. |
+| D4 · Independent review | Examine formulations, evidence selection, logical comparisons and interpretive limits. |
+| D5 · Candidate selection | Present the candidate frontier, record your choice and prepare reports when requested. |
 
-D4 可以把问题送回 D2 修改表述，或回 D3 补充研究；D0–D4 也可以提前在 D5 呈现已有候选和未知部分。没有足够证据时可以没有候选，比较结论也可以保持未知。
+D4 can return to D2 for reformulation or to D3 for further investigation. D0–D4 may also present existing candidates and unknowns early at D5. There may be no candidate when evidence is insufficient, and a comparison may remain unknown.
 
-在“候选比较与交接”中阅读完整候选，点击“采用为新的定题研究”，再确认“采用并创建暂停的 TRW”。**采用只表示你选择了一个精确研究目标。** 新 TRW 需要另行启动，其证明与检查仍需开展。反过来，也可从 TRW 的原目标创建暂停的 TFDW，原命题保持不变。
+In **Candidates & handoff**, read the complete candidate, click **Adopt as a new theorem research instance**, then confirm **Adopt and create paused TRW**. **Adoption means selecting an exact research target.** The new TRW needs a separate start and its own proof and review work. You can also create a paused TFDW from a TRW target while preserving the original statement.
 
-### 怎样读应用里的流程图
+### SURVEY: investigate a topic, then choose whether to write
 
-- 默认突出选中实例所属的 workflow 和主路径；可切换另一种结构，或打开“双图总览”。
-- 点击节点查看职责、模型策略、任务和产物；相关分支、回流和提前交付路径按需显示。“显示全部路径”保留完整合法路径。
-- “可迭代”标记表示可按授权重入。上方活动区显示正在执行或等待的 P/D 阶段；并行时可能有多个活跃阶段，阶段编号不表示完成百分比。
-- 没有加载对应实例时显示“流程结构预览／未选择实例”，不能据此判断某阶段是否已访问。
+![SURVEY: define scope, retrieve and read sources, organize and review knowledge, then optionally freeze, write and deliver](examples/readme/survey.en.svg)
 
-## 安装与打开
+Choose **Explore a new topic**, **Write from existing knowledge**, or **Update an existing survey**. Every entry creates a paused instance. **Knowledge only** stops after its knowledge objective is met; **Survey manuscript** additionally requests the selected `minimal`, `thematic` or `lecture` output. Creating the instance, browsing materials and freezing a snapshot make no model call. A new activity or report requires explicit authorization and a call limit.
 
-目标环境为 **Ubuntu 26.04**，运行时需要 **Python 3.11+**。
-
-1. 从 [v4.0.0 Release](https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/releases/tag/v4.0.0) 下载 `pmrs4-graphical-installer_4.0.0_all.deb`，核对同页的 `SHA256SUMS.txt`。
-2. 用 Ubuntu 图形软件包安装器打开 `.deb`。完成系统授权后，从应用菜单打开“安装纯数学研究工作室 4.0.0”，选择新的个人安装位置。包内 wheel 离线创建独立环境；缺少的 Python venv、Zenity 系统组件由 Ubuntu 软件源提供。
-3. 从应用菜单打开“纯数学研究工作室 4.0.0”。在“设置与登录”中选择已有 Codex CLI、Tectonic、离线资源或公共 CA 文件，也可明确安装界面列出的官方组件。登录由官方客户端处理。
-
-如果 `.desktop` 文件打开成文本，请使用上述 `.deb` 和应用菜单入口。已有安装目录和同版本菜单入口不会被覆盖。缺少 PDF 组件仍可阅读知识或开展不需要 PDF 的工作；生成 PDF 前另行检查报告依赖。更详细的操作见[安装帮助](INSTALL-HELP.html)。
-
-4.0 使用独立的安装、菜单、配置和默认工作区，不自动接管已有研究。默认工作区为 `$XDG_DATA_HOME/pure-math-research-studio/4.0/workspace`，配置位于 `$XDG_CONFIG_HOME/pure-math-research-studio/4.0`；未设置 XDG 时分别使用用户的 `.local/share` 和 `.config`。安装目录与研究数据分开。
-
-## 运行一轮研究
-
-1. **创建暂停项目。** “新建项目”选择 TRW 并输入完整题目，或选择 TFDW 分别填写三项发现输入。可以上传 UTF-8 题目或补充材料。创建项目本身不调用模型；未完成的 TFDW 可明确保存为草稿，补齐后再启动。
-2. **设置目的与预算。** “开始本轮研究”中填写具体目的、最多调用次数和最多同时处理的任务。界面默认值为 12 次、并发 2；可自行调整。点击提交即授权并启动本轮必要工作，调用上限不保证本轮能完成全部研究及报告。
-3. **核对模型策略。** 配置按“阶段／角色／用途”区分。需要覆盖时先点“加入或更新此作用域”，再提交。未来配置修改只影响新任务，单项修改或恢复默认不清空其他覆盖，也不改变已冻结请求。能力不支持时明确拒绝，不静默降级。
-4. **阅读进展并处理缺口。** 在“当前知识”看正文与支持范围，在“开放问题”看尚缺什么，在“任务与配置”看真实状态。新任务和操作会自动刷新；知识正文保留阅读快照，出现更新提示后可自行刷新正文。
-5. **按需请求报告或作出决定。** 点击“制作研究报告”请求正式报告，包含讲义版和精简版，并分别记录语义检查和实际页面检查。报告需要明确请求，与研究共享本轮调用上限；只有勾选“报告优先”时，报告完成才成为继续、结束或采用候选的前提。
-
-要先熟悉界面而不调用真实模型，可在“使用指引”中选择“运行命题示例”或“运行候选与交接示例”。它们创建独立的确定性模拟项目，输出带有测试隔离标记；模拟结果不能当成真实研究结论。
-
-## 两个使用实例
-
-下面是可直接填写到表单的教学输入。给出的数学结论是供你核对的参考，不是一次真实模型运行的记录，也不保证实际任务一定生成相同内容。仅创建项目不会调用模型；点击“开始本轮研究”后才会按所选执行器和授权运行。
-
-### 实例一：用 TRW 研究前 n 个奇数的和
-
-**场景：**你已经有一个精确命题，希望得到可检查的证明，并看清检查覆盖了哪些部分。
-
-在“新建项目”中选择 **TRW**，项目名称填 `Odd-number sum`，首个流程名称填 `Induction proof`，完整题目粘贴：
-
-```text
-证明：对每个正整数 n，1 + 3 + 5 + ... + (2n - 1) = n^2。
-明确正整数域和求和约定；给出完整证明，不以有限样例代替一般证明。
-```
-
-创建后，应看到一个暂停的 TRW 实例，原题保留，尚无模型请求。接着打开“开始本轮研究”，本轮目的可填：
-
-```text
-优先尝试数学归纳法，检查 n = 1 的基例及从 n 到 n + 1 的归纳步骤。
-保持原命题的量词和正整数域，说明证明覆盖范围以及仍未解决的缺口。
-```
-
-确认调用上限与并发数后启动。阅读时按以下顺序查看：
-
-| 去哪里看 | 要核对什么 |
+| Stage | Work and results to inspect |
 | --- | --- |
-| 当前知识 | 论证是否包含基例，以及从 $n^2$ 加上 $2n+1$ 得到 $(n+1)^2$ 的步骤？ |
-| 任务与配置 | 实际执行了哪些推导和独立检查？请求使用了什么冻结配置？ |
-| 开放问题 | 是否还有未完成的检查或未覆盖范围？任务结束不能代替这些检查。 |
-| 研究报告 | 需要交付时明确请求报告，查看讲义版、精简版及各自检查状态。 |
+| S0 · Scope and authorization | Preserve the topic, questions, objects, assumptions, inclusion/exclusion boundaries, delivery goal and budget. |
+| S1 · Literature investigation | Plan queries, retrieve actual candidate records through a controlled host provider, and retain selection, exclusion and stopping reasons. |
+| S2 · Source reading | Read the acquired parts that support particular claims; record source versions, locations, conditions and unread scope. |
+| S3 · Knowledge organization | Organize definitions, statements, proof mechanisms, examples, boundaries and dependencies in the shared native knowledge store. |
+| S4 · Readiness review | Independently check the selected knowledge, evidence and coverage; identify exact blockers and unchecked scope. |
+| S5 · Snapshot and writing plan | Freeze the selected knowledge and dependency closure; choose the audience, perspective, proof depth, omissions and output type. |
+| S6 · Survey writing | Write the requested English manuscript from the frozen plan and sources. |
+| S7 · Review and delivery | Review the complete manuscript, compile the actual PDF and inspect every generated page before formal delivery. |
 
-**参考结果：**基例 $1=1^2$；若前 $n$ 项之和为 $n^2$，则再加下一项 $2n+1$ 得到 $(n+1)^2$。你应能从系统记录中追溯论证及独立检查的范围；若预算耗尽或检查未完成，仍按实际状态保留开放问题。
+These are activities with specific inputs and exits. S2 returns to S1 when sources are missing. S3/S4 return to the relevant retrieval, reading or organization work. Knowledge only can finish at S4 with a knowledge snapshot and no manuscript. Changed selection at S5 can require another readiness review. New mathematical claims found during S6/S7 return to knowledge work; prose defects return to writing, and layout fixes need fresh page checks. A snapshot by itself does not make its contents ready.
 
-### 实例二：用 TFDW 发现连续整数之和的整除条件
+Sources distinguish metadata, abstracts, acquired full text and actual reading coverage. Original bytes, extracted text and mathematical knowledge have separate hashes. Retrieval limits and failures remain visible; coverage is only for the declared scope and queries. A citation or publication is not proof that PMRS independently checked a claim. Relevant changed or withdrawn support invalidates the affected readiness/output; unrelated knowledge or interface-language changes do not.
 
-**场景：**你观察到一个规律，但需要确定命题怎样表述、哪些条件必不可少。
+Survey can hand an exact statement or discovery scope to a new paused TRW/TFDW. Inspect its context and sources before adoption, then authorize the new research separately. Updating an ended survey creates a linked paused instance and preserves the old record.
 
-新建 **TFDW** 项目，项目名称填 `Consecutive integers`，流程名称填 `Find divisibility conditions`。三项输入分别填写：
+### Read the application diagrams
 
-**现象：**
+- The default view emphasizes the selected instance's workflow and main path. Switch to another structure or open **All three workflows**.
+- Select a node to inspect duties, model policies, tasks and outputs. Related branches, returns and early-delivery paths appear on demand; **Show all paths** retains every legal path.
+- An iteration marker indicates authorized reentry. The activity area shows running or waiting P/D/S stages, including several active stages during parallel work. Stage numbers are not completion percentages.
+- Without a loaded instance for that workflow, the graph is a structural preview with unknown state. It cannot tell you whether the stage has been visited.
+
+## Install and open
+
+The target is **Ubuntu 26.04**, with **Python 3.11+**.
+
+1. Download `pmrs4-graphical-installer_4.1.0_all.deb` from the [v4.1.0 Release](https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/releases/tag/v4.1.0) and verify the accompanying `SHA256SUMS.txt`.
+2. Open the `.deb` with Ubuntu's graphical package installer. After system authorization, launch “Install Pure Math Research Studio 4.1.0” from Applications and select a new personal installation location. The bundled wheel creates an isolated environment offline; missing Python venv and Zenity packages come from Ubuntu repositories.
+3. Launch “Pure Math Research Studio 4.1.0”. In **Settings & sign-in**, select existing Codex CLI, Tectonic, offline-resource or public-CA paths, or explicitly install the listed official components. Authentication belongs to the official client.
+
+If a `.desktop` file opens as text, use the `.deb` and application-menu route above. Existing installation directories and same-version menu entries are never overwritten. Without PDF components you can still read knowledge or perform work that does not need PDFs; report dependencies are checked separately before PDF generation. See [installation help](INSTALL-HELP.html).
+
+Versioned installation directories and menu entries preserve the earlier application. The 4.x configuration and default-workspace locations retain their `4.0` directory names; 4.1 does not change the native storage contract or automatically start existing research. The default workspace is `$XDG_DATA_HOME/pure-math-research-studio/4.0/workspace`; settings use `$XDG_CONFIG_HOME/pure-math-research-studio/4.0`. Without XDG overrides, these use the user's `.local/share` and `.config`. Application files and research data are separate.
+
+## Interface language
+
+The default interface is **English**. Use **Language** at the top of the workbench to choose **English** or **简体中文**. The choice is saved by the host, survives reopening and port changes, and retains the selected project, instance, stage, tab, drafts, expanded bodies and scroll position. Switching language is a display operation: it does not submit research, consume calls or change frozen knowledge/report inputs.
+
+**Research bodies and formal reports remain English in both interfaces.** Original user materials, including Chinese input, and external-client output retain their actual language. PMRS does not automatically translate research records. Native system buttons may follow the desktop's own language.
+
+## Run a round of research
+
+1. **Create a paused project.** In **New project**, select TRW and enter the full statement, or select TFDW and fill in its three discovery inputs. UTF-8 problem files and supplementary materials are supported. Creation makes no model call. An incomplete TFDW may explicitly be saved as a draft; complete it before starting.
+2. **Set intent and budget.** In **Start research round**, enter a specific purpose, maximum call count and maximum concurrent tasks. The UI defaults are 12 calls and concurrency 2; adjust them as needed. Submitting authorizes and starts the necessary work. A call limit does not guarantee completion of the research and reports.
+3. **Check model policies.** Policies distinguish stage, role and purpose. To override one, first click **Add or update this scope**, then submit. Future-policy edits affect new tasks only. Updating or resetting one scope preserves other overrides and existing frozen requests. Unsupported capabilities fail explicitly without fallback.
+4. **Inspect progress and gaps.** Use **Current knowledge** for bodies and support scope, **Open questions** for missing work, and **Tasks & configuration** for actual execution state. New tasks and actions update automatically. Knowledge bodies retain the reading snapshot; refresh them when you choose after an update notice.
+5. **Request TRW/TFDW reports or decide what follows.** Click **Make research report** to request formal reports. They have lecture and minimal versions, with separate semantic and actual-page checks. Reports are explicitly requested and share the round's call limit. Only selecting the report-first option makes report completion a prerequisite for continuing, ending or adopting a candidate.
+
+Survey uses the same authorization, budget, frozen-task and recovery controls; select a concrete S-stage activity with its required source or knowledge references. Retrieval runs on the host with separate network accounting. Knowledge only never implicitly requests a report. A manuscript plan requests only its chosen type; it does not create the TRW/TFDW lecture/minimal pair.
+
+To learn the interface without real model calls, open **Guide** and select **Run theorem example** or **Run candidate & handoff example**. These create independent deterministic simulations whose output carries test-isolation markers. Simulated output is not a real research result.
+
+## Three worked usage examples
+
+These are teaching inputs you can paste into the forms. The mathematical results below are references for inspection, not records of a real model run or guarantees of the exact output. Creating a project makes no model call; clicking **Start research round** starts work through the selected executor under your authorization.
+
+### Example 1: use TRW to study the sum of the first n odd numbers
+
+**Situation:** you already have a precise statement and want an inspectable proof with explicit review coverage.
+
+Create a **TRW** project named `Odd-number sum`, name its first instance `Induction proof`, and paste this into the full-problem field:
 
 ```text
-1+2+3=6，可被 3 整除；1+2+3+4=10，不能被 4 整除；
-1+2+3+4+5=15，可被 5 整除。
-改变起始整数和项数后，连续整数之和何时能被项数整除？
+Prove that for every positive integer n,
+1 + 3 + 5 + ... + (2n - 1) = n^2.
+State the positive-integer domain and summation convention explicitly.
+Give a complete proof; finitely many examples do not prove the general statement.
 ```
 
-**必须保持不变的背景与约束：**
+After creation, expect a paused TRW instance, the original problem retained and no model requests. Open the start-round form and enter this intent:
 
 ```text
-起始数 a 为任意整数，项数 n 为正整数。
-研究 S(a,n)=a+(a+1)+...+(a+n-1)，整除均指整数整除。
+Try mathematical induction first. Check the base case n = 1 and the step
+from n to n + 1. Preserve the quantifiers and positive-integer domain.
+Explain the proof's coverage and any remaining gaps.
 ```
 
-**允许探索的方向与范围：**
+Confirm the call limit and concurrency, then start. Inspect the result in this order:
+
+| Where to look | What to check |
+| --- | --- |
+| Current knowledge | Does the argument include the base case and the step from adding $2n+1$ to $n^2$ to obtain $(n+1)^2$? |
+| Tasks & configuration | Which derivation and independent-review tasks actually ran? What settings were frozen on their requests? |
+| Open questions | Is any required review or scope still incomplete? Task completion is not a substitute for these checks. |
+| Research reports | When you want a deliverable, request a report explicitly and inspect both versions and their review states. |
+
+**Reference result:** the base case is $1=1^2$. If the first $n$ terms sum to $n^2$, adding the next term $2n+1$ gives $(n+1)^2$. The records should let you trace the argument and independent-review scope. If the budget runs out or a check is incomplete, retain that open status.
+
+### Example 2: use TFDW to discover when a consecutive-integer sum is divisible by its length
+
+**Situation:** you have observed a pattern and need to determine the right statement and its essential conditions.
+
+Create a **TFDW** project named `Consecutive integers`, with instance name `Find divisibility conditions`. Fill the three inputs separately.
+
+**Phenomenon:**
 
 ```text
-允许改变 a 和 n，比较 n 为奇数、偶数时的情形。
-寻找关于 n 的必要且充分条件，并检查该条件是否对所有整数 a 成立。
-保持连续整数及整数整除的含义，不改成任意实数或其他求和对象。
+1+2+3=6 is divisible by 3; 1+2+3+4=10 is not divisible by 4;
+1+2+3+4+5=15 is divisible by 5.
+If the starting integer and number of terms vary, when is the sum of
+consecutive integers divisible by the number of terms?
 ```
 
-创建后检查三项原文均已保存，流程处于暂停状态。开始一轮研究时，目的可填“构造正反例，比较项数的奇偶性，提出精确候选并记录尚未检查的范围”。
+**Immutable background and constraints:**
 
-阅读“候选比较与交接”：先看完整量词和假设，再看例子、反面证据及比较的未知部分。**供核对的候选**是：对于任意整数 $a$ 和正整数 $n$，$n$ 整除 $S(a,n)$ 当且仅当 $n$ 为奇数。其核对线索为
+```text
+The starting value a is any integer; the number of terms n is a positive integer.
+Study S(a,n)=a+(a+1)+...+(a+n-1). Divisibility means integer divisibility.
+```
+
+**Allowed exploration directions and scope:**
+
+```text
+Vary a and n, and compare odd and even n.
+Find a necessary and sufficient condition on n, and check whether it holds
+for every integer a. Preserve consecutive integers and integer divisibility;
+do not replace them with arbitrary real numbers or a different sum.
+```
+
+After creation, check that all three originals were retained and the instance is paused. For a research round, use an intent such as: “Construct positive and negative examples, compare odd and even lengths, propose exact candidates and record unchecked scope.”
+
+Read **Candidates & handoff**: inspect the full quantifiers and assumptions, then the examples, counterevidence and unknown comparisons. A **reference candidate to check against** is: for every integer $a$ and positive integer $n$, $n$ divides $S(a,n)$ if and only if $n$ is odd. The calculation to inspect is
 
 $$
 S(a,n)=na+\frac{n(n-1)}{2},\qquad \frac{S(a,n)}n=a+\frac{n-1}{2}.
 $$
 
-候选出现后，可按以下步骤交接：
+Once a candidate is available, hand it off as follows:
 
-1. 阅读并选定那一个精确候选；只有少数样例并不足以证明一般结论。
-2. 点击“采用为新的定题研究”，确认完整命题，再点“采用并创建暂停的 TRW”。
-3. 在流程选择器切换到新 TRW。它与原 TFDW 共用材料，原 TFDW 仍保留；新流程不会自动开始调用，也不会因采用而获得证明资格。
-4. 为新 TRW 单独设置研究目的和预算，再明确启动证明工作。以后可通过“研究历史”追溯候选的形成与采用过程。
+1. Read and select that exact candidate. A few examples alone do not prove its general statement.
+2. Click **Adopt as a new theorem research instance**, review the full statement, then confirm **Adopt and create paused TRW**.
+3. Switch to the new TRW in the workflow selector. It shares project materials with the preserved TFDW. It starts paused, makes no automatic call and gains no proof qualification from adoption.
+4. Set a separate purpose and budget for the new TRW and explicitly start the proof work. Use research history to trace candidate formation and adoption later.
 
-## 阅读、暂停与保存
+### Example 3: use SURVEY to organize finite geometric sums, then request one minimal survey
 
-| 需求 | 入口与行为 |
+**Situation:** first understand a small topic and its limits, then decide whether a short manuscript is useful. This example deliberately uses synthetic teaching material; it does not claim to have found or read a published paper.
+
+In **New project**, choose **SURVEY**, **Explore a new topic**, and **Knowledge only**. Use project name `Finite geometric sums` and instance name `Knowledge foundation`. Fill the following Survey fields (list fields accept one item per line):
+
+**Topic:**
+
+```text
+Finite geometric sums over the real numbers.
+```
+
+**Specific questions:**
+
+```text
+What is the exact formula for G_n(q)=sum_{k=0}^{n-1} q^k, including the q = 1 case?
+```
+
+**Objects / Conditions:** enter `A real number q and a positive integer n.` / `Only finite sums are considered.`
+
+**Include:**
+
+```text
+Definition of the finite sum
+The q != 1 formula and the separate q = 1 case
+The multiply-and-subtract proof mechanism
+```
+
+**Exclude:**
+
+```text
+Infinite series and convergence
+Matrices
+Historical priority claims
+```
+
+After creation, check that the SURVEY instance is paused and **Tasks & configuration** contains zero model requests. In **Source materials**, upload the included [`finite-geometric-sums.teaching.md`](examples/readme/finite-geometric-sums.teaching.md), or save and upload this text:
+
+```text
+SYNTHETIC TEACHING MATERIAL — created for the PMRS usage example.
+This is not a publication or a bibliographic claim.
+
+Let n be a positive integer and q a real number.
+Define G_n(q) = 1 + q + ... + q^(n-1).
+If q != 1, (1-q)G_n(q) = 1-q^n, hence
+G_n(q) = (1-q^n)/(1-q).
+If q = 1, G_n(1) = n; division by 1-q is not allowed.
+Proof mechanism: multiply G_n(q) by q, align the two finite sums,
+and subtract. Check the n=1 boundary explicitly.
+Scope: finite sums only; no statement about infinite-series convergence.
+```
+
+Use **Authorize survey activity** with a finite call limit. Select the uploaded teaching source for S2 and S3, and the organized knowledge for S4. Run **S2 · Source reading**, then **S3 · Knowledge organization**, then **S4 · Readiness review**, inspecting each actual result before continuing. A suitable activity intent is:
+
+```text
+Use only the explicitly labelled teaching source and the declared finite-sum scope.
+Retain exact source locations. Organize the definition, q != 1 formula,
+q = 1 boundary and multiply-and-subtract derivation. Identify unchecked scope.
+Do not invent published references or infer that a saved item has been reviewed.
+```
+
+| Where to look | What to check |
 | --- | --- |
-| 查原文与材料依据 | “原始材料”保留原件；“当前知识”展示全文、公式、版本和实际支持范围。 |
-| 看这一轮改变了什么 | “本轮变化”比较新增、复用、支持变化和撤回；“研究历史”保留本项目不可变提交与事件。 |
-| 暂停或继续 | 暂停停止新派发并保留在途请求；“继续已有研究”沿用已有授权与余额。结束本轮后实例成为 `ENDED`，再次开展研究需明确创建新实例。 |
-| 已捕获结果尚未接纳 | “接纳已捕获结果”读取原响应，不重新发送请求。 |
-| 请求为 UNKNOWN | 先处置原请求，不自动重发。放弃等待仍保留不确定状态和消耗；确认未发送需要绑定实际传输证据原件，说明文字本身不是证据。 |
-| 提交后没收到响应 | 查询或恢复原操作。回执保存在工作区，服务重启或换端口后仍可找回；完成结果直接恢复，PENDING 不自动重发。明确的新操作使用新编号。 |
-| 保存或恢复项目 | “导出备份”保存原生归档；“恢复备份”打开原生备份窗口，先检查，再恢复到新的暂停项目，不自动恢复任务执行。 |
+| Source materials and reading records | Is the material labelled synthetic? Do the recorded read ranges refer to the actual uploaded version? |
+| Current knowledge | Are the domain, positive-integer condition, formula and separate $q=1$ case preserved? Is the argument linked to its assumptions and source? |
+| Survey readiness | Which exact revisions and dependency closure were checked? Do blockers, omissions and review task identities remain visible? |
+| Tasks & configuration | Did only authorized activities run? Is independent review an actual separate task? |
+| Knowledge snapshot and reports | After valid readiness, use **Freeze selected knowledge**, then end the knowledge instance. No manuscript or PDF should be generated. |
 
-关闭浏览器不终止后台研究，从应用菜单可重开同一工作区。需要退出后台时先暂停研究，等待在途任务结束，再使用页面底部的退出按钮。不要把密码或令牌写进项目材料。
+**Reference result to check:** $G_n(q)=(1-q^n)/(1-q)$ for $q\ne1$, while $G_n(1)=n$. At $n=1$ both branches give $1$. This is a teaching reference, not a record of a model execution or completed PMRS review. If readiness remains blocked, fix the specific source, reading or knowledge issue before requesting output.
 
-## 范围与验收
+To request a manuscript **later**, use **Write from existing knowledge** (or **Update an existing survey**) to create a linked paused Survey instance from the selected knowledge. Choose **Survey manuscript** and recheck the reused review's exact scope. Prepare a writing plan with **minimal**, language **English**, audience `A reader familiar with elementary algebra`, and perspective `The finite identity and the exceptional q = 1 case`. Use **Freeze selected knowledge**, then open **Prepare a selected survey edition**, choose that snapshot and add a **Proof commitment** for the derivation with **Complete proof**. Copy the exact step names recorded in the S4 review into **Required proof steps**; request further review if a promised step was not checked. Record the finite-sum scope under **Limitations**, and use **Omitted knowledge and reasons** when excluding a saved knowledge record.
 
-4.0.0 是当前原生产品的独立发行，新仓库从审核后的文件快照建立全新历史。它保留当前原生存储与备份恢复，不包含旧版源码、升级器、迁移读取器、兼容适配层、真实研究项目样本或续接包。不符合当前原生合同的输入会明确拒绝，不静默转换或修改原件；内部存储格式标识独立于产品版本。
+Use **Save English output plan** for that selection. In **Authorize survey activity**, select **S5 · Authorize output budget** and authorize a finite report budget; this step makes no model call. Then use **Request selected English manuscript** for that saved plan. Inspect the one selected minimal manuscript under **Research reports**, together with its semantic review, compiled PDF and every-page review. `thematic` and `lecture` are alternatives selected separately; this operation should not generate either. A draft or a failed new revision cannot inherit the delivery status of a previous successful report. New mathematical claims found while writing must return to knowledge organization and readiness review.
 
-原始材料、保存成功、任务完成和报告输出都不等于数学证明。支持与资格按精确对象、版本和检查范围记录；本版不提供形式化验证。客户端未返回的有效配置、用量和实际费用保持未知。
+A CLI alternative for the **zero-call creation and material upload** uses the supplied scope file. Run these commands from the source directory; read `instance_id` from the first result and use it in subsequent Survey commands:
 
-[4.0.0 验收记录](TEST-REPORT-4.0.0.md)列出实际测试与未覆盖范围；原生桌面安装/菜单启动和 Tectonic 文件选择器点击仍待人工补验。本文档更新没有重新运行付费研究，也不把教程参考结论计作验收通过。退役要求见[验收范围](ACCEPTANCE-SCOPE-4.0.0.md)。
+```bash
+python3 -m research_studio survey init --scope examples/readme/finite-geometric-sums.scope.json --out ../geometric-survey --title "Finite geometric sums"
+python3 -m research_studio source ../geometric-survey --file examples/readme/finite-geometric-sums.teaching.md --media-type text/plain
+python3 -m research_studio workflow list ../geometric-survey
+```
 
-## 高级维护与开发
+Each returns stored native data without starting a model. `survey status PROJECT --instance INSTANCE_ID` is read-only. Later `survey activity` explicitly authorizes and starts S1–S4; S5 authorizes report budget only. `survey freeze`, `survey plan` and `report --prepare-only` do not run a model. A plain `report` command runs the selected report under its authorization. Use `--help` for the exact required fields and avoid using a real research workspace for this tutorial.
 
-普通操作可在网页完成。高级 CLI 与网页共享服务层，在源码目录中可运行：
+## Read, pause and save
+
+| Need | Entry point and behavior |
+| --- | --- |
+| Inspect originals and evidence | Original Materials retains original files. Current Knowledge shows full text, formulas, versions and actual support scope. |
+| See what changed | Round Changes distinguishes additions, reuse, support changes and withdrawals. Research History retains this project's immutable commits and events. |
+| Pause or continue | Pause stops new dispatch and retains in-flight requests. Continue Existing Research uses existing authorization and balance. Ending the round makes the instance `ENDED`; further research requires explicitly creating a new instance. |
+| Admit a captured result | Admit Captured Result reads the original response without resending. |
+| Handle UNKNOWN | Resolve the original request rather than automatically resending. Abandoning the wait retains uncertainty and consumption. Confirming not-sent requires binding actual transport-evidence originals; a note alone is not evidence. |
+| Recover a missing operation response | Query or recover the original operation. Workspace receipts survive service restart and port changes. Completed results are recovered directly; PENDING is not automatically resent. A deliberate new operation gets a new key. |
+| Back up or restore | Export Backup writes a native archive. **Restore backup** opens the native-backup dialog, checks the archive and creates a new paused project without automatically resuming task execution. |
+
+Closing the browser does not stop background research. Reopen the same workspace from Applications. To exit the service, pause research, wait for in-flight work to finish and use the exit button at the bottom of the page. Keep passwords and tokens out of project materials.
+
+## Scope and validation
+
+4.1.0 adds native SURVEY and English/Simplified Chinese display to the current TRW/TFDW product. It retains native storage and backup/restore and does not introduce older project migration, compatibility readers, real research samples or continuation packages. Unsupported inputs are rejected without silent conversion. Product, workflow and storage-format versions have separate responsibilities.
+
+Original material, a successful save, task completion and report output do not establish mathematical proof. Support and qualification bind exact objects, revisions and checked scope. This release does not provide formal verification. Effective configuration, usage and actual costs absent from client responses remain unknown.
+
+Task preparation has a declared 32 MiB budget for unique required input and metadata, with at most 8 MiB of metadata and 64 MiB per serialized packet. Model token capacity and output reserve are checked separately. Oversized complete scopes are blocked before sending; explicitly select a smaller scope or use a CoveragePlan instead of silently omitting evidence. At most two preparations share a project resource pool. Disposable checkpoints and settled task-input copies are bounded or reclaimed; originals, captured responses, receipts, report revisions and review evidence remain available. If resources are unavailable, preserve and recover the original operation; never resend UNKNOWN automatically. See the resource measurements and limits in the validation record.
+
+The [4.1.0 validation record](TEST-REPORT-4.1.0.md) distinguishes executed tests, controlled simulation, actual rendering and remaining native desktop observations. No paid research is used for development acceptance; tutorial reference results are not acceptance evidence. Prior human observations are reused only for traceable, unaffected behavior. See the [acceptance scope](ACCEPTANCE-SCOPE-4.1.0.md) for the retained and new requirements.
+
+## Advanced maintenance and development
+
+Ordinary operation is available through the web UI. The advanced CLI shares its service layer. From the source directory:
 
 ```bash
 python3 -m research_studio --help
@@ -204,7 +329,7 @@ python3 -m research_studio audit ../new-project
 python3 -m research_studio project restore BACKUP.zip --out ../restored-project
 ```
 
-在已验证解包的 release ZIP 目录中，可离线安装到新前缀：`python3 scripts/install-local.py --prefix NEW_PREFIX --bin-dir NEW_BIN --venv`。需要应用菜单时传入 `--desktop-dir`；维护验收使用独立私有菜单目录，不覆盖已有入口。测试和构建输出放到源码树外：
+From a verified, extracted release ZIP, install offline into a new prefix with `python3 scripts/install-local.py --prefix NEW_PREFIX --bin-dir NEW_BIN --venv`. Add `--desktop-dir` for application-menu registration. Maintenance acceptance uses a separate private menu directory instead of overwriting existing entries. Keep test and build outputs outside the source tree:
 
 ```bash
 python3 -B scripts/test-runner.py --out ../validation/suite.json
@@ -212,6 +337,6 @@ python3 -B scripts/validate-groups.py --out ../validation/required --browser-evi
 SOURCE_DATE_EPOCH=315532800 python3 -B scripts/build-release.py --out ../artifacts
 ```
 
-构建输出源码 ZIP、安装用 release ZIP、wheel、图形安装器 `.deb`、制品清单与哈希。构建成功只确认打包完整性；验收必须使用实际执行记录，不能复用旧版本 PASS。
+Builds produce a source ZIP, installable release ZIP, wheel, graphical `.deb`, artifact inventory and checksums. A successful build establishes packaging integrity only; acceptance requires actual execution records, not a previous version's PASS.
 
-更多：[架构](ARCHITECTURE-4.0.0.md) · [更新说明](CHANGELOG-4.0.0.md) · [Ubuntu 安装与验收](UBUNTU-E2E-GUIDE.md) · [许可证](LICENSE)。
+More: [architecture](ARCHITECTURE-4.1.0.md) · [changes](CHANGELOG-4.1.0.md) · [Ubuntu installation and acceptance](UBUNTU-E2E-GUIDE.md) · [license](LICENSE).

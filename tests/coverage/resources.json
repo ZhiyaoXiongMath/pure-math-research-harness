@@ -1,0 +1,108 @@
+{
+  "schema": "pmrs.test-coverage/1",
+  "acceptance": [
+    {
+      "case_id": "RES-T01",
+      "assertions": [
+        {
+          "assertion_id": "RES-T01.a1",
+          "test_ids": [
+            "tests.test_survey_resources.SurveyResources.test_res_t01_one_hundred_operations_reuse_content_and_keep_receipts"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "RES-T02",
+      "assertions": [
+        {
+          "assertion_id": "RES-T02.a1",
+          "test_ids": [
+            "tests.test_survey_resources.SurveyResources.test_res_t02_ten_native_revisions_preserve_originals_and_old_records"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "RES-T03",
+      "assertions": [
+        {
+          "assertion_id": "RES-T03.a1",
+          "test_ids": [
+            "tests.test_survey_resources.SurveyResources.test_res_t03_fifty_refreshes_reuse_integrity_and_detect_real_changes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "RES-T04",
+      "assertions": [
+        {
+          "assertion_id": "RES-T04.a1",
+          "test_ids": [
+            "tests.test_survey_resources.SurveyResources.test_res_t04_three_plans_share_one_knowledge_snapshot",
+            "tests.test_survey_reports.SurveyReports.test_each_selected_profile_has_only_its_actual_pdf_and_independent_checks",
+            "tests.test_final_reports.FinalReportTests.test_real_pdf_png_native_pair_exact_sequence_and_repeat_zero_calls"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "RES-T05",
+      "assertions": [
+        {
+          "assertion_id": "RES-T05.a1",
+          "test_ids": [
+            "tests.test_resource_inputs.ResourceInputs.test_oversize_native_input_is_rejected_before_any_body_read",
+            "tests.test_resource_inputs.ResourceInputs.test_duplicate_source_bytes_are_read_once_and_metadata_is_budgeted",
+            "tests.test_resource_inputs.ResourceInputs.test_serialization_preflight_counts_utf8_escapes_and_rejects_before_canonical",
+            "tests.test_resource_inputs.ResourceInputs.test_task_materialization_streams_files_without_read_blob_collection",
+            "tests.test_resource_storage.ResourceStorage.test_visual_capture_rechecks_damaged_pages_after_input_reduction"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "RES-T06",
+      "assertions": [
+        {
+          "assertion_id": "RES-T06.a1",
+          "test_ids": [
+            "tests.test_resource_inputs.ResourceInputs.test_two_preparation_leases_wait_and_failure_releases_reservation"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "RES-T07",
+      "assertions": [
+        {
+          "assertion_id": "RES-T07.a1",
+          "test_ids": [
+            "tests.test_resource_inputs.ResourceInputs.test_disk_and_interrupted_copy_never_publish_partial_input",
+            "tests.test_resource_storage.ResourceStorage.test_disk_preflight_rejects_before_new_blob_and_preserves_head",
+            "tests.test_resource_storage.ResourceStorage.test_enospc_before_head_recovers_the_same_capture_without_resending",
+            "tests.test_resource_storage.ResourceStorage.test_failed_immutable_publication_does_not_expose_half_file",
+            "tests.test_final_operation_recovery.DesktopOriginRecoveryTests.test_survey_response_loss_restart_new_origin_and_new_intent",
+            "tests.test_resource_inputs.ResourceInputs.test_command_publication_failure_preserves_prepared_request_for_same_retry"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "RES-T08",
+      "assertions": [
+        {
+          "assertion_id": "RES-T08.a1",
+          "test_ids": [
+            "tests.test_resource_storage.ResourceStorage.test_checkpoint_retention_replays_old_state_and_preserves_report_evidence",
+            "tests.test_resource_storage.ResourceStorage.test_checkpoint_read_race_replays_instead_of_losing_history",
+            "tests.test_resource_inputs.ResourceInputs.test_visual_task_has_no_full_literature_packet_and_settled_cache_is_rebuildable",
+            "tests.test_resource_inputs.ResourceInputs.test_unknown_inputs_are_protected_and_cleanup_failure_cannot_repeat_settlement"
+          ]
+        }
+      ]
+    }
+  ],
+  "baseline": []
+}

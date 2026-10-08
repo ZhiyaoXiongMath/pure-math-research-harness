@@ -15,6 +15,9 @@ LOCAL_PURPOSES={'DETERMINISTIC_DIFF','PROGRESS_SNAPSHOT','PDF_COMPILE','PAGE_COU
 REPORT_ROLES={'REPORT_AUTHOR','REPORT_SEMANTIC','REPORT_VISUAL'}
 # The exact stage is always part of the key. There is no generic SYNTHESIS row.
 _ROWS={
+ 'S1':{'SEARCH_PLAN':'xhigh'},'S2':{'SOURCE_READ':'xhigh'},
+ 'S3':{'ORGANIZE':'xhigh','RECONSTRUCT':'max'},
+ 'S4':{'READINESS_REVIEW':'max','COVERAGE_REVIEW':'xhigh'},
  'P1':{'PLAN':'high'},'P2':{'PLAN':'xhigh'},'P3':{'PLAN':'xhigh'},
  'P4':{'RESEARCH':'max','FALSIFY':'max','PROOF':'max','COUNTEREXAMPLE':'max'},
  'P5':{'SYNTHESIS':'xhigh'},'P6':{'PLAN':'max'},
@@ -101,8 +104,8 @@ def schema():
     return {'$schema':'https://json-schema.org/draft/2020-12/schema','$id':VERSION,
             'title':'PMRS responsibility-bound model policy','type':'object','additionalProperties':False,
             'required':['policy_version','workflow_kind','stage_id','role','purpose','call_model','rule_id','model','reasoning_effort','service_tier','capability','override_applied'],
-            'properties':{'policy_version':{'const':VERSION},'workflow_kind':{'enum':['TRW','TFDW']},
-                'stage_id':{'enum':[f'P{i}' for i in range(15)]+[f'D{i}' for i in range(6)]},
+            'properties':{'policy_version':{'const':VERSION},'workflow_kind':{'enum':['TRW','TFDW','SURVEY']},
+                'stage_id':{'enum':[f'P{i}' for i in range(15)]+[f'D{i}' for i in range(6)]+[f'S{i}' for i in range(8)]},
                 'role':{'type':'string'},'purpose':{'type':'string'},'call_model':{'type':'boolean'},
                 'rule_id':{'type':'string'},'model':{'type':['string','null']},'reasoning_effort':{'type':['string','null']},
                 'service_tier':{'type':['string','null']},'capability':{'type':['object','null']},'override_applied':{'type':'boolean'}},

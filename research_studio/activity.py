@@ -9,7 +9,7 @@ from .workflows.registry import definition, ROUTES
 def graph():
     registry = definition()
     workflows = []
-    for kind in ('TRW', 'TFDW'):
+    for kind in ('TRW', 'TFDW', 'SURVEY'):
         rows = [s for s in registry['stages'].values() if s['workflow_kind'] == kind]
         rows.sort(key=lambda s: int(s['stage_id'][1:]))
         nodes, edges = [], []
@@ -30,7 +30,9 @@ def graph():
             'handoffs': [{'from': 'TRW', 'to': 'TFDW', 'to_stage': 'D0',
                           'label': '从当前固定目标开展表述发现', 'human_decision_required': True},
                          {'from': 'TFDW', 'to': 'TRW', 'to_stage': 'P0',
-                          'label': '采用精确候选，建立暂停的定题研究', 'human_decision_required': True}],
+                          'label': '采用精确候选，建立暂停的定题研究', 'human_decision_required': True},
+                         {'from':'SURVEY','to':'TRW','to_stage':'P0','label':'采用调查中的精确命题，建立暂停的定题研究','human_decision_required':True},
+                         {'from':'SURVEY','to':'TFDW','to_stage':'D0','label':'从调查中的问题建立暂停的表述发现','human_decision_required':True}],
             'navigation_only': True, 'automatic_next': False, 'completion_is_not_proof': True}
 
 
@@ -55,11 +57,11 @@ def _instance(snapshot, iid):
             continue
         stage_id = None
         if kind in {'CREATE_INSTANCE', 'DISCOVERY_SCOPE_DEFINED'} or (kind == 'AUTHORIZE_MISSION' and 'mission' in payload):
-            stage_id = 'P0' if instance['kind'] == 'TRW' else 'D0'
+            stage_id = {'TRW':'P0','TFDW':'D0','SURVEY':'S0'}[instance['kind']]
         elif kind in {'HUMAN_DECISION', 'HANDOFF_PREPARED', 'HANDOFF_ADOPTED'}:
-            stage_id = 'P14' if instance['kind'] == 'TRW' else 'D5'
+            stage_id = {'TRW':'P14','TFDW':'D5','SURVEY':'S7'}[instance['kind']]
         elif kind == 'REPORT_SELECTED':
-            stage_id = 'P13' if instance['kind'] == 'TRW' else 'D5'
+            stage_id = {'TRW':'P13','TFDW':'D5','SURVEY':'S6'}[instance['kind']]
         if stage_id:
             stages[stage_id]['status'] = 'VISITED'
             stages[stage_id]['control_event_ids'].append(event['event_id'])
@@ -106,6 +108,19 @@ def _instance(snapshot, iid):
         task = tasks.get(event.get('task_id'))
         if task and task['stage_id'] in stages and event.get('record_ref'):
             stages[task['stage_id']]['record_refs'].append(event['record_ref'])
+    if instance['kind']=='SURVEY':
+        from .survey import _ACTIVE_RETRIEVALS
+        for item in snapshot.get('survey_events',{}).values():
+            if item['instance_id']!=iid:continue
+            sid='S5' if item['event_type'] in {'SNAPSHOT_FROZEN','OUTPUT_PLANNED'} else 'S1' if item['event_type'].startswith('RETRIEVAL_') else None
+            if sid:
+                stages[sid]['status']='VISITED';stages[sid]['control_event_ids'].append(item['event_id'])
+        for retrieval in snapshot.get('survey_retrievals',{}).values():
+            if retrieval['instance_id']!=iid or retrieval['status']!='RUNNING':continue
+            if retrieval['id'] in _ACTIVE_RETRIEVALS:running.add('S1')
+            else:
+                waiting.add('S1');stages['S1']['waiting_reasons'].append('SURVEY_RETRIEVAL_UNKNOWN')
+                stages['S1']['next_actions'].append('INSPECT_ORIGINAL_RETRIEVAL')
     for sid, stage in stages.items():
         if sid in running:
             stage['status'] = 'RUNNING'

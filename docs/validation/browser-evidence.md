@@ -1,4 +1,4 @@
-# Actual installed-browser evidence — PMRS 4.0.0
+# Actual installed-browser evidence — PMRS 4.1.0
 
 The runner accepts `--browser-evidence /absolute/private-validation/browser.json`. This is an input for actual observations already performed through CUA in the installed candidate. It does not drive a browser and cannot convert HTTP/unit tests into browser observations. Never label an unperformed step PASS. Old source hashes, screenshots, human component-reuse exceptions and private specification-checker receipts are not current evidence.
 
@@ -20,4 +20,6 @@ The strict complete gate preserves missing manual checks. The separately named r
 
 WEB05 uses current native backup/restore only: `native-backup`, `select-native-archive`, `check-native-backup`, `restore-new-paused-project`, and `inspect-restored-records-and-capture`. Use generated mathematical examples and preserve original bytes, capture identity, paused restore behavior and no automatic dispatch. Unsupported format refusal is a current safety property. Old upgrade/reader/continuation and real-project migration cases have been retired under the explicit 4.0 scope.
 
-The old private specification evidence input is removed. Current documentation, resource inventory, mappings and build consistency are checked by the 4.0 test suite. All original observations and failed attempts remain in private validation storage outside the product. Source, browser and package records must identify this candidate; none authorizes paid research.
+The old private specification evidence input is removed. Current documentation, resource inventory, mappings and build consistency are checked by the current test suite. All original observations and failed attempts remain in private validation storage outside the product. Source, browser and package records must identify this candidate; none authorizes paid research.
+
+Survey and localization observations additionally identify the selected instance, S-stage, locale, source/knowledge revisions and actual operations. Capture English and Chinese SURVEY, all-workflow overview, and both existing workflows in both locales. Synthetic activity outputs are marked as software test evidence; actual provider fetches and page rendering retain their own receipts.

@@ -22,9 +22,9 @@ WHEEL_VERSION = VERSION
 PREFIX = 'Pure-Math-Research-Studio-' + VERSION
 SOURCE_DATE_EPOCH = int(os.environ.get('SOURCE_DATE_EPOCH', '315532800'))
 FIXED_TIME = datetime.datetime.fromtimestamp(max(SOURCE_DATE_EPOCH, 315532800), datetime.timezone.utc).timetuple()[:6]
-REQUIRED_DOCS = ['README.md', 'README.en.md', 'LICENSE', 'pyproject.toml',
-    'CHANGELOG-4.0.0.md', 'ARCHITECTURE-4.0.0.md',
-    'TEST-REPORT-4.0.0.md', 'UBUNTU-E2E-GUIDE.md', 'ACCEPTANCE-SCOPE-4.0.0.md']
+REQUIRED_DOCS = ['README.md', 'README.zh-CN.md', 'LICENSE', 'pyproject.toml',
+    'CHANGELOG-4.1.0.md', 'ARCHITECTURE-4.1.0.md',
+    'TEST-REPORT-4.1.0.md', 'UBUNTU-E2E-GUIDE.md', 'ACCEPTANCE-SCOPE-4.1.0.md']
 EXCLUDED = {'.git', '__pycache__', '.venv'}
 
 
@@ -65,9 +65,9 @@ def wheel(members):
     info = f'{dist}-{WHEEL_VERSION}.dist-info'
     rows = {p:b for p,b in members.items() if p.startswith('research_studio/')}
     metadata = (f'Metadata-Version: 2.4\nName: pure-math-research-studio\nVersion: {WHEEL_VERSION}\n'
-        'Summary: Shared mathematical research kernel with independent TRW and TFDW workflows\n'
+        'Summary: Shared mathematical research kernel with independent TRW, TFDW and SURVEY workflows\n'
         'Requires-Python: >=3.11\nLicense-Expression: Apache-2.0\nLicense-File: LICENSE\n'
-        'Description-Content-Type: text/markdown\n\n').encode()+members['README.en.md']
+        'Description-Content-Type: text/markdown\n\n').encode()+members['README.md']
     rows.update({info+'/METADATA':metadata, info+'/licenses/LICENSE':members['LICENSE'],
         info+'/WHEEL':b'Wheel-Version: 1.0\nGenerator: PMRS offline release writer\nRoot-Is-Purelib: true\nTag: py3-none-any\n',
         info+'/entry_points.txt':b'[console_scripts]\npure-math-research-studio = research_studio.cli:main\nresearch-studio = research_studio.cli:main\npmrs-desktop = research_studio.desktop:main\n',

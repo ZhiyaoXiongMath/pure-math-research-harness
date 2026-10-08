@@ -44,7 +44,7 @@ class Workflows(unittest.TestCase):
         self.assertEqual(cm.exception.code,code)
 
     def test_n11_single_registry(self):
-        self.assertEqual(len(R.REGISTRY['stages']),21)
+        self.assertEqual(len(R.REGISTRY['stages']),29)
         rows=list(R.REGISTRY['stages'].values())
         rows=deepcopy(rows)
         for row in rows:row.pop('digest')

@@ -36,6 +36,9 @@ def response(task,snapshot):
         payload_kind='REPORT_OUTPUT' if role=='REPORT_AUTHOR' else 'REPORT_REVIEW'
         return canonical({'schema':C.RESPONSE_SCHEMA,'task_id':task['task_id'],'request_id':task['request_id'],
                           'payload_kind':payload_kind,'payload':demo_payload(task,snapshot)})
+    if stage.startswith('S'):
+        from .survey import demo_response
+        return demo_response(task,snapshot)
     if task.get('independent'):
         req=task.get('required_assurance')
         slots=[x for x in req['review_slots'] if role in x['allowed_roles']] if req else []

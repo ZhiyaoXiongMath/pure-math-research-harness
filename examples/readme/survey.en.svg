@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="850" viewBox="0 0 1080 850" role="img" aria-labelledby="title desc" lang="en" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif">
+<title id="title">SURVEY: knowledge investigation and optional manuscripts</title>
+<desc id="desc">S0–S4 build and review knowledge; Knowledge only can finish there. Explicit manuscript selection enables S5–S7. Missing evidence or mathematics returns to the relevant knowledge activity.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9Z" fill="#355f9f"/></marker></defs>
+<rect x="1" y="1" width="1078" height="848" rx="20" fill="#f4f7fb" stroke="#dae3ed" stroke-width="1.5"/>
+<text x="38" y="55" font-size="31" font-weight="700" fill="#152a43" text-anchor="start">SURVEY · Investigate, understand, then choose</text>
+<text x="38" y="94" font-size="20" font-weight="400" fill="#4b6179" text-anchor="start">Knowledge is a goal in its own right. Creation is paused, with zero model calls.</text>
+<rect x="38" y="137" width="304" height="363" rx="14" fill="#fff" stroke="#d8e1eb" stroke-width="1.5"/>
+<text x="59" y="174" font-size="18" font-weight="700" fill="#355f9f" text-anchor="start">S0–S2</text>
+<text x="59" y="211" font-size="23" font-weight="700" fill="#152a43" text-anchor="start">Sources &amp; evidence</text>
+<rect x="388" y="137" width="304" height="363" rx="14" fill="#fff" stroke="#d8e1eb" stroke-width="1.5"/>
+<text x="409" y="174" font-size="18" font-weight="700" fill="#167769" text-anchor="start">S3–S4</text>
+<text x="409" y="211" font-size="23" font-weight="700" fill="#152a43" text-anchor="start">Knowledge &amp; readiness</text>
+<rect x="738" y="137" width="304" height="363" rx="14" fill="#fff" stroke="#d8e1eb" stroke-width="1.5"/>
+<text x="759" y="174" font-size="18" font-weight="700" fill="#986316" text-anchor="start">S5–S7</text>
+<text x="759" y="211" font-size="23" font-weight="700" fill="#152a43" text-anchor="start">Optional English survey</text>
+<text x="59" y="251" font-size="17" font-weight="700" fill="#355f9f" text-anchor="start">S0</text>
+<text x="105" y="251" font-size="18" font-weight="600" fill="#152a43" text-anchor="start">Scope &amp; authorization</text>
+<text x="59" y="280" font-size="15" font-weight="400" fill="#4b6179" text-anchor="start">Questions, scope and boundaries</text>
+<text x="59" y="325" font-size="17" font-weight="700" fill="#355f9f" text-anchor="start">S1</text>
+<text x="105" y="325" font-size="18" font-weight="600" fill="#152a43" text-anchor="start">Literature investigation</text>
+<text x="59" y="354" font-size="15" font-weight="400" fill="#4b6179" text-anchor="start">Actual queries, versions, selection</text>
+<text x="59" y="399" font-size="17" font-weight="700" fill="#355f9f" text-anchor="start">S2</text>
+<text x="105" y="399" font-size="18" font-weight="600" fill="#152a43" text-anchor="start">Source reading</text>
+<text x="59" y="428" font-size="15" font-weight="400" fill="#4b6179" text-anchor="start">Locations, conditions, unread scope</text>
+<text x="409" y="269" font-size="17" font-weight="700" fill="#355f9f" text-anchor="start">S3</text>
+<text x="455" y="269" font-size="18" font-weight="600" fill="#152a43" text-anchor="start">Knowledge organization</text>
+<text x="409" y="298" font-size="15" font-weight="400" fill="#4b6179" text-anchor="start">Definitions, results, mechanisms</text>
+<text x="409" y="377" font-size="17" font-weight="700" fill="#355f9f" text-anchor="start">S4</text>
+<text x="455" y="377" font-size="18" font-weight="600" fill="#152a43" text-anchor="start">Readiness review</text>
+<text x="409" y="406" font-size="15" font-weight="400" fill="#4b6179" text-anchor="start">Independent tasks, exact scope</text>
+<text x="759" y="251" font-size="17" font-weight="700" fill="#355f9f" text-anchor="start">S5</text>
+<text x="805" y="251" font-size="18" font-weight="600" fill="#152a43" text-anchor="start">Snapshot &amp; plan</text>
+<text x="759" y="280" font-size="15" font-weight="400" fill="#4b6179" text-anchor="start">Selection, audience, depth, type</text>
+<text x="759" y="325" font-size="17" font-weight="700" fill="#355f9f" text-anchor="start">S6</text>
+<text x="805" y="325" font-size="18" font-weight="600" fill="#152a43" text-anchor="start">Survey writing</text>
+<text x="759" y="354" font-size="15" font-weight="400" fill="#4b6179" text-anchor="start">Write from frozen knowledge</text>
+<text x="759" y="399" font-size="17" font-weight="700" fill="#355f9f" text-anchor="start">S7</text>
+<text x="805" y="399" font-size="18" font-weight="600" fill="#152a43" text-anchor="start">Review &amp; delivery</text>
+<text x="759" y="428" font-size="15" font-weight="400" fill="#4b6179" text-anchor="start">Full text, actual PDF, every page</text>
+<path d="M343 315 L384 315" fill="none" stroke="#355f9f" stroke-width="2.6" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M693 315 L734 315" fill="none" stroke="#355f9f" stroke-width="2.6" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="716" y="282" font-size="15" font-weight="600" fill="#986316" text-anchor="middle">Opt in</text>
+<text x="409" y="463" font-size="16" font-weight="400" fill="#167769" text-anchor="start">A snapshot is not readiness</text>
+<text x="759" y="463" font-size="15" font-weight="400" fill="#986316" text-anchor="start">minimal · thematic · lecture</text>
+<path d="M483 501 L483 544 L191 544 L191 504" fill="none" stroke="#355f9f" stroke-width="2.6" stroke-linejoin="round" marker-end="url(#arrow)" stroke-dasharray="7 6"/>
+<text x="330" y="536" font-size="15" font-weight="400" fill="#4b6179" text-anchor="middle">Missing evidence → retrieve / read</text>
+<path d="M929 501 L929 582 L632 582 L632 504" fill="none" stroke="#355f9f" stroke-width="2.6" stroke-linejoin="round" marker-end="url(#arrow)" stroke-dasharray="7 6"/>
+<text x="799" y="572" font-size="15" font-weight="400" fill="#4b6179" text-anchor="middle">New mathematics → knowledge / review</text>
+<rect x="388" y="611" width="304" height="88" rx="14" fill="#e7f3ee" stroke="#a9d1c2" stroke-width="1.5"/>
+<path d="M540 501 L540 606" fill="none" stroke="#167769" stroke-width="2.6" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="540" y="646" font-size="20" font-weight="700" fill="#146556" text-anchor="middle">Knowledge only → finish</text>
+<text x="540" y="675" font-size="16" font-weight="400" fill="#146556" text-anchor="middle">Keep snapshot; no manuscript/PDF</text>
+<rect x="738" y="611" width="304" height="88" rx="14" fill="#fcf2df" stroke="#dfc995" stroke-width="1.5"/>
+<path d="M992 501 L992 606" fill="none" stroke="#355f9f" stroke-width="2.6" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="890" y="646" font-size="18" font-weight="700" fill="#805211" text-anchor="middle">Checked selected manuscript</text>
+<text x="890" y="675" font-size="15" font-weight="400" fill="#805211" text-anchor="middle">Retain revisions and failed attempts</text>
+<rect x="38" y="611" width="304" height="88" rx="14" fill="#fff" stroke="#cbd8e6" stroke-width="1.5"/>
+<text x="190" y="646" font-size="18" font-weight="700" fill="#355f9f" text-anchor="middle">Reentry needs concrete grounds</text>
+<text x="190" y="675" font-size="15" font-weight="400" fill="#4b6179" text-anchor="middle">Changed input, issue, bounded work</text>
+<rect x="38" y="736" width="1004" height="75" rx="14" fill="#fff" stroke="#d8e1eb" stroke-width="1.5"/>
+<text x="60" y="767" font-size="20" font-weight="600" fill="#805211" text-anchor="start">Human handoff: exact statement / scope → new paused TRW or TFDW</text>
+<text x="60" y="796" font-size="17" font-weight="400" fill="#4b6179" text-anchor="start">Start with separate authorization. Adoption grants no proof status; ended surveys stay ended.</text>
+</svg>

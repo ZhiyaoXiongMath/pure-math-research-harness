@@ -5,6 +5,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const path=require('node:path');
 const sourcePath=path.join(__dirname,'../research_studio/static/workbench.js');
+const i18n=require('../research_studio/static/i18n.js');i18n.setLocale('zh-CN');
 const {OperationLifecycle,indexedOperationStorage,amendOverrides,stagePresentation,workflowGraphEdges,workflowStagePresentation,workflowStageLabel}=require(sourcePath);
 const {execFileSync}=require('node:child_process');
 function memoryStorage(){let row=null;return {get:async()=>row,claim:async value=>{if(row)return false;row=structuredClone(value);return true;},clear:async key=>{if(row?.key===key)row=null;}};}
@@ -49,10 +50,11 @@ class Node {
   constructor(tag,doc){this.tagName=tag.toUpperCase();this.doc=doc;this.children=[];this.dataset={};this.style={};this.listeners={};this.attributes={};this.hidden=false;this.disabled=false;this.open=false;this.value='';this.checked=false;this.files=[];this._text='';this.className='';this.scrollTop=0;this.classList={contains:name=>this.className.split(' ').includes(name),toggle:(name,active)=>{const values=new Set(this.className.split(' ').filter(Boolean));const enabled=active===undefined?!values.has(name):active;if(enabled)values.add(name);else values.delete(name);this.className=[...values].join(' ');return enabled;},remove:(...names)=>{this.className=this.className.split(' ').filter(x=>!names.includes(x)).join(' ');},add:(...names)=>{this.className=[...new Set([...this.className.split(' ').filter(Boolean),...names])].join(' ');}};}
   set id(v){this._id=v;this.doc.ids[v]=this;}get id(){return this._id;}
   set textContent(value){this._text=String(value);for(const n of this.children||[])n.parent=null;this.children=[];}get textContent(){return this._text+this.children.map(n=>n.textContent).join('');}
-  get childNodes(){return this.children;}get parentNode(){return this.parent||null;}
+  get childNodes(){return this.children;}get parentNode(){return this.parent||null;}get parentElement(){return this.parent||null;}get selectedOptions(){return this.children.filter(n=>n.selected||n.value===this.value);}
   append(...nodes){for(const n of nodes){n.remove();n.parent=this;this.children.push(n);if(this.tagName==='SELECT'&&this.children.length===1)this.value=n.value;}}
   prepend(...nodes){for(const n of nodes)n.remove();for(const n of nodes)n.parent=this;this.children.unshift(...nodes);}
   replaceChildren(...nodes){for(const n of this.children)n.parent=null;this.children=[];this._text='';this.append(...nodes);}
+  replaceWith(node){const parent=this.parent;if(!parent)return;const index=parent.children.indexOf(this);node.remove();parent.children[index]=node;node.parent=parent;this.parent=null;}
   remove(){if(this.parent){this.parent.children=this.parent.children.filter(n=>n!==this);this.parent=null;}}
   addEventListener(type,fn){this.listeners[type]=fn;}setAttribute(k,v){this.attributes[k]=String(v);if(k==='class')this.className=String(v);}getAttribute(k){return this.attributes[k]??null;}
   querySelectorAll(selector){const match=n=>selector.startsWith('.')?n.className.split(' ').includes(selector.slice(1)):selector.startsWith('[data-')?Object.hasOwn(n.dataset,selector.slice(6,-1).replace(/-([a-z])/g,(_,c)=>c.toUpperCase())):selector==='details[open]'?n.tagName==='DETAILS'&&n.open:n.tagName===selector.toUpperCase();const result=[];for(const child of this.children){if(match(child))result.push(child);result.push(...child.querySelectorAll(selector));}return result;}
@@ -68,7 +70,7 @@ class Node {
 }
 function domHarness(){
   const document={ids:{},scrolls:0,scrollY:0,createElement(tag){return new Node(tag,this);},createElementNS(ns,tag){return this.createElement(tag);},getElementById(id){return this.ids[id]||null;},querySelectorAll(selector){const roots=[...new Set(Object.values(this.ids))].filter(n=>!n.parent);return [...new Set(roots.flatMap(n=>n.querySelectorAll(selector)))];}};
-  const html=fs.readFileSync(path.join(__dirname,'../research_studio/static/index.html'),'utf8');for(const m of html.matchAll(/<([a-z]+)[^>]*\bid="([^"]+)"([^>]*)/g)){const n=document.createElement(m[1]);n.id=m[2];n.hidden=/\bhidden\b/.test(m[3]);}
+  const html=fs.readFileSync(path.join(__dirname,'../research_studio/static/index.html'),'utf8').replace(/<!--[\s\S]*?-->/g,'');for(const m of html.matchAll(/<([a-z]+)[^>]*\bid="([^"]+)"([^>]*)/g)){const n=document.createElement(m[1]);n.id=m[2];n.hidden=/\bhidden\b/.test(m[3]);}
   for(const match of html.matchAll(/<button data-view="([^"]+)"([^>]*)>([^<]+)<\/button>/g)){const b=document.createElement('button');b.dataset.view=match[1];b.className=/class="([^"]+)"/.exec(match[2])?.[1]||'';b.textContent=match[3];document.ids.tabs.append(b);}
   const requests=[],localKeys=[],receipts=new Map();let response=async()=>({}),counter=0;
   const context={document,window:{indexedDB:{},get scrollY(){return document.scrollY;}},URL,URLSearchParams,Date,Set,Map,Object,JSON,Error,Promise,crypto:{randomUUID:()=> 'test-key-'+String(++counter).padStart(20,'0')},location:{origin:'http://localhost:18400',hash:'',pathname:'/'},history:{replaceState(){}},localStorage:{getItem(key){localKeys.push({method:'get',key});return key==='pmrs_project'?'WP-old-installation':'';},setItem(key,value){localKeys.push({method:'set',key,value});}},FileReader:class {readAsDataURL(file){this.result='data:application/zip;base64,'+file.base64;Promise.resolve().then(()=>this.onload());}},setInterval(){},requestAnimationFrame(fn){fn();},ResizeObserver:class {observe(){}disconnect(){}},fetch:async(url,options)=>{
@@ -79,7 +81,10 @@ function domHarness(){
     else {value=await response(parsed,options);if(options.method==='POST'&&parsed.pathname.startsWith('/api/action/'))receipts.set(options.headers['Idempotency-Key'],{state:'COMPLETED',result:value,operation:{id:'a'.repeat(64)},digest:'b'.repeat(64)});}
     return {ok:true,status:200,json:async()=>value};
   }};
-  const tail=`globalThis.testUI={importForm,showImportConfirmation,nativeHistory,discoveryFields,policyEditor,renderWorkflowGraph,renderStageDetail,selectGraphStage,resetWorkflowGraphSelection,selectView,navigateStage,syncViewSelection,refresh,task,patchTaskStates,pollProgress,newWorkflowForm,discoveryConfigForm,reconcile,startForm,configureForm,settings,operations,action,setState(s,{projectKey='WP-test',instance='I-1',viewName='current',readSnapshot='frozen'}={}){project=projectKey;snapshot=readSnapshot;latestCommit=readSnapshot;currentStatus=s;view=viewName;graphSelection=null;document.getElementById('instance').value=instance;navigationScope=project+'|'+instance;contentProgressFingerprint=progressFingerprint(s);},setScope(p,i){project=p;document.getElementById('instance').value=i;},setGraph(g){graphDefinition=g;},setPolicy(p){modelPolicy=p;},getState(){return {project,snapshot,latestCommit,currentStatus,view,graphSelection,graphFocus:workflowGraphView.focus,graphMode:workflowGraphView.mode};}};`;
+  const tail=`globalThis.testUI={report,reportRevision,surveyFreezeForm,surveyScopeFields,surveyCreateForm,surveyActivityForm,surveyReportForm,applyLocale,patchReportStates,importForm,showImportConfirmation,nativeHistory,discoveryFields,policyEditor,renderWorkflowGraph,renderStageDetail,selectGraphStage,resetWorkflowGraphSelection,selectView,navigateStage,syncViewSelection,refresh,task,patchTaskStates,pollProgress,newWorkflowForm,discoveryConfigForm,reconcile,startForm,configureForm,settings,operations,action,setState(s,{projectKey='WP-test',instance='I-1',viewName='current',readSnapshot='frozen'}={}){project=projectKey;snapshot=readSnapshot;latestCommit=readSnapshot;currentStatus=s;view=viewName;graphSelection=null;document.getElementById('instance').value=instance;navigationScope=project+'|'+instance;contentProgressFingerprint=progressFingerprint(s);},setScope(p,i){project=p;document.getElementById('instance').value=i;},setGraph(g){graphDefinition=g;},setPolicy(p){modelPolicy=p;},getState(){return {project,snapshot,latestCommit,currentStatus,view,graphSelection,graphFocus:workflowGraphView.focus,graphMode:workflowGraphView.mode};}};`;
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../research_studio/static/messages.js'),'utf8'),context);
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../research_studio/static/i18n.js'),'utf8'),context);
+  context.window.PMRS_I18N.setLocale('zh-CN');
   vm.runInNewContext(fs.readFileSync(sourcePath,'utf8').replace('guarded(initial)();',tail),context);
   context.testUI.operations.storage=memoryStorage();return {ui:context.testUI,document,requests,localKeys,setResponse(fn){response=fn;}};
 }
@@ -153,7 +158,7 @@ function activeTab(h){return h.document.ids.tabs.querySelectorAll('button').filt
 function findButton(node,text){return node.querySelectorAll('button').find(n=>n.textContent===text);}
 async function click(h,node){assert.ok(node,'Expected real UI button');await node.click();assert.equal(h.document.ids.error.textContent,'');}
 
-test('actual registry graph retains all 112 edges with 19 main paths and 21 iteration markers',()=>{
+test('actual registry graph retains original TRW/TFDW edges and all registered Survey paths',()=>{
   const graph=nativeGraph(),before=JSON.stringify(graph);let nodeCount=0,edgeCount=0,mainCount=0,loopCount=0;
   for(const workflow of graph.workflows){
     const main=workflowGraphEdges(workflow),all=workflowGraphEdges(workflow,null,true);
@@ -162,7 +167,7 @@ test('actual registry graph retains all 112 edges with 19 main paths and 21 iter
     assert.ok(main.visible.every(e=>e.kind==='forward'&&e.from!==e.to));assert.ok(all.visible.every(e=>e.from!==e.to));
     for(const node of workflow.nodes){const local=workflowGraphEdges(workflow,node.stage_id);assert.ok(local.visible.every(e=>workflow.edges.includes(e)));assert.ok(local.related.every(e=>e.from===node.stage_id||e.to===node.stage_id));}
   }
-  assert.deepEqual({nodeCount,edgeCount,mainCount,loopCount},{nodeCount:21,edgeCount:112,mainCount:19,loopCount:21});assert.equal(JSON.stringify(graph),before);
+  assert.deepEqual({nodeCount,edgeCount,mainCount,loopCount},{nodeCount:29,edgeCount:140,mainCount:26,loopCount:28});assert.equal(JSON.stringify(graph),before);
   assert.equal(workflowStageLabel('P7'),'义务分析');assert.equal(workflowStagePresentation(null,'TRW','P0').status,'UNKNOWN');
 });
 
@@ -175,7 +180,7 @@ test('graph defaults to current kind and preview selection stays read-only with 
   h.ui.selectGraphStage('TFDW','D2');assert.equal(h.ui.getState().view,'current');assert.equal(h.ui.getState().graphSelection,null);assert.equal(h.ui.getState().graphMode,'TFDW');assert.match(h.document.ids['stage-detail'].textContent,/结构预览/);assert.match(h.document.ids['stage-detail'].textContent,/状态未知/);assert.equal(findButton(h.document.ids['stage-detail'],'查看此阶段任务'),undefined);
   await click(h,container.querySelectorAll('[data-graph-mode]').find(n=>n.dataset.graphMode==='overview'));
   await click(h,container.querySelector('[data-graph-paths]'));
-  assert.equal(maps.every(n=>!n.hidden),true);assert.equal(container.querySelectorAll('.stage-wire').length,91);assert.equal(container.querySelectorAll('.stage-iteration').length,21);assert.equal(container.querySelector('.edge-list').children.length,112);assert.equal(h.requests.length,0);
+  assert.equal(maps.every(n=>!n.hidden),true);assert.equal(container.querySelectorAll('.stage-wire').length,112);assert.equal(container.querySelectorAll('.stage-iteration').length,28);assert.equal(container.querySelector('.edge-list').children.length,140);assert.equal(h.requests.length,0);
 });
 
 test('same-commit progress adds new tasks and updates captured actions in place using original request',async()=>{
@@ -233,7 +238,7 @@ test('4.0 browser persistence cannot pick up an old selected project or pending 
   const h=domHarness();assert.equal(h.ui.getState().project,'');assert.deepEqual(h.localKeys,[{method:'get',key:'pmrs_4_0_project'}]);
   const opened=[],keys=[];const indexedDB={open(name,version){opened.push({name,version});const request={result:{transaction(storeName,mode){assert.equal(storeName,'operations');assert.equal(mode,'readonly');const tx={objectStore(){return {get(key){keys.push(key);const result={result:null};queueMicrotask(()=>{result.onsuccess();tx.oncomplete();});return result;}};}};return tx;}}};queueMicrotask(()=>request.onsuccess());return request;}};
   assert.equal(await indexedOperationStorage(indexedDB,'WORKSPACE-new').get(),null);assert.deepEqual(opened,[{name:'pmrs-4.0-business-operations',version:1}]);assert.deepEqual(keys,['active:WORKSPACE-new']);
-  const html=fs.readFileSync(path.join(__dirname,'../research_studio/static/index.html'),'utf8');assert.match(html,/<title>PMRS 4\.0\.0/);assert.match(html,/<footer>PMRS 4\.0\.0/);assert.doesNotMatch(html,/data-view="legacy"|导入与恢复/);
+  const html=fs.readFileSync(path.join(__dirname,'../research_studio/static/index.html'),'utf8');assert.match(html,/<title[^>]*>PMRS 4\.1\.0/);assert.match(html,/<footer><!--[^>]+-->PMRS 4\.1\.0/);assert.doesNotMatch(html,/data-view="legacy"|导入与恢复/);
 });
 test('backup UI checks and restores only native archives with the preserved 128 MiB bound',async()=>{
   const h=domHarness(),posts=[];h.ui.setState(status());h.setResponse(async(url,options)=>{
@@ -253,4 +258,34 @@ test('project research history reads native instance-scoped journal pages at the
   h.setResponse(async url=>{if(url.pathname==='/api/status')return s;if(url.pathname==='/api/history'){assert.equal(url.searchParams.get('project'),'WP-test');assert.equal(url.searchParams.get('instance'),'I-1');assert.equal(url.searchParams.get('commit'),s.commit);return {records:[event],next_offset:20};}throw Error('Unexpected read '+url.pathname);});
   await h.ui.refresh();assert.equal(h.document.ids['view-title'].textContent,'研究历史');assert.match(h.document.ids.content.textContent,/本轮研究已授权/);assert.match(h.document.ids.content.textContent,/关联流程：I-1/);assert.match(h.document.ids.content.textContent,/AUTHORIZE_MISSION/);assert.equal(h.document.ids.more.hidden,false);assert.equal(h.requests.every(r=>r.options.method==='GET'),true);assert.equal(h.requests.some(r=>new URL(r.url).pathname.includes('legacy')),false);
   const projectEvent=h.ui.nativeHistory({...event,instance_ids:[]});assert.match(projectEvent.textContent,/项目级记录/);
+});
+
+test('Survey creation saves complete paused scope using the native action without research dispatch',async()=>{
+  const h=domHarness(),s=status(),posts=[];s.workflow.instances=[];h.ui.setState(s,{instance:''});h.setResponse(async(url,opts)=>{if(opts.method==='POST'&&url.pathname.startsWith('/api/action/')){posts.push({path:url.pathname,payload:JSON.parse(opts.body)});return {instance_id:'I-survey'};}if(url.pathname==='/api/workflow-inputs')return {statements:[],sources:[],next_offset:null};if(url.pathname==='/api/status')return {...s,workflow:{instances:[{instance_id:'I-survey',kind:'SURVEY',status:'PAUSED',name:'Survey'}]}};if(url.pathname==='/api/workspace')return {projects:[{key:'WP-test',title:'Test'}]};return {scope:{},readiness:{status:'NEEDS_WORK'},records:[]};});
+  await h.ui.surveyCreateForm();h.document.ids['survey-name'].value='Geometric sums';h.document.ids['survey-create-topic'].value='Finite geometric sums';h.document.ids['survey-create-questions'].value='Find the formula.\nCheck q = 1.';h.document.ids['survey-create-objects'].value='Fields\nFinite sequences';h.document.ids['survey-create-conditions'].value='n is nonnegative';h.document.ids['survey-create-include'].value='q = 1';h.document.ids['survey-create-exclude'].value='Infinite series';await submitDialog(h);
+  assert.equal(posts.length,1);assert.equal(posts[0].path,'/api/action/new-workflow');assert.equal(posts[0].payload.kind,'SURVEY');assert.equal(posts[0].payload.survey_scope.delivery_goal,'KNOWLEDGE_ONLY');assert.deepEqual(posts[0].payload.survey_scope.questions,['Find the formula.','Check q = 1.']);assert.deepEqual(posts[0].payload.survey_scope.objects,['Fields','Finite sequences']);assert.equal(posts[0].payload.max_calls,undefined);
+});
+test('Survey output plan and selected edition request are distinct explicit actions',async()=>{
+  const h=domHarness(),s=status(),posts=[];s.workflow.instances=[{instance_id:'I-1',kind:'SURVEY',status:'PAUSED',name:'Survey'}];h.ui.setState(s);const data={scope:{},readiness:{status:'READY'},snapshots:[{id:'SN-exact',selected_refs:['KR-one'],material:{closure:['KR-one']}}],output_plans:[]};h.setResponse(async(url,opts)=>{if(opts.method==='POST'&&url.pathname.startsWith('/api/action/')){posts.push({path:url.pathname,payload:JSON.parse(opts.body)});return {plan_ref:'PLAN-exact'};}if(url.pathname==='/api/status')return s;if(url.pathname==='/api/survey')return data;if(url.pathname==='/api/workflow-inputs')return {records:[{ref:'KR-one',title:'Result'}],statements:[],sources:[]};return {reports:[]};});
+  await h.ui.surveyReportForm();h.document.ids['survey-snapshot'].value='SN-exact';h.document.ids['survey-profile'].value='thematic';h.document.ids['survey-prerequisites'].value='Finite fields\nFinite sequences';await submitDialog(h);assert.equal(posts.length,1);assert.equal(posts[0].path,'/api/action/survey-plan');assert.equal(posts[0].payload.profile,'thematic');assert.deepEqual(posts[0].payload.prerequisites,['Finite fields','Finite sequences']);assert.deepEqual(posts[0].payload.proof_promises,[]);assert.equal(posts[0].payload.perspective,undefined);
+  await click(h,findButton(h.document.ids['dialog-content'],'请求选定的英文稿件'));assert.equal(posts.length,2);assert.equal(posts[1].path,'/api/action/report');assert.deepEqual(posts[1].payload.profiles,['thematic']);assert.equal(posts[1].payload.plan_ref,'PLAN-exact');
+});
+test('locale saving uses only preferences endpoint and preserves workflow and content selection',async()=>{
+  const h=domHarness(),s=status();h.ui.setState(s,{viewName:'tasks'});h.document.ids['ui-locale'].value='en';h.setResponse(async(url,opts)=>{assert.equal(url.pathname,'/api/preferences');assert.deepEqual(JSON.parse(opts.body),{ui_locale:'en'});return {ui_locale:'en',model_calls:0};});await h.document.ids['ui-locale'].onchange();assert.equal(h.requests.length,1);assert.equal(h.ui.getState().project,'WP-test');assert.equal(h.ui.getState().view,'tasks');assert.equal(h.document.ids.instance.value,'I-1');assert.equal(h.document.ids['ui-locale'].value,'en');assert.equal(h.document.ids['dialog-locale'].value,'en');
+});
+
+test('report revision binds the clicked report and only its selected edition',async()=>{
+  const h=domHarness(),s=status(),posts=[];s.workflow.instances=[{instance_id:'I-1',kind:'SURVEY',status:'PAUSED',name:'Survey'}];h.ui.setState(s);h.setResponse(async(url,opts)=>{if(opts.method==='POST'&&url.pathname.startsWith('/api/action/')){posts.push(JSON.parse(opts.body));return {};}if(url.pathname==='/api/status')return s;return {records:[],reports:[]};});
+  h.ui.reportRevision(false,{report_id:'REPORT-original',selected_profiles:['thematic']});assert.deepEqual(h.document.ids['report-profile'].children.map(o=>o.value),['thematic']);h.document.ids['report-reason'].value='Fix the comparison';h.document.ids.instance.value='I-other';await submitDialog(h);assert.equal(posts[0].report_id,'REPORT-original');assert.equal(posts[0].profile,'thematic');assert.equal(posts[0].instance,'I-1');
+  h.ui.reportRevision(true,{report_id:'REPORT-original',selected_profiles:['thematic']});h.document.ids['report-reason'].value='Retain history';await submitDialog(h);assert.equal(posts[1].report_id,'REPORT-original');
+});
+test('Survey freeze sends an explicit question subset with selected knowledge',async()=>{
+  const h=domHarness(),s=status(),posts=[];s.workflow.instances=[{instance_id:'I-1',kind:'SURVEY',status:'PAUSED',name:'Survey'}];h.ui.setState(s);h.setResponse(async(url,opts)=>{if(opts.method==='POST'&&url.pathname.startsWith('/api/action/')){posts.push(JSON.parse(opts.body));return {};}if(url.pathname==='/api/workflow-inputs')return {records:[{ref:'KR-one',title:'Result'}],statements:[],sources:[]};if(url.pathname==='/api/survey')return {scope:{questions:['Ready question','Open question']},readiness:{status:'READY'}};if(url.pathname==='/api/status')return s;return {records:[]};});
+  await h.ui.surveyFreezeForm();const questions=h.document.ids['survey-freeze-questions'];assert.equal(questions.children.every(o=>o.selected),true);questions.children[1].selected=false;questions.value='Ready question';h.document.ids['survey-freeze-refs'].value='KR-one';await submitDialog(h);assert.deepEqual(posts[0].question_ids,['Ready question']);assert.deepEqual(posts[0].selected_refs,['KR-one']);
+});
+
+test('unchanged knowledge commit still updates report controls without replacing unrelated reader',async()=>{
+  const h=domHarness(),s=status();s.reports=[{report_id:'REPORT-one',state:'AUTHORING'}];h.ui.setState(s,{viewName:'reports',readSnapshot:s.commit});const original={report_id:'REPORT-one',classification:'RECOVERABLE_ACTIVE_CANDIDATE',state:'AUTHORING',active:true,selected_profiles:['lecture']},card=h.ui.report(original);h.document.ids.content.append(card);const reader=h.document.createElement('details');reader.open=true;reader.textContent='Unchanged proof body';h.document.ids.content.append(reader);h.document.scrollY=840;h.document.ids.content.scrollTop=110;
+  const next={...s,reports:[{report_id:'REPORT-one',state:'ABANDONED'}]};h.setResponse(async url=>{if(url.pathname==='/api/progress')return next;if(url.pathname==='/api/reports')return {reports:[{...original,classification:'REPORT_ABANDONED',state:'ABANDONED',active:false}]};throw Error('Unexpected request '+url.pathname);});await h.ui.pollProgress();
+  const updated=h.document.ids.content.querySelector('[data-report-id]');assert.notEqual(updated,card);assert.match(updated.textContent,/已放弃报告/);assert.equal(updated.querySelectorAll('button').some(b=>b.textContent==='修订报告'),false);assert.equal(reader.parent,h.document.ids.content);assert.equal(reader.open,true);assert.equal(reader.textContent,'Unchanged proof body');assert.equal(h.document.scrollY,840);assert.equal(h.document.ids.content.scrollTop,110);assert.equal(h.ui.getState().snapshot,s.commit);assert.equal(h.requests.every(r=>r.options.method==='GET'),true);
 });

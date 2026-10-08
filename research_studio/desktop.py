@@ -11,6 +11,8 @@ import urllib.request
 import webbrowser
 from http.server import ThreadingHTTPServer
 from .util import canonical,atomic,loads,read,safe_path
+from .localization import translate,load_preferences
+from . import __version__
 
 
 def default_workspace():
@@ -60,14 +62,14 @@ def launch(root,*,open_browser=True):
             record=running(root)
             if record:break
             time.sleep(.1)
-        if not record:raise RuntimeError('PMRS 4.0.0 后台启动失败，请查看安装诊断。')
+        if not record:raise RuntimeError(translate('native.launch_failed',load_preferences(root)['ui_locale']))
     url=record['url']+'/#session='+record['token']
     if open_browser:webbrowser.open(url,new=2)
     return {'url':url,'pid':record['pid']}
 
 
 def main(argv=None):
-    p=argparse.ArgumentParser(description='Open the local PMRS 4.0.0 workspace')
+    p=argparse.ArgumentParser(description=f'Open the local PMRS {__version__} workspace')
     p.add_argument('--workspace',type=Path,default=default_workspace());p.add_argument('--serve',action='store_true')
     p.add_argument('--port',type=int,default=0);p.add_argument('--no-browser',action='store_true');a=p.parse_args(argv)
     if a.serve:return service(a.workspace,a.port)

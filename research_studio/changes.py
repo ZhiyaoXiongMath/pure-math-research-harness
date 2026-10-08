@@ -29,6 +29,9 @@ def _query_members(snapshot,guard):
 
 def live_check(task,snapshot,blob_get=None):
     require(task.get('schema')==C.TASK_SCHEMA,'RESPONSE_SCHEMA_INVALID','Final task required')
+    if task.get('report_context'):
+        report=snapshot.get('reports',{}).get(task['report_context']['report_id'],{})
+        require(report.get('status')!='ABANDONED','REPORT_ABANDONED','The report was abandoned before this task could proceed.')
     for binding in task.get('read_set',[]):
         C.fields(binding,{'record_ref','body_hash','selection_binding','required_support_refs','scope','qualification_guard'},'ReadBinding')
         ref=binding['record_ref'];record=snapshot.get('records',{}).get(ref)
@@ -121,6 +124,10 @@ def _validate(task,snapshot,raw,mode,blob_get,allocations):
         result=C.ValidatedChange(**common,outcome='ACCEPTED',report_event=p['event'])
         result['blobs'].update(p.get('blobs',{}));result['receipt']={'receipt_id':'AR-'+C.digest([task['request_id'],sha(raw)]),'request_id':task['request_id'],'capture_hash':sha(raw),'outcome':'ACCEPTED','content_added':[]}
         return result
+    survey_payload=None
+    if envelope['payload_kind']=='SURVEY_RESULT':
+        C.fields(envelope['payload'],{'schema','knowledge_change','action','data'},'SurveyResult')
+        survey_payload=deepcopy(envelope['payload']);envelope['payload_kind']='KNOWLEDGE_CHANGE';envelope['payload']=survey_payload['knowledge_change']
     require(envelope['payload_kind']=='KNOWLEDGE_CHANGE','AUTHORIZATION_REQUIRED','Control proposals cannot grant human decisions or scientific authority')
     kcs=envelope['payload'];C.fields(kcs,C.KCS_FIELDS,'KnowledgeChangeSet')
     require(kcs['schema']==C.CHANGE_SCHEMA and kcs['task_id']==task['task_id'] and kcs['request_id']==task['request_id'],'RESPONSE_SCHEMA_INVALID','KCS binding differs')
@@ -315,6 +322,10 @@ def _validate(task,snapshot,raw,mode,blob_get,allocations):
               'origin_statement_refs':sorted({x['ref'] for x in task.get('input_manifest',[]) if x.get('kind')=='record' and snapshot.get('records',{}).get(x.get('ref'),{}).get('kind')=='Statement'}),
               'change_axes':[],'motivation_refs':[],'cost_locators':[],'calibration_refs':[]}
     result=C.ValidatedChange(**common,outcome='ACCEPTED',receipt=receipt,records=records,objects=objects,inferences=inferences,production_events=productions,supports=supports,qualifications=qualifications,withdrawals=withdrawals,relations=new_relations,obligation_effects=resolved_effects,new_obligations=new_obligations,change_items=outcomes,attempt_account=kcs['attempt_account'],work_outcome=kcs['work_outcome'],candidates=candidates,input_fingerprint=task.get('input_fingerprint'))
+    if survey_payload is not None:
+        from .survey import validate_result
+        survey_payload['data']=resolve(survey_payload['data'])
+        result['survey_changes']=validate_result(task,snapshot,survey_payload,records,getblob)
     result['blobs']=blobs;result['events']=[{'kind':'KNOWLEDGE_CHANGE_ACCEPTED','request_id':task['request_id'],'capture_hash':sha(raw),'work_outcome':kcs['work_outcome'],'changes':outcomes}]
     result._allocations=allocations
     return result
@@ -330,6 +341,10 @@ def apply_validated(snapshot,proposal):
         if isinstance(current,dict):current.update({r['relation_id']:deepcopy(r) for r in proposal['relations']})
         else:
             ids={r['relation_id'] for r in current};current.extend(deepcopy(r) for r in proposal['relations'] if r['relation_id'] not in ids)
+    for name,rows in proposal.get('survey_changes',{}).items():
+        from .survey import MAPS
+        require(name in MAPS,'SURVEY_RESULT_INVALID','Unknown Survey metadata collection')
+        state.setdefault(name,{}).update(deepcopy(rows))
     state.setdefault('obligations',{}).update(deepcopy(proposal.get('new_obligations',{})))
     state.setdefault('candidates',{}).update(deepcopy(proposal.get('candidates',{})))
     for effect in proposal.get('obligation_effects',[]):

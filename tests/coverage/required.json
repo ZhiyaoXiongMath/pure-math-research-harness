@@ -1,6 +1,6 @@
 {
   "schema": "pmrs.required-test-inventory/1",
-  "product_version": "4.0.0",
+  "product_version": "4.1.0",
   "cases": [
     {
       "case_id": "K01",
@@ -864,6 +864,165 @@
         "reject-budget-exhaustion",
         "read-only-refresh-no-dispatch"
       ]
+    },
+    {
+      "case_id": "SV01",
+      "required": true,
+      "description": "Survey creation and knowledge-only lifecycle",
+      "assertion_ids": [
+        "SV01.a1"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "SV02",
+      "required": true,
+      "description": "Controlled literature retrieval, honest material status and recovery",
+      "assertion_ids": [
+        "SV02.a1"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "SV03",
+      "required": true,
+      "description": "Frozen knowledge scope and source invalidation",
+      "assertion_ids": [
+        "SV03.a1"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "SV04",
+      "required": true,
+      "description": "Selected Survey editions, actual rendering and independent review boundaries",
+      "assertion_ids": [
+        "SV04.a1"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "SV05",
+      "required": true,
+      "description": "Operation recovery and display-only persistent preferences",
+      "assertion_ids": [
+        "SV05.a1"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "SV06",
+      "required": true,
+      "description": "Complete display translations and preserved browser state",
+      "assertion_ids": [
+        "SV06.a1"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "WEB07",
+      "required": true,
+      "assertion_ids": [
+        "WEB07.a1"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8",
+      "browser_test_id": "tests.browser.WEB07",
+      "required_browser_paths": [
+        "create-paused-survey-zero-calls",
+        "locale-preserves-draft-and-selection",
+        "three-workflow-stages-and-overview",
+        "selected-survey-readable-evidence",
+        "explicit-single-profile-plan",
+        "locale-persists-after-restart-port",
+        "existing-trw-tfdw-both-locales"
+      ]
+    },
+    {
+      "case_id": "RES-T01",
+      "description": "Repeated native freezes share content while explicit operations remain distinct",
+      "required": true,
+      "assertion_ids": [
+        "RES-T01.a1"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "RES-T02",
+      "description": "Ten exact revisions preserve originals and correctly invalidate scoped outputs",
+      "required": true,
+      "assertion_ids": [
+        "RES-T02.a1"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "RES-T03",
+      "description": "Fifty read-only refreshes and locale changes reuse exact evidence without writes",
+      "required": true,
+      "assertion_ids": [
+        "RES-T03.a1"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "RES-T04",
+      "description": "Three independent Survey plans share a knowledge snapshot",
+      "required": true,
+      "assertion_ids": [
+        "RES-T04.a1"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "RES-T05",
+      "description": "Pre-read input budgets, bounded serialization and streamed materialization",
+      "required": true,
+      "assertion_ids": [
+        "RES-T05.a1"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "RES-T06",
+      "description": "Two finite reservations respect project limits and release failed preparations",
+      "required": true,
+      "assertion_ids": [
+        "RES-T06.a1"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "RES-T07",
+      "description": "Disk exhaustion and interrupted publication preserve original request recovery",
+      "required": true,
+      "assertion_ids": [
+        "RES-T07.a1"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
+    },
+    {
+      "case_id": "RES-T08",
+      "description": "Bounded checkpoints and safe task cache cleanup preserve history and UNKNOWN",
+      "required": true,
+      "assertion_ids": [
+        "RES-T08.a1"
+      ],
+      "first_required_gate": "M8",
+      "phase_gate": "M8"
     }
   ],
   "baseline": [
@@ -1536,11 +1695,17 @@
         "N36",
         "N38",
         "N39",
-        "N40"
+        "N40",
+        "SV01",
+        "SV02",
+        "SV03",
+        "SV04",
+        "SV05",
+        "SV06"
       ]
     }
   ],
-  "inventory_revision": "native-only/1",
+  "inventory_revision": "native-survey/1",
   "retired": {
     "cases": [
       {

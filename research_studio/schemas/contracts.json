@@ -1,1 +1,204 @@
-{"change_schema":"pmrs.knowledge-change/1","consumer_assurance":{"paths":["MODEL_CAPTURE","HUMAN_ATTESTATION"],"required":["accepted_evidence_paths","purpose","required_scope","review_mode","review_slots"],"slots":["allowed_roles","independence_required","required_scope","review_kind","slot_id"]},"context_budget":{"required":["capacity_revision","capacity_source","context_window_tokens","input_tokens","model_id","model_max_output_tokens","prompt_overhead_tokens","reserved_output_tokens","safety_margin_tokens","token_count_method","tokenizer_revision"]},"knowledge_change":{"additionalProperties":false,"operations":{"LINK":["assertion_state","evidence_bindings","op","scope_context_refs","source_ref","target_ref","type"],"NEW":["body","context_refs","data","kind","local_key","op"],"REVISE":["expected_parent","local_key","new_record","object_id","op"],"WITHDRAW_SUPPORT":["evidence_refs","expected_qualification_head","op","reason_code","scope","support_id"]},"required":["attempt_account","base_knowledge_commit","claimed_change","new_obligation_proposals","obligation_effects","operations","query_guard_digest","read_set_digest","request_id","schema","semantic_novelty","task_id","work_outcome","write_guard_digest"]},"knowledge_record":{"additionalProperties":false,"data_fields":{"Argument":["conclusion_ref","discharged_assumptions","mode","mode_payload","open_conditions","premise_bindings","steps","witness_bindings"],"Assessment":["checked","findings","review_kind","scope_context_refs","target_refs","unchecked","verdict"],"Context":["assumptions","conventions","definitions","objects","parent_context_refs","quantifiers"],"Example":["construction_locator","hypothesis_checks","observations","realization_argument_ref","scope","target_refs"],"SourceEvidence":["coverage","evidence_type","locators","reproducibility_refs","source_occurrence_refs"],"Statement":["conclusion_locators","form","hypothesis_locators","quantifier_locators","representation","scope_context_refs","source_binding","statement_locator"]},"kinds":["Argument","Assessment","Context","Example","SourceEvidence","Statement"],"required":["body_sha256","context_refs","data","kind","schema"]},"limits":{"body_bytes":8388608,"depth":32,"json_bytes":16777216,"obligation_effects":256,"records":64,"relations":512},"project_schema":"pmrs.project/3.4-final-1","record_schema":"pmrs.knowledge-record/1","response_envelope":{"additionalProperties":false,"required":["payload","payload_kind","request_id","schema","task_id"]},"response_schema":"pmrs.response/final-1","task_schema":"pmrs.task/final-1"}
+{
+  "project_schema": "pmrs.project/3.4-final-1",
+  "record_schema": "pmrs.knowledge-record/1",
+  "task_schema": "pmrs.task/final-1",
+  "response_schema": "pmrs.response/final-1",
+  "change_schema": "pmrs.knowledge-change/1",
+  "knowledge_record": {
+    "required": [
+      "body_sha256",
+      "context_refs",
+      "data",
+      "kind",
+      "schema"
+    ],
+    "additionalProperties": false,
+    "kinds": [
+      "Argument",
+      "Assessment",
+      "Context",
+      "Example",
+      "SourceEvidence",
+      "Statement"
+    ],
+    "data_fields": {
+      "Context": [
+        "assumptions",
+        "conventions",
+        "definitions",
+        "objects",
+        "parent_context_refs",
+        "quantifiers"
+      ],
+      "Statement": [
+        "conclusion_locators",
+        "form",
+        "hypothesis_locators",
+        "quantifier_locators",
+        "representation",
+        "scope_context_refs",
+        "source_binding",
+        "statement_locator"
+      ],
+      "Argument": [
+        "conclusion_ref",
+        "discharged_assumptions",
+        "mode",
+        "mode_payload",
+        "open_conditions",
+        "premise_bindings",
+        "steps",
+        "witness_bindings"
+      ],
+      "Example": [
+        "construction_locator",
+        "hypothesis_checks",
+        "observations",
+        "realization_argument_ref",
+        "scope",
+        "target_refs"
+      ],
+      "SourceEvidence": [
+        "coverage",
+        "evidence_type",
+        "locators",
+        "reproducibility_refs",
+        "source_occurrence_refs"
+      ],
+      "Assessment": [
+        "checked",
+        "findings",
+        "review_kind",
+        "scope_context_refs",
+        "target_refs",
+        "unchecked",
+        "verdict"
+      ]
+    }
+  },
+  "response_envelope": {
+    "required": [
+      "payload",
+      "payload_kind",
+      "request_id",
+      "schema",
+      "task_id"
+    ],
+    "additionalProperties": false
+  },
+  "knowledge_change": {
+    "required": [
+      "attempt_account",
+      "base_knowledge_commit",
+      "claimed_change",
+      "new_obligation_proposals",
+      "obligation_effects",
+      "operations",
+      "query_guard_digest",
+      "read_set_digest",
+      "request_id",
+      "schema",
+      "semantic_novelty",
+      "task_id",
+      "work_outcome",
+      "write_guard_digest"
+    ],
+    "operations": {
+      "NEW": [
+        "body",
+        "context_refs",
+        "data",
+        "kind",
+        "local_key",
+        "op"
+      ],
+      "REVISE": [
+        "expected_parent",
+        "local_key",
+        "new_record",
+        "object_id",
+        "op"
+      ],
+      "LINK": [
+        "assertion_state",
+        "evidence_bindings",
+        "op",
+        "scope_context_refs",
+        "source_ref",
+        "target_ref",
+        "type"
+      ],
+      "WITHDRAW_SUPPORT": [
+        "evidence_refs",
+        "expected_qualification_head",
+        "op",
+        "reason_code",
+        "scope",
+        "support_id"
+      ]
+    },
+    "additionalProperties": false
+  },
+  "survey_result": {
+    "schema": "pmrs.survey-result/1",
+    "required": [
+      "schema",
+      "knowledge_change",
+      "action",
+      "data"
+    ],
+    "additionalProperties": false,
+    "role_actions": {
+      "SEARCH_PLAN": "SEARCH_PLAN",
+      "SOURCE_READ": "READING",
+      "ORGANIZE": "ORGANIZE",
+      "RECONSTRUCT": "ORGANIZE",
+      "READINESS_REVIEW": "REVIEW",
+      "COVERAGE_REVIEW": "REVIEW"
+    },
+    "knowledge_change": "Same native task/request/read/query/write guards, operation validation, English body policy and captured-byte admission"
+  },
+  "consumer_assurance": {
+    "required": [
+      "accepted_evidence_paths",
+      "purpose",
+      "required_scope",
+      "review_mode",
+      "review_slots"
+    ],
+    "slots": [
+      "allowed_roles",
+      "independence_required",
+      "required_scope",
+      "review_kind",
+      "slot_id"
+    ],
+    "paths": [
+      "MODEL_CAPTURE",
+      "HUMAN_ATTESTATION"
+    ]
+  },
+  "context_budget": {
+    "required": [
+      "capacity_revision",
+      "capacity_source",
+      "context_window_tokens",
+      "input_tokens",
+      "model_id",
+      "model_max_output_tokens",
+      "prompt_overhead_tokens",
+      "reserved_output_tokens",
+      "safety_margin_tokens",
+      "token_count_method",
+      "tokenizer_revision"
+    ]
+  },
+  "limits": {
+    "json_bytes": 16777216,
+    "body_bytes": 8388608,
+    "depth": 32,
+    "records": 64,
+    "relations": 512,
+    "obligation_effects": 256
+  }
+}

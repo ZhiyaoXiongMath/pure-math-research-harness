@@ -18,6 +18,9 @@ from .version import VERSIONS, SCHEMA_VERSION, COMMIT_SCHEMA
 from .language import policy
 
 CHECKPOINT_INTERVAL = 128
+CHECKPOINT_RETAIN = 4
+CHECKPOINT_CACHE_BYTES = 128 * 1024**2
+CHECKPOINT_STATE_BYTES = 48 * 1024**2
 SCIENCE_MAPS = frozenset(('records', 'objects', 'sources',
     'supports', 'qualifications', 'inferences', 'production_events', 'result_families',
     'withdrawals', 'relations', 'accepted_requests', 'knowledge_changes',
@@ -31,6 +34,7 @@ EXECUTION_MAPS = frozenset(('tasks', 'requests', 'attempt_groups', 'budget_grant
     'captures', 'responses', 'missions', 'visits', 'instances', 'fences', 'dispatch_plans',
     'scheduler_state', 'review_executions', 'retry_grants','coverage_plans'))
 REPORT_MAPS = frozenset(('reports', 'report_events', 'active_reports', 'report_receipts'))
+from .survey import MAPS as SURVEY_MAPS
 EPHEMERAL = frozenset(('knowledge_commit', '_head', '_snapshot_sequence'))
 
 
@@ -48,7 +52,7 @@ def _native_only(state):
 
 
 def initial_state(title, language=None, *, synthetic=False):
-    maps = (SCIENCE_MAPS | CONTROL_MAPS | EXECUTION_MAPS | REPORT_MAPS) - {'relations'}
+    maps = (SCIENCE_MAPS | CONTROL_MAPS | EXECUTION_MAPS | REPORT_MAPS | SURVEY_MAPS) - {'relations'}
     state = {name: {} for name in sorted(maps)}
     state.update(schema=SCHEMA_VERSION, project_id='P34F-'+secrets.token_hex(12),
         title=title, versions=dict(VERSIONS), language_policy=policy(language),
@@ -162,7 +166,16 @@ class Store:
             # verified commit and state digest in its immutable wrapper.
             path = self.root/'checkpoints'/f"{head['commit']}.json"
             if path.exists():
-                checkpoint = loads(read(path))
+                try:
+                    checkpoint = loads(read(path))
+                except PMRSError as exc:
+                    # Another writer may have pruned this disposable projection
+                    # after exists(). The immutable journal remains authoritative.
+                    if exc.code != 'FILE_UNAVAILABLE' or path.exists():
+                        raise
+                    pending.append(entry)
+                    head = entry['previous_commit']
+                    continue
                 require(set(checkpoint) == {'commit', 'state', 'state_sha256'}, 'CHECKPOINT_INVALID', 'Unknown checkpoint')
                 require(checkpoint['commit'] == head['commit'] and sha(canonical(checkpoint['state'])) == checkpoint['state_sha256'],
                         'CHECKPOINT_CHANGED', 'Checkpoint digest differs')
@@ -210,13 +223,16 @@ class Store:
         for key, item in delta.items():
             field = ('knowledge_delta_ref' if key in SCIENCE_MAPS else
                      'report_delta_ref' if key in REPORT_MAPS else
-                     'control_delta_ref' if key in CONTROL_MAPS | EXECUTION_MAPS else 'registry_delta_ref')
+                     'control_delta_ref' if key in CONTROL_MAPS | EXECUTION_MAPS | SURVEY_MAPS else 'registry_delta_ref')
             groups[field][key] = item
         sequence = 1 if previous is None else previous['sequence'] + 1
         events = deepcopy(events)
         checkpoint = sequence == 1 or sequence % CHECKPOINT_INTERVAL == 0
+        state_raw = None
         if checkpoint:
-            events.append({'type': 'CHECKPOINT', 'state_sha256': sha(canonical(after))})
+            from .resources import bounded_canonical
+            state_raw = bounded_canonical(after, CHECKPOINT_STATE_BYTES)
+            events.append({'type': 'CHECKPOINT', 'state_sha256': sha(state_raw)})
         entry = {'schema': COMMIT_SCHEMA, 'sequence': sequence, 'previous_commit': previous,
                  'base_knowledge_commit': base or (previous['commit'] if previous else None),
                  **{k: self.put_blob(canonical(v)) if v else None for k, v in groups.items()},
@@ -227,12 +243,39 @@ class Store:
         immutable(self.root/path, raw)
         self._fault('after_commit')
         if checkpoint:
-            immutable(self.root/'checkpoints'/f'{digest}.json', canonical({'commit': digest, 'state': after, 'state_sha256': sha(canonical(after))}))
+            # Assemble the small wrapper around the already bounded exact state;
+            # do not serialize the same complete projection three times.
+            wrapper = b'{"commit":' + canonical(digest) + b',"state":' + state_raw + b',"state_sha256":' + canonical(sha(state_raw)) + b'}'
+            immutable(self.root/'checkpoints'/f'{digest}.json', wrapper)
         self._fault('before_head')
         head = {'sequence': sequence, 'commit': digest, 'path': path}
         atomic(self.root/'HEAD', canonical(head))
         self._fault('after_head')
+        if checkpoint:
+            self._prune_checkpoints(digest)
         return {'commit': digest, 'sequence': sequence, 'outcome': 'COMMITTED', 'events': events}
+
+    def _prune_checkpoints(self, current):
+        """Bound only the native disposable checkpoint directory, never evidence.
+
+        Latest publication is protected. Historical reads can replay missing
+        projections from the retained immutable journal and delta blobs.
+        """
+        folder = safe_path(self.root, 'checkpoints')
+        rows = []
+        for path in folder.iterdir():
+            if path.suffix != '.json' or len(path.stem) != 64 or any(c not in '0123456789abcdef' for c in path.stem):
+                continue  # Unknown files are not ours to collect.
+            safe_path(path)
+            if path.is_file():
+                info = path.stat()
+                rows.append((path.stem == current, info.st_mtime_ns, path.name, info.st_size, path))
+        used = count = 0
+        for protected, _, _, size, path in sorted(rows, reverse=True):
+            if protected or count < CHECKPOINT_RETAIN and used + size <= CHECKPOINT_CACHE_BYTES:
+                used += size; count += 1
+            else:
+                path.unlink(missing_ok=True)
 
     def _fault(self, boundary):
         """Explicit test injection hook; never configured by project data."""
@@ -312,6 +355,10 @@ class Store:
         from .execution import apply_event
         return self._typed_commit(event, apply_event, EXECUTION_MAPS, 'Execution')
 
+    def commit_survey(self, event):
+        from .survey import apply_event
+        return self._typed_commit(event, apply_event, SURVEY_MAPS | {'sources'}, 'Survey')
+
     def commit_report(self, event):
         from .reports import apply_event
         return self._typed_commit(event, apply_event, REPORT_MAPS, 'Report')
@@ -319,6 +366,9 @@ class Store:
     def put_blob(self, data):
         require(isinstance(data, bytes), 'BLOB_BYTES_REQUIRED', 'Content must be exact bytes')
         digest = sha(data)
+        if not (self.root/'blobs'/digest).exists():
+            from .resources import disk_preflight
+            disk_preflight(self.root, len(data))
         immutable(self.root/'blobs'/digest, data)
         return digest
 

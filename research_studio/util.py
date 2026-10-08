@@ -1,6 +1,7 @@
 """Bounded deterministic encodings and file operations; no execution helpers."""
 from __future__ import annotations
 import hashlib
+import errno
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -82,30 +83,56 @@ def fsync_dir(path):
     finally:
         os.close(fd)
 
+def _same_file_bytes(path, data):
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, 'rb') as stream:
+        info = os.fstat(stream.fileno())
+        require(stat.S_ISREG(info.st_mode), 'FILE_INVALID', 'Immutable content must be a regular file.')
+        if info.st_size != len(data): return False
+        for offset in range(0, len(data), 256 * 1024):
+            if stream.read(min(256 * 1024, len(data) - offset)) != data[offset:offset + 256 * 1024]: return False
+        return not stream.read(1)
+
+def _publication_temp(prefix, directory):
+    try:
+        return tempfile.mkstemp(prefix=prefix, dir=directory)
+    except OSError as exc:
+        if exc.errno in (errno.ENOSPC, errno.EDQUOT):
+            raise PMRSError('RESOURCE_DISK_LOW', 'Publication could not allocate temporary space. Existing evidence is preserved; free space and recover the original operation.') from exc
+        raise
+
 def immutable(path: Path, data: bytes):
     path = safe_path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
-        require(read(path, max(MAX_JSON, len(data))) == data, "IMMUTABLE_CONFLICT", str(path))
+        require(_same_file_bytes(path, data), "IMMUTABLE_CONFLICT", str(path))
         return
-    fd, tmp = tempfile.mkstemp(prefix=".publish-", dir=path.parent)
+    fd, tmp = _publication_temp(".publish-", path.parent)
     try:
         with os.fdopen(fd, "wb") as f:
             f.write(data); f.flush(); os.fsync(f.fileno())
         try:
             os.link(tmp, path)
         except FileExistsError:
-            require(read(path, max(MAX_JSON, len(data))) == data, "IMMUTABLE_CONFLICT", str(path))
+            require(_same_file_bytes(path, data), "IMMUTABLE_CONFLICT", str(path))
         fsync_dir(path.parent)
+    except OSError as exc:
+        if exc.errno in (errno.ENOSPC, errno.EDQUOT):
+            raise PMRSError('RESOURCE_DISK_LOW', 'Storage publication could not finish. Existing committed data is preserved; free space and recover the original operation before retrying.') from exc
+        raise
     finally:
         Path(tmp).unlink(missing_ok=True)
 
 def atomic(path: Path, data: bytes):
     path = safe_path(path); path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(prefix=".head-", dir=path.parent)
+    fd, tmp = _publication_temp(".head-", path.parent)
     try:
         with os.fdopen(fd, "wb") as f:
             f.write(data); f.flush(); os.fsync(f.fileno())
         os.replace(tmp, path); fsync_dir(path.parent)
+    except OSError as exc:
+        if exc.errno in (errno.ENOSPC, errno.EDQUOT):
+            raise PMRSError('RESOURCE_DISK_LOW', 'Atomic publication could not finish. Inspect the original operation after freeing space; do not create a replacement model request.') from exc
+        raise
     finally:
         Path(tmp).unlink(missing_ok=True)

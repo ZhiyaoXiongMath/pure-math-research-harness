@@ -67,6 +67,17 @@
           ]
         }
       ]
+    },
+    {
+      "case_id": "WEB07",
+      "assertions": [
+        {
+          "assertion_id": "WEB07.a1",
+          "test_ids": [
+            "tests.browser.WEB07"
+          ]
+        }
+      ]
     }
   ],
   "baseline": []
