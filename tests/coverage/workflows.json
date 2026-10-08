@@ -142,7 +142,7 @@
           "assertion_id": "N11.a1",
           "test_ids": [
             "tests.test_final_workflows.Workflows.test_n11_single_registry",
-            "tests.test_final_model_policy.ModelPolicy.test_every_registered_role_in_all_21_stages_is_resolved",
+            "tests.test_final_model_policy.ModelPolicy.test_every_registered_role_in_all_29_stages_is_resolved",
             "tests.test_final_model_policy.ModelPolicy.test_frozen_task_and_actual_command_use_same_policy"
           ]
         }
