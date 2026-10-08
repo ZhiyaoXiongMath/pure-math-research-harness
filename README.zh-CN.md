@@ -1,4 +1,6 @@
-# Pure Math Research Studio 4.1.0
+# Pure Math Research Studio (PMRS)
+
+版本：**4.1.0**
 
 [English](README.md) · [下载安装包](https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/releases/tag/v4.1.0) · [验收记录](TEST-REPORT-4.1.0.md)
 
