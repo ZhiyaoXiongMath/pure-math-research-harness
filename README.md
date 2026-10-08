@@ -14,7 +14,6 @@ Outputs include statements and arguments, examples and counterexamples, source r
 | --- | --- | --- | --- |
 | A statement with precise objects, assumptions, quantifiers and a conclusion | **TRW · Targeted Research Workflow** | Derivation or refutation, exact gaps, independent checks, progress and reports | Continue, pause, end, or explore alternative formulations |
 | Observations, examples or a family of conjectures whose formulation needs work | **TFDW · Theorem Formulation Discovery Workflow** | Evidence, exact candidates, comparisons and unchecked scope | Keep exploring, retain candidates, or adopt one for a TRW |
-
 | A topic, question or selected body of existing knowledge to investigate and explain | **SURVEY · Survey Workflow** | Versioned searches, source readings, organized knowledge, scoped readiness reviews and optional English manuscripts | Stop after knowledge work, request a selected manuscript type, update the topic, or hand off a statement |
 
 A **project** holds shared knowledge and materials. A **workflow instance** binds a research target or discovery scope. A **research round** records the current intent, authorization and call limit. One project can contain several named instances that share materials and keep separate state. Adopting a candidate creates a new paused instance and preserves the original workflow.

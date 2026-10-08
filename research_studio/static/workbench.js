@@ -155,7 +155,8 @@ async function applyRecovered(result,operation) {
 async function renderOperationRecovery(inspected) {
   const box=$('operation-recovery');if(!box)return;
   const op=await operations.current();box.replaceChildren();box.hidden=!op;if(!op)return;
-  box.append(el('strong',m("ui.9293bcaa38ca")),el('p',m("ui.762059f0790c")+op.name+' · '+op.key,'ref'),el('p',m("ui.349204d8461a")));
+  const identity=el('p',undefined,'ref');identity.append(el('span',m("ui.762059f0790c")),el('span',op.name+' · '+op.key,'ref'));
+  box.append(el('strong',m("ui.9293bcaa38ca")),identity,el('p',m("ui.349204d8461a")));
   const receipt=inspected?.operation?.key===op.key?inspected.receipt:null;
   if(receipt)box.append(el('p',m("ui.d889949369df")+receipt.state+(receipt.error?' · '+(typeof receipt.error==='string'?receipt.error:JSON.stringify(receipt.error)):'')));
   box.append(button(m("ui.4fa1f184f9d0"),async()=>{const found=await operations.recover();await renderOperationRecovery(found);if(found?.result!==undefined)await applyRecovered(found.result,found.operation);}));
@@ -707,7 +708,7 @@ async function initial(){
 for(const id of ['ui-locale','dialog-locale'])$(id).onchange=guarded(async()=>{const selected=$(id).value,previous=L.getLocale();try{const result=await request('/api/preferences',{method:'POST',data:{ui_locale:selected}});applyLocale(result.ui_locale);}catch(e){$(id).value=previous;throw e;}});
 $('survey-existing').onclick=guarded(()=>surveyCreateForm('EXISTING_KNOWLEDGE'));$('survey-update').onclick=guarded(()=>surveyCreateForm('UPDATE'));
 $('close-dialog').onclick=closeDialog;$('new-project').onclick=()=>createForm();$('new-workflow').onclick=guarded(newWorkflowForm);$('handoff-workflow').onclick=guarded(reformulate);$('edit-discovery').onclick=guarded(discoveryConfigForm);$('import-project').onclick=importForm;$('settings-button').onclick=guarded(settings);$('help-button').onclick=help;$('start-round').onclick=guarded(startForm);$('add-source').onclick=sourceForm;
-$('project').onchange=guarded(async()=>{project=$('project').value;clearStageSelection();projectGeneration++;refreshGeneration++;localStorage.setItem('pmrs_4_0_project',project);await listProjects();});$('instance').onchange=guarded(()=>{clearStageSelection();return refresh();});$('refresh').onclick=guarded(()=>refresh());$('refresh-content').onclick=guarded(()=>refresh());$('search-form').onsubmit=guarded(()=>refresh());$('more').onclick=guarded(()=>refresh(true));
+$('project').onchange=guarded(async()=>{project=$('project').value;$('instance').value='';clearStageSelection();projectGeneration++;refreshGeneration++;localStorage.setItem('pmrs_4_0_project',project);await listProjects();});$('instance').onchange=guarded(()=>{clearStageSelection();return refresh();});$('refresh').onclick=guarded(()=>refresh());$('refresh-content').onclick=guarded(()=>refresh());$('search-form').onsubmit=guarded(()=>refresh());$('more').onclick=guarded(()=>refresh(true));
 for(const name of ['pause','continue','end'])$(name).onclick=guarded(async()=>{requireInstance();await action(name,{commit:latestCommit||snapshot});await openProject();});
 $('request-report').onclick=guarded(async()=>{requireInstance();if(selectedInstanceRow()?.kind==='SURVEY')return surveyReportForm();await action('report');view='reports';await refresh();});
 $('export').onclick=guarded(async()=>{const r=await action('export');const a=el('a',m("ui.c57b4eb10542"));a.href=r.download;a.download='PMRS-4.1.0-backup.zip';$('notice').replaceChildren(a);a.click();});
