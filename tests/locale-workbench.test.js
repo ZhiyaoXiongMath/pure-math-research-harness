@@ -37,18 +37,18 @@ test('actual Guide renders copyable examples in both locales while user bodies r
   const box=new GuideElement('dialog');
   const context={L,m:L.message,document:{createElement:tag=>new GuideElement(tag)},dialog:()=>box,button:()=>new GuideElement('button')};
   L.setLocale('en');vm.runInNewContext(elSource+'\n'+helpSource+'\nhelp();',context);
-  const examples=['trw','tfdw','survey'].map(name=>box.children.find(n=>n.dataset?.guideSection===name).children.find(n=>n.tagName==='pre'));
+  const examples=['trh','fdh','survey'].map(name=>box.children.find(n=>n.dataset?.guideSection===name).children.find(n=>n.tagName==='pre'));
   for(const locale of ['en','zh-CN']){
     L.setLocale(locale);
-    for(const [index,name] of ['trw','tfdw','survey'].entries()){
+    for(const [index,name] of ['trh','fdh','survey'].entries()){
       assert.equal(examples[index].textContent,L.translate('guide.'+name+'.input'));
       assert.doesNotMatch(examples[index].textContent,/[\uE000\uE001]/);
       assert.ok(examples[index].textContent.includes('\n'));
     }
   }
-  const assistant=box.children.find(n=>n.dataset?.guideSection==='assistant');assert.ok(assistant);assert.equal(assistant.children.filter(n=>n.tagName==='pre').length,2);
-  for(const locale of ['en','zh-CN']){L.setLocale(locale);assert.doesNotMatch(assistant.textContent,/[\uE000\uE001]/);assert.match(assistant.textContent,/gpt-6-astra/);assert.match(assistant.textContent,/UNKNOWN/);assert.ok(assistant.textContent.length>1200);}
-  const raw=vm.runInNewContext("el('pre',m('guide.trw.input'),'body')",context);
-  assert.equal(raw.textContent,L.message('guide.trw.input'));
-  L.setLocale('en');assert.equal(raw.textContent,L.message('guide.trw.input'));
+  const main=box.children.find(n=>n.dataset?.guideSection==='main');assert.ok(main);assert.equal(box.children.some(n=>n.dataset?.guideSection==='assistant'),false);
+  for(const locale of ['en','zh-CN']){L.setLocale(locale);assert.doesNotMatch(main.textContent,/[\uE000\uE001]/);assert.match(main.textContent,/gpt-6-astra/);assert.match(main.textContent,/ultra/);assert.match(main.textContent,/UNKNOWN/);assert.equal(main.children.filter(n=>n.tagName==='p').length,6);assert.ok(main.textContent.includes(L.translate('guide.main.5')));}
+  const raw=vm.runInNewContext("el('pre',m('guide.trh.input'),'body')",context);
+  assert.equal(raw.textContent,L.message('guide.trh.input'));
+  L.setLocale('en');assert.equal(raw.textContent,L.message('guide.trh.input'));
 });

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pure-math-research-studio"
 dynamic = ["version"]
-description = "Shared mathematical research kernel with independent TRW, TFDW and SURVEY workflows"
+description = "Shared mathematical research kernel with independent TRH, FDH and SURVEY workflows"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
@@ -20,7 +20,7 @@ pmrs-desktop = "research_studio.desktop:main"
 include-package-data = true
 
 [tool.setuptools.package-data]
-research_studio = ["schemas/*.json", "schemas/**/*", "workflows/*.json", "static/*", "static/**/*", "resources/*", "resources/**/*", "locales/*.json"]
+research_studio = ["schemas/*.json", "schemas/**/*", "workflows/*.json", "static/*", "static/**/*", "methods/*.md", "methods/*.json", "resources/*", "resources/**/*", "locales/*.json", "native/*"]
 
 [tool.setuptools.packages.find]
 include = ["research_studio*"]

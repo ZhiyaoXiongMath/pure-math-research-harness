@@ -126,14 +126,14 @@ class FinalIdentityAdmissionTests(unittest.TestCase):
 
     def test_statement_revision_keeps_fixed_target_and_rejects_late_current_capture(self):
         f=Fixture();old=f.add(statement());oid='KO-'+old[3:]
-        f.s['instances']={'TRW':{'target_ref':old,'status':'ACTIVE'}}
+        f.s['instances']={'TRH':{'target_ref':old,'status':'ACTIVE'}}
         late=f.task([old],request='late');late['read_set'][0]['selection_binding']['mode']='CURRENT'
         f.s['tasks'][late['task_id']]=deepcopy(late);raw=f.raw(late,outcome='NO_RESULT')
         edit=f.task([old],request='edit');edit['write_guards']=[{'object_id':oid,'expected_parent':old}];f.s['tasks'][edit['task_id']]=deepcopy(edit)
         body='For every x satisfying the extra hypothesis there exists y.';new,r,b=statement(body)
         op={'op':'REVISE','local_key':'weaker','object_id':oid,'expected_parent':old,'new_record':{'kind':'Statement','context_refs':[],'body':body,'data':r['data']}}
         f.accept(edit,f.raw(edit,[op]));self.assertEqual(f.s['objects'][oid]['selected_revision'],new)
-        self.assertEqual(f.s['instances']['TRW']['target_ref'],old);self.assertIn(old,f.s['records'])
+        self.assertEqual(f.s['instances']['TRH']['target_ref'],old);self.assertIn(old,f.s['records'])
         with self.assertRaisesRegex(PMRSError,'STALE_READ'):f.accept(late,raw)
         self.assertNotIn(late['request_id'],f.s['accepted_requests']);self.assertEqual(f.get(sha(raw)),raw)
 
@@ -462,15 +462,15 @@ class PersistedKernelTests(unittest.TestCase):
         self.policy={'capacity':{'model_id':'gpt-6-astra','capacity_source':'SYNTHETIC_TEST_ONLY','capacity_revision':'1','context_window_tokens':1000000,'model_max_output_tokens':10000,'tokenizer_revision':'test-byte-bound','token_count_bound':'UTF8_BYTES','tokenizer_byte_bound_verified':True},
             'reserved_output_tokens':1024,'safety_margin_tokens':64,'resource_policy_revision':'test-resources/1','executor_contract':{'executor':'fake','sandbox':'test-only'}}
 
-    def workflow(self,kind='TRW',name='one'):
+    def workflow(self,kind='TRH',name='one'):
         from research_studio.obligations import make
         from research_studio.demo import discovery_scope
-        row=self.engine.new_workflow(self.store,kind,target_ref=self.target if kind=='TRW' else None,discovery_scope=None if kind=='TRW' else discovery_scope('Explore exact formulations and preserve the background.'))
+        row=self.engine.new_workflow(self.store,kind,target_ref=self.target if kind=='TRH' else None,discovery_scope=None if kind=='TRH' else discovery_scope('Explore exact formulations and preserve the background.'))
         iid=row['instance_id'];mid='M-'+name;oid='O-'+name;bid='B-'+name;grant='G-'+name
-        consumer={'binding_id':bid,'instance_id':iid,'mission_id':mid,'stage_id':'P4' if kind=='TRW' else 'D1','role':'RESEARCH','retry_grant_id':grant,'method_ref':'METHOD-'+name,
+        consumer={'binding_id':bid,'instance_id':iid,'mission_id':mid,'stage_id':'P4' if kind=='TRH' else 'D1','role':'RESEARCH','retry_grant_id':grant,'method_ref':'METHOD-'+name,
            'scope':{'target_ref':self.target},'entry_basis':{},'threshold':'ARTIFACT_AVAILABLE'}
         criterion=self.store.blob(('Investigate the exact assertion with method '+name+'.').encode())
-        obligation=make(oid,'ESTABLISH' if kind=='TRW' else 'APPLICABILITY',[self.target],criterion,consumer_bindings=[consumer])
+        obligation=make(oid,'ESTABLISH' if kind=='TRH' else 'APPLICABILITY',[self.target],criterion,consumer_bindings=[consumer])
         mission={'mission_id':mid,'intent':'Investigate within the stated finite scope.','authorized_scope':{'target_refs':[self.target],'obligation_ids':[oid]},'obligations':[obligation],
           'retry_grants':[{'grant_id':grant,'obligation_id':oid,'method_ref':'METHOD-'+name,'max_research_attempts':3,'reason_ref':'Explicit synthetic fixture authorization.'}]}
         self.engine.authorize(self.store,iid,mission,{'max_calls':3,'max_workers':2,'execution_policy':self.policy})
@@ -488,7 +488,7 @@ class PersistedKernelTests(unittest.TestCase):
 
     def test_two_workflows_shared_content_unrelated_commits_and_recovery(self):
         from research_studio import execution
-        i1,t1=self.workflow('TRW','trw');i2,t2=self.workflow('TFDW','tfdw')
+        i1,t1=self.workflow('TRH','trh');i2,t2=self.workflow('FDH','fdh')
         ref,record,body=statement('A single shared lemma candidate has an explicit quantifier.')
         op={'op':'NEW','local_key':'lemma','kind':'Statement','context_refs':[],'body':body.decode(),'data':record['data']}
         other,other_record,other_body=statement('A different scoped candidate is also available.')

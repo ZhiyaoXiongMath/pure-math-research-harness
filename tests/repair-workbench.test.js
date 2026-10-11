@@ -21,7 +21,7 @@ test('lost successful response recovers the original operation after reload with
 test('request lost before arrival replays exactly the same original payload and ID',async()=>{
   const disk=memoryStorage();let fail=true;const sent=[];
   const wire={send:async op=>{sent.push(structuredClone(op));if(fail)throw Error('offline');return {project:'WP-1'};},query:async()=>({state:'NOT_FOUND'})};
-  const first=new OperationLifecycle(disk,wire,()=> 'one-key');await assert.rejects(first.execute('new-workflow',{target_text:'原题\nunchanged',kind:'TRW'}));
+  const first=new OperationLifecycle(disk,wire,()=> 'one-key');await assert.rejects(first.execute('new-workflow',{target_text:'原题\nunchanged',kind:'TRH'}));
   fail=false;const restored=new OperationLifecycle(disk,wire,()=> 'new-key');await restored.replay();assert.equal(sent.length,2);assert.deepEqual(sent[1],sent[0]);
 });
 test('pending operations cannot be replayed or dismissed, and later explicit equal-payload actions get new IDs',async()=>{
@@ -35,7 +35,7 @@ test('durable storage failure prevents dispatch, concurrent clicks cannot dispat
   const a=new OperationLifecycle(broken,{send:async()=>{calls++;}},()=> 'key');await assert.rejects(a.execute('upload-archive',{data:'large'}),/quota/);assert.equal(calls,0);
   let finish;const disk=memoryStorage(),b=new OperationLifecycle(disk,{send:()=>{calls++;return new Promise(resolve=>finish=resolve);}},()=> 'one');const pending=b.execute('start',{});await new Promise(setImmediate);await assert.rejects(b.execute('start',{}),/正在提交/);finish({});await pending;assert.equal(calls,1);
 });
-const scope=(stage,role='SYNTHESIS',purpose='DEFAULT')=>({workflow_kind:'TRW',stage_id:stage,role,purpose});
+const scope=(stage,role='SYNTHESIS',purpose='DEFAULT')=>({workflow_kind:'TRH',stage_id:stage,role,purpose});
 const override=(stage,effort)=>({explicit:true,scope:scope(stage),model:'gpt-6-astra',reasoning_effort:effort,service_tier:'default'});
 test('configuration merge and reset affect only the exact scope',()=>{
   const prior=[override('P7','xhigh'),override('P10','max')];const changed=amendOverrides(prior,[override('P7','high')]);assert.equal(changed.find(x=>x.scope.stage_id==='P10').reasoning_effort,'max');assert.equal(changed.find(x=>x.scope.stage_id==='P7').reasoning_effort,'high');
@@ -81,18 +81,19 @@ function domHarness(){
     else {value=await response(parsed,options);if(options.method==='POST'&&parsed.pathname.startsWith('/api/action/'))receipts.set(options.headers['Idempotency-Key'],{state:'COMPLETED',result:value,operation:{id:'a'.repeat(64)},digest:'b'.repeat(64)});}
     return {ok:true,status:200,json:async()=>value};
   }};
-  const tail=`globalThis.testUI={openAssistant,loadAssistant,selectAssistantSession,assistantEvidence,renderAssistant,report,renderOperationRecovery,reportRevision,surveyFreezeForm,surveyScopeFields,surveyCreateForm,surveyActivityForm,surveyReportForm,applyLocale,patchReportStates,importForm,showImportConfirmation,nativeHistory,discoveryFields,policyEditor,renderWorkflowGraph,renderStageDetail,selectGraphStage,resetWorkflowGraphSelection,selectView,navigateStage,syncViewSelection,refresh,task,patchTaskStates,pollProgress,newWorkflowForm,discoveryConfigForm,reconcile,startForm,configureForm,settings,operations,action,setState(s,{projectKey='WP-test',instance='I-1',viewName='current',readSnapshot='frozen'}={}){project=projectKey;snapshot=readSnapshot;latestCommit=readSnapshot;currentStatus=s;view=viewName;graphSelection=null;document.getElementById('instance').value=instance;navigationScope=project+'|'+instance;contentProgressFingerprint=progressFingerprint(s);},setScope(p,i){project=p;document.getElementById('instance').value=i;},setGraph(g){graphDefinition=g;},setPolicy(p){modelPolicy=p;},getState(){return {project,snapshot,latestCommit,currentStatus,view,graphSelection,graphFocus:workflowGraphView.focus,graphMode:workflowGraphView.mode,assistantProject:assistantPanel.project,assistantSession:assistantPanel.session_id};}};`;
+  const tail=`globalThis.testUI={openMain,loadMain,pollMain,renderMain,mainKnowledgeSearch,renderUsageAndCommunication,report,renderOperationRecovery,reportRevision,surveyFreezeForm,surveyScopeFields,surveyCreateForm,surveyActivityForm,surveyReportForm,applyLocale,patchReportStates,importForm,showImportConfirmation,nativeHistory,discoveryFields,policyEditor,renderWorkflowGraph,renderStageDetail,selectGraphStage,resetWorkflowGraphSelection,selectView,navigateStage,syncViewSelection,refresh,task,patchTaskStates,pollProgress,newWorkflowForm,discoveryConfigForm,reconcile,startForm,configureForm,settings,operations,action,setState(s,{projectKey='WP-test',instance='I-1',viewName='current',readSnapshot='frozen'}={}){project=projectKey;snapshot=readSnapshot;latestCommit=readSnapshot;currentStatus=s;view=viewName;graphSelection=null;document.getElementById('instance').value=instance;navigationScope=project+'|'+instance;contentProgressFingerprint=progressFingerprint(s);},setScope(p,i){project=p;document.getElementById('instance').value=i;},setGraph(g){graphDefinition=g;},setPolicy(p){modelPolicy=p;},getState(){return {project,snapshot,latestCommit,currentStatus,view,graphSelection,graphFocus:workflowGraphView.focus,graphMode:workflowGraphView.mode,mainProject:mainPanel.project,mainInstance:mainPanel.instance};}};`;
   vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../research_studio/static/messages.js'),'utf8'),context);
   vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../research_studio/static/i18n.js'),'utf8'),context);
   context.window.PMRS_I18N.setLocale('zh-CN');
   vm.runInNewContext(fs.readFileSync(sourcePath,'utf8').replace('guarded(initial)();',tail),context);
   context.testUI.operations.storage=memoryStorage();return {ui:context.testUI,document,requests,localKeys,setResponse(fn){response=fn;}};
 }
-function status(){return {commit:'new-commit',title:'Test',synthetic:true,workflow:{instances:[{instance_id:'I-1',kind:'TRW',name:'目标一',status:'ACTIVE'}]},mathematical:{records:2},budget:{remaining_calls:3,project_remaining_calls:4,grants:[]},execution:{running_processes:1,unknown:0,requests:[]},activity:{instance_id:'I-1',workflow_kind:'TRW',instance_status:'ACTIVE',active_stages:['P4','P7'],recent_stages:['P3'],stages:[]},project_jobs:[{state:'RUNNING',initiated_by_instance_id:'I-other',message:'Project work'}],tasks:[],missions:[],candidates:[]};}
-const policy={rules:[{workflow_kind:'TRW',stage_id:'P7',role:'SYNTHESIS',call_model:true,reasoning_effort:'xhigh',model:'gpt-6-astra',service_tier:'default'},{workflow_kind:'TRW',stage_id:'P10',role:'SYNTHESIS',call_model:true,reasoning_effort:'max',model:'gpt-6-astra',service_tier:'default'}],purpose_exceptions:[{stage_id:'P7',role:'SYNTHESIS',purpose:'MATHEMATICAL_INTEGRATION',reasoning_effort:'max'}]};
+function status(){return {commit:'new-commit',title:'Test',synthetic:true,workflow:{instances:[{instance_id:'I-1',kind:'TRH',name:'目标一',status:'ACTIVE'}]},mathematical:{records:2},budget:{remaining_calls:3,project_remaining_calls:4,grants:[]},execution:{running_processes:null,active_requests:1,unknown:0,requests:[]},activity:{instance_id:'I-1',workflow_kind:'TRH',instance_status:'ACTIVE',active_stages:['P4','P7'],recent_stages:['P3'],stages:[]},project_jobs:[{state:'RUNNING',initiated_by_instance_id:'I-other',message:'Project work'}],tasks:[],missions:[],candidates:[]};}
+const policy={rules:[{workflow_kind:'TRH',stage_id:'P7',role:'SYNTHESIS',call_model:true,reasoning_effort:'xhigh',model:'gpt-6-astra',service_tier:'default'},{workflow_kind:'TRH',stage_id:'P10',role:'SYNTHESIS',call_model:true,reasoning_effort:'max',model:'gpt-6-astra',service_tier:'default'}],purpose_exceptions:[{stage_id:'P7',role:'SYNTHESIS',purpose:'MATHEMATICAL_INTEGRATION',reasoning_effort:'max'}]};
 test('five-second progress path updates status while retaining expanded reader DOM and frozen snapshot',async()=>{
   const h=domHarness(),s=status();h.ui.setState(s);const reader=h.document.createElement('details');reader.open=true;reader.append(h.document.createElement('div'));h.document.ids.content.append(reader);h.document.ids.dialog.open=true;
   h.setResponse(async url=>{assert.equal(url.pathname,'/api/progress');return s;});await h.ui.pollProgress();
+  assert.match(h.document.ids.status.textContent,/1 项在途/);assert.doesNotMatch(h.document.ids.status.textContent,/null/);
   assert.equal(h.document.ids.content.children[0],reader);assert.equal(reader.open,true);assert.equal(h.document.scrolls,0);assert.equal(h.ui.getState().snapshot,'frozen');assert.equal(h.ui.getState().latestCommit,'new-commit');assert.equal(h.document.ids['content-update'].hidden,false);assert.equal(h.requests.length,1);
   const jobCard=h.document.ids.activity.children.find(node=>node.textContent.includes('项目协调器'));assert.ok(jobCard);assert.match(jobCard.textContent,/I-other/);
 });
@@ -100,16 +101,16 @@ test('late progress for a changed selector does not replace the selected state',
   const h=domHarness(),s=status();h.ui.setState(s);let resolve;h.setResponse(()=>new Promise(r=>resolve=r));const pending=h.ui.pollProgress();await new Promise(setImmediate);h.document.ids.instance.value='I-other';resolve({...s,commit:'stale'});await pending;assert.equal(h.ui.getState().latestCommit,'frozen');
 });
 test('all registered nodes, return edges, P7 routes and handoffs appear without synthetic passed stages',()=>{
-  const h=domHarness();h.ui.setState(status());h.ui.setGraph({workflows:[{kind:'TRW',nodes:Array.from({length:15},(_,i)=>({stage_id:'P'+i,label:'阶段 '+i})),edges:[{from:'P9',to:'P4',kind:'return'}]},{kind:'TFDW',nodes:Array.from({length:6},(_,i)=>({stage_id:'D'+i,label:'发现 '+i})),edges:[]}],analysis_routes:[{id:'A',roles:['DIRECT'],label:'直接分析'},{id:'B',roles:['LEARN'],label:'学习后分析'},{id:'C',roles:['PROOF','COUNTEREXAMPLE'],label:'双审分析'}],handoffs:[{from:'TRW',to:'TFDW'},{from:'TFDW',to:'TRW'}]});h.ui.renderWorkflowGraph(status().activity);
-  const nodes=h.document.ids['workflow-graph'].querySelectorAll('[data-stage]');assert.equal(nodes.length,21);assert.equal(nodes.filter(n=>n.className.split(' ').includes('running')).length,2);assert.equal(nodes.find(n=>n.dataset.stage==='P12').className.includes('visited'),false);assert.equal(h.document.ids['workflow-graph'].querySelector('.edge-list').children.length,0);h.ui.selectGraphStage('TRW','P9');assert.equal(h.document.ids['workflow-graph'].querySelector('.edge-list').children.length,1);h.ui.selectGraphStage('TRW','P7');assert.match(h.document.ids['stage-detail'].textContent,/直接分析/);assert.match(h.document.ids['stage-detail'].textContent,/学习后分析/);assert.match(h.document.ids['stage-detail'].textContent,/双审分析/);assert.match(h.document.ids['stage-detail'].textContent,/TRW → TFDW/);assert.equal(h.requests.length,0);
+  const h=domHarness();h.ui.setState(status());h.ui.setGraph({workflows:[{kind:'TRH',nodes:Array.from({length:15},(_,i)=>({stage_id:'P'+i,label:'阶段 '+i})),edges:[{from:'P9',to:'P4',kind:'return'}]},{kind:'FDH',nodes:Array.from({length:6},(_,i)=>({stage_id:'D'+i,label:'发现 '+i})),edges:[]}],analysis_routes:[{id:'A',roles:['DIRECT'],label:'直接分析'},{id:'B',roles:['LEARN'],label:'学习后分析'},{id:'C',roles:['PROOF','COUNTEREXAMPLE'],label:'双审分析'}],handoffs:[{from:'TRH',to:'FDH'},{from:'FDH',to:'TRH'}]});h.ui.renderWorkflowGraph(status().activity);
+  const nodes=h.document.ids['workflow-graph'].querySelectorAll('[data-stage]');assert.equal(nodes.length,21);assert.equal(nodes.filter(n=>n.className.split(' ').includes('running')).length,2);assert.equal(nodes.find(n=>n.dataset.stage==='P12').className.includes('visited'),false);assert.equal(h.document.ids['workflow-graph'].querySelector('.edge-list').children.length,0);h.ui.selectGraphStage('TRH','P9');assert.equal(h.document.ids['workflow-graph'].querySelector('.edge-list').children.length,1);h.ui.selectGraphStage('TRH','P7');assert.match(h.document.ids['stage-detail'].textContent,/直接分析/);assert.match(h.document.ids['stage-detail'].textContent,/学习后分析/);assert.match(h.document.ids['stage-detail'].textContent,/双审分析/);assert.match(h.document.ids['stage-detail'].textContent,/TRH → FDH/);assert.equal(h.requests.length,0);
 });
-test('TFDW preserves explicit originals and cannot silently invent missing background or axes',()=>{
+test('FDH preserves explicit originals and cannot silently invent missing background or axes',()=>{
   const h=domHarness(),form=h.document.createElement('form');h.ui.setState(status());const fields=h.ui.discoveryFields(form,'d',{phenomenon:'现象\noriginal'});assert.throws(()=>fields.value(),/完整/);
   h.document.ids['d-immutable_background'].value='  无额外背景约束\n';h.document.ids['d-allowed_axes'].value='仅改变参数 λ。';const values=fields.value();assert.equal(values.phenomenon,'现象\noriginal');assert.equal(values.immutable_background,'  无额外背景约束\n');assert.equal(values.allowed_axes,'仅改变参数 λ。');
   h.document.ids['d-allowed_axes'].value='';h.document.ids['d-draft'].checked=true;assert.equal(fields.value().allowed_axes,'');
 });
 test('policy editor keeps precise P7 defaults/exceptions and queues a reset for only selected scope',async()=>{
-  const h=domHarness();h.ui.setPolicy(policy);const form=h.document.createElement('form');const editor=await h.ui.policyEditor(form,{kind:'TRW',existing:[override('P7','high'),override('P10','max')],prefix:'test'});
+  const h=domHarness();h.ui.setPolicy(policy);const form=h.document.createElement('form');const editor=await h.ui.policyEditor(form,{kind:'TRH',existing:[override('P7','high'),override('P10','max')],prefix:'test'});
   assert.equal(h.document.ids['test-effort'].value,'high');h.document.ids['test-purpose'].value='MATHEMATICAL_INTEGRATION';h.document.ids['test-purpose'].onchange();assert.equal(h.document.ids['test-effort'].value,'max');h.document.ids['test-purpose'].value='DEFAULT';h.document.ids['test-purpose'].onchange();
   const reset=form.querySelectorAll('button').find(b=>b.textContent.includes('恢复默认'));await reset.listeners.click({preventDefault(){},currentTarget:reset});assert.equal(editor.resetScopes().length,1);assert.equal(editor.resetScopes()[0].stage_id,'P7');assert.equal(h.document.ids['test-effort'].value,'xhigh');assert.equal(editor.value().length,0);
 });
@@ -124,13 +125,13 @@ function fullResponse(s,posts){return async(url,options)=>{
   return {records:[],next_offset:null};
 };}
 async function submitDialog(h){const form=h.document.ids['dialog-content'].querySelector('form');assert.ok(form);await form.listeners.submit({preventDefault(){},currentTarget:form});}
-test('generic named second TRW selects an existing exact target and sends no handoff action',async()=>{
+test('generic named second TRH selects an existing exact target and sends no handoff action',async()=>{
   const h=domHarness(),posts=[];h.ui.setState(status());h.setResponse(fullResponse(status(),posts));await h.ui.newWorkflowForm();h.document.ids['workflow-name'].value='独立第二条研究';h.document.ids['workflow-target'].value='KR-existing';h.document.ids['workflow-target'].onchange();await submitDialog(h);
-  assert.equal(posts.length,1);assert.equal(posts[0].path,'/api/action/new-workflow');assert.equal(posts[0].payload.name,'独立第二条研究');assert.equal(posts[0].payload.target_ref,'KR-existing');assert.equal(posts[0].payload.kind,'TRW');assert.ok(posts[0].key);
+  assert.equal(posts.length,1);assert.equal(posts[0].path,'/api/action/new-workflow');assert.equal(posts[0].payload.name,'独立第二条研究');assert.equal(posts[0].payload.target_ref,'KR-existing');assert.equal(posts[0].payload.kind,'TRH');assert.ok(posts[0].key);
 });
-test('generic named TFDW reuses a source only after explicit selection and preserves the other two originals',async()=>{
-  const h=domHarness(),posts=[];h.ui.setState(status());h.setResponse(fullResponse(status(),posts));await h.ui.newWorkflowForm();h.document.ids['workflow-name'].value='新现象研究';h.document.ids['workflow-kind'].value='TFDW';h.document.ids['workflow-kind'].onchange();h.document.ids['workflow-discovery-phenomenon-source'].value='SO-log';h.document.ids['workflow-discovery-phenomenon-source'].onchange();h.document.ids['workflow-discovery-immutable_background'].value='  固定背景\n';h.document.ids['workflow-discovery-allowed_axes'].value='只变 λ';await submitDialog(h);
-  assert.equal(posts[0].payload.kind,'TFDW');assert.equal(posts[0].payload.discovery_scope.phenomenon_ref,'SO-log');assert.equal(posts[0].payload.discovery_scope.immutable_background,'  固定背景\n');assert.equal(posts[0].payload.discovery_scope.allowed_axes,'只变 λ');
+test('generic named FDH reuses a source only after explicit selection and preserves the other two originals',async()=>{
+  const h=domHarness(),posts=[];h.ui.setState(status());h.setResponse(fullResponse(status(),posts));await h.ui.newWorkflowForm();h.document.ids['workflow-name'].value='新现象研究';h.document.ids['workflow-kind'].value='FDH';h.document.ids['workflow-kind'].onchange();h.document.ids['workflow-discovery-phenomenon-source'].value='SO-log';h.document.ids['workflow-discovery-phenomenon-source'].onchange();h.document.ids['workflow-discovery-immutable_background'].value='  固定背景\n';h.document.ids['workflow-discovery-allowed_axes'].value='只变 λ';await submitDialog(h);
+  assert.equal(posts[0].payload.kind,'FDH');assert.equal(posts[0].payload.discovery_scope.phenomenon_ref,'SO-log');assert.equal(posts[0].payload.discovery_scope.immutable_background,'  固定背景\n');assert.equal(posts[0].payload.discovery_scope.allowed_axes,'只变 λ');
 });
 test('initial authorization submits explicit policy override before any first dispatch',async()=>{
   const h=domHarness(),posts=[];h.ui.setState(status());h.ui.setPolicy(policy);h.setResponse(fullResponse(status(),posts));await h.ui.startForm();h.document.ids['round-policy-effort'].value='high';const add=h.document.ids['dialog-content'].querySelectorAll('button').find(n=>n.textContent.includes('加入或更新'));await add.listeners.click({preventDefault(){},currentTarget:add});await submitDialog(h);
@@ -144,7 +145,7 @@ test('not-sent submission sends actual source ref separately from the human note
 });
 
 test('paused discovery draft preserves its original phenomenon when completing background and axes',async()=>{
-  const h=domHarness(),posts=[],s=status();s.workflow.instances[0].kind='TFDW';s.workflow.instances[0].discovery_brief_ref='SO-log';h.ui.setState(s);h.setResponse(fullResponse(s,posts));await h.ui.discoveryConfigForm();assert.equal(h.document.ids['edit-discovery-phenomenon-source'].value,'SO-log');assert.equal(h.document.ids['edit-discovery-phenomenon'].disabled,true);h.document.ids['edit-discovery-immutable_background'].value='原背景保持不变';h.document.ids['edit-discovery-allowed_axes'].value='仅比较参数范围';await submitDialog(h);assert.equal(posts[0].path,'/api/action/configure-discovery');assert.equal(posts[0].payload.discovery_scope.phenomenon_ref,'SO-log');assert.equal(posts[0].payload.discovery_scope.immutable_background,'原背景保持不变');assert.equal(posts[0].payload.discovery_scope.allowed_axes,'仅比较参数范围');
+  const h=domHarness(),posts=[],s=status();s.workflow.instances[0].kind='FDH';s.workflow.instances[0].discovery_brief_ref='SO-log';h.ui.setState(s);h.setResponse(fullResponse(s,posts));await h.ui.discoveryConfigForm();assert.equal(h.document.ids['edit-discovery-phenomenon-source'].value,'SO-log');assert.equal(h.document.ids['edit-discovery-phenomenon'].disabled,true);h.document.ids['edit-discovery-immutable_background'].value='原背景保持不变';h.document.ids['edit-discovery-allowed_axes'].value='仅比较参数范围';await submitDialog(h);assert.equal(posts[0].path,'/api/action/configure-discovery');assert.equal(posts[0].payload.discovery_scope.phenomenon_ref,'SO-log');assert.equal(posts[0].payload.discovery_scope.immutable_background,'原背景保持不变');assert.equal(posts[0].payload.discovery_scope.allowed_axes,'仅比较参数范围');
 });
 
 let registeredGraph;
@@ -158,7 +159,7 @@ function activeTab(h){return h.document.ids.tabs.querySelectorAll('button').filt
 function findButton(node,text){return node.querySelectorAll('button').find(n=>n.textContent===text);}
 async function click(h,node){assert.ok(node,'Expected real UI button');await node.click();assert.equal(h.document.ids.error.textContent,'');}
 
-test('actual registry graph retains original TRW/TFDW edges and all registered Survey paths',()=>{
+test('actual registry graph retains original TRH/FDH edges and all registered Survey paths',()=>{
   const graph=nativeGraph(),before=JSON.stringify(graph);let nodeCount=0,edgeCount=0,mainCount=0,loopCount=0;
   for(const workflow of graph.workflows){
     const main=workflowGraphEdges(workflow),all=workflowGraphEdges(workflow,null,true);
@@ -168,16 +169,16 @@ test('actual registry graph retains original TRW/TFDW edges and all registered S
     for(const node of workflow.nodes){const local=workflowGraphEdges(workflow,node.stage_id);assert.ok(local.visible.every(e=>workflow.edges.includes(e)));assert.ok(local.related.every(e=>e.from===node.stage_id||e.to===node.stage_id));}
   }
   assert.deepEqual({nodeCount,edgeCount,mainCount,loopCount},{nodeCount:29,edgeCount:140,mainCount:26,loopCount:28});assert.equal(JSON.stringify(graph),before);
-  assert.equal(workflowStageLabel('P7'),'方法迁移与直接分析');assert.equal(workflowStagePresentation(null,'TRW','P0').status,'UNKNOWN');
+  assert.equal(workflowStageLabel('P7'),'方法迁移与直接分析');assert.equal(workflowStagePresentation(null,'TRH','P0').status,'UNKNOWN');
 });
 
 test('graph defaults to current kind and preview selection stays read-only with explicit unknown state',async()=>{
   const h=domHarness(),s=status(),graph=nativeGraph();s.activity.waiting_stages=['P9'];s.activity.stages=[{stage_id:'P9',status:'WAITING',waiting_reasons:['已有捕获等待接纳'],next_actions:['检查原始捕获并接纳']}];h.ui.setState(s);h.ui.setGraph(graph);h.ui.renderWorkflowGraph(s.activity);
   const container=h.document.ids['workflow-graph'],maps=container.querySelectorAll('.workflow-map'),nodes=container.querySelectorAll('[data-stage]');
-  assert.equal(h.ui.getState().graphMode,'TRW');assert.equal(maps.find(n=>n.dataset.kind==='TRW').hidden,false);assert.equal(maps.find(n=>n.dataset.kind==='TFDW').hidden,true);
+  assert.equal(h.ui.getState().graphMode,'TRH');assert.equal(maps.find(n=>n.dataset.kind==='TRH').hidden,false);assert.equal(maps.find(n=>n.dataset.kind==='FDH').hidden,true);
   assert.equal(nodes.find(n=>n.dataset.stage==='D0').querySelector('small').textContent,'状态未知');assert.equal(nodes.find(n=>n.dataset.stage==='P8').querySelector('small').textContent,'未访问');
   assert.match(h.document.ids['workflow-summary'].textContent,/实际活动：P4 推导构造、P7 方法迁移与直接分析/);assert.match(h.document.ids['workflow-summary'].textContent,/等待阶段：P9 独立检查/);assert.match(h.document.ids['workflow-summary'].textContent,/P9：已有捕获等待接纳/);
-  h.ui.selectGraphStage('TFDW','D2');assert.equal(h.ui.getState().view,'current');assert.equal(h.ui.getState().graphSelection,null);assert.equal(h.ui.getState().graphMode,'TFDW');assert.match(h.document.ids['stage-detail'].textContent,/结构预览/);assert.match(h.document.ids['stage-detail'].textContent,/状态未知/);assert.equal(findButton(h.document.ids['stage-detail'],'查看此阶段任务'),undefined);
+  h.ui.selectGraphStage('FDH','D2');assert.equal(h.ui.getState().view,'current');assert.equal(h.ui.getState().graphSelection,null);assert.equal(h.ui.getState().graphMode,'FDH');assert.match(h.document.ids['stage-detail'].textContent,/结构预览/);assert.match(h.document.ids['stage-detail'].textContent,/状态未知/);assert.equal(findButton(h.document.ids['stage-detail'],'查看此阶段任务'),undefined);
   await click(h,container.querySelectorAll('[data-graph-mode]').find(n=>n.dataset.graphMode==='overview'));
   await click(h,container.querySelector('[data-graph-paths]'));
   assert.equal(maps.every(n=>!n.hidden),true);assert.equal(container.querySelectorAll('.stage-wire').length,112);assert.equal(container.querySelectorAll('.stage-iteration').length,28);assert.equal(container.querySelector('.edge-list').children.length,140);assert.equal(h.requests.length,0);
@@ -201,7 +202,7 @@ test('same-commit task change notifies readers without changing expanded body DO
 });
 
 test('incremental task polling respects selected stage and removes obsolete controls without rewriting cards',async()=>{
-  const h=domHarness(),a=fakeTask('a'),b=fakeTask('b','P9','PROOF'),s=withTasks([a,b],['UNKNOWN','SENT']);h.ui.setState(s,{readSnapshot:s.commit});let now=s;h.setResponse(async()=>now);await h.ui.navigateStage('TRW','P4');
+  const h=domHarness(),a=fakeTask('a'),b=fakeTask('b','P9','PROOF'),s=withTasks([a,b],['UNKNOWN','SENT']);h.ui.setState(s,{readSnapshot:s.commit});let now=s;h.setResponse(async()=>now);await h.ui.navigateStage('TRH','P4');
   const original=h.document.ids.content.querySelector('[data-task-id]');assert.equal(original.dataset.taskId,a.task_id);assert.equal(h.document.ids.content.querySelectorAll('[data-task-id]').length,1);assert.ok(findButton(original,'处理不确定请求'));
   now=withTasks([a,b,fakeTask('c','P9','COUNTEREXAMPLE')],['UNKNOWN','CAPTURED','PREPARED']);now.execution.requests[0].unknown_disposition='ABANDON_UNKNOWN';await h.ui.pollProgress();
   assert.equal(h.document.ids.content.querySelector('[data-task-id]'),original);assert.equal(h.document.ids.content.querySelectorAll('[data-task-id]').length,1);assert.equal(findButton(original,'处理不确定请求'),undefined);assert.match(original.querySelector('[data-request-status]').textContent,/已放弃等待/);assert.equal(h.ui.getState().graphSelection,'P4');assert.deepEqual(activeTab(h),['tasks']);
@@ -209,22 +210,22 @@ test('incremental task polling respects selected stage and removes obsolete cont
 
 test('explicit graph task navigation and tab changes keep view title highlight and stage filter synchronized',async()=>{
   const h=domHarness(),s=withTasks([fakeTask('p4'),fakeTask('p9','P9','PROOF')],['SETTLED','CAPTURED']);h.ui.setState(s,{readSnapshot:s.commit});h.ui.setGraph(nativeGraph());h.setResponse(fullResponse(s,[]));h.ui.renderWorkflowGraph(s.activity);
-  h.ui.selectGraphStage('TRW','P4');assert.equal(h.ui.getState().view,'current');assert.equal(h.ui.getState().graphSelection,null);assert.equal(h.requests.length,0);
+  h.ui.selectGraphStage('TRH','P4');assert.equal(h.ui.getState().view,'current');assert.equal(h.ui.getState().graphSelection,null);assert.equal(h.requests.length,0);
   await click(h,findButton(h.document.ids['stage-detail'],'查看此阶段任务'));assert.equal(h.ui.getState().view,'tasks');assert.equal(h.ui.getState().graphSelection,'P4');assert.deepEqual(activeTab(h),['tasks']);assert.equal(h.document.ids['view-title'].textContent,'任务与配置');assert.equal(h.document.ids.content.querySelectorAll('[data-task-id]').length,1);assert.equal(h.document.ids['stage-detail'].hidden,false);
   await click(h,findButton(h.document.ids['stage-detail'],'查看相关开放问题'));assert.equal(h.ui.getState().view,'frontier');assert.equal(h.ui.getState().graphSelection,null);assert.deepEqual(activeTab(h),['frontier']);assert.equal(h.document.ids['view-title'].textContent,'开放问题');assert.equal(h.ui.getState().graphFocus.stage,'P4');
   await click(h,h.document.ids.tabs.querySelectorAll('button').find(b=>b.dataset.view==='reports'));assert.equal(h.document.ids['stage-detail'].hidden,true);assert.equal(h.ui.getState().graphFocus,null);assert.equal(h.ui.getState().graphSelection,null);assert.deepEqual(activeTab(h),['reports']);assert.equal(h.document.ids['view-title'].textContent,'研究报告');
 });
 
 test('project and instance scope switches clear old graph detail and task stage filter before new reads',async()=>{
-  const h=domHarness(),s=withTasks([fakeTask('old')],['SETTLED']);h.ui.setState(s,{readSnapshot:s.commit});h.ui.setGraph(nativeGraph());let now=s;h.setResponse(async(url)=>url.pathname==='/api/status'?now:{records:[],next_offset:null});h.ui.renderWorkflowGraph(s.activity);h.ui.selectGraphStage('TRW','P4');await h.ui.navigateStage('TRW','P4');assert.equal(h.ui.getState().graphSelection,'P4');
-  now=withTasks([fakeTask('new-d1','D1','LEARN'),fakeTask('new-d4','D4','FORMULATION_REVIEW')],['SETTLED','PREPARED']);now.workflow.instances=[{instance_id:'I-2',kind:'TFDW',name:'另一发现实例',status:'PAUSED'}];now.tasks.forEach(t=>t.instance_id='I-2');now.activity={instance_id:'I-2',workflow_kind:'TFDW',instance_status:'PAUSED',active_stages:[],waiting_stages:['D4'],recent_stages:['D1'],stages:[]};
-  h.ui.setScope('WP-other','I-2');await h.ui.refresh();assert.equal(h.ui.getState().graphSelection,null);assert.equal(h.ui.getState().graphFocus,null);assert.equal(h.ui.getState().graphMode,'TFDW');assert.equal(h.document.ids['stage-detail'].hidden,true);assert.deepEqual(h.document.ids.content.querySelectorAll('[data-task-id]').map(n=>n.dataset.taskId),['TASK-new-d1','TASK-new-d4']);
+  const h=domHarness(),s=withTasks([fakeTask('old')],['SETTLED']);h.ui.setState(s,{readSnapshot:s.commit});h.ui.setGraph(nativeGraph());let now=s;h.setResponse(async(url)=>url.pathname==='/api/status'?now:{records:[],next_offset:null});h.ui.renderWorkflowGraph(s.activity);h.ui.selectGraphStage('TRH','P4');await h.ui.navigateStage('TRH','P4');assert.equal(h.ui.getState().graphSelection,'P4');
+  now=withTasks([fakeTask('new-d1','D1','LEARN'),fakeTask('new-d4','D4','FORMULATION_REVIEW')],['SETTLED','PREPARED']);now.workflow.instances=[{instance_id:'I-2',kind:'FDH',name:'另一发现实例',status:'PAUSED'}];now.tasks.forEach(t=>t.instance_id='I-2');now.activity={instance_id:'I-2',workflow_kind:'FDH',instance_status:'PAUSED',active_stages:[],waiting_stages:['D4'],recent_stages:['D1'],stages:[]};
+  h.ui.setScope('WP-other','I-2');await h.ui.refresh();assert.equal(h.ui.getState().graphSelection,null);assert.equal(h.ui.getState().graphFocus,null);assert.equal(h.ui.getState().graphMode,'FDH');assert.equal(h.document.ids['stage-detail'].hidden,true);assert.deepEqual(h.document.ids.content.querySelectorAll('[data-task-id]').map(n=>n.dataset.taskId),['TASK-new-d1','TASK-new-d4']);
   const preview=h.document.ids['workflow-graph'].querySelectorAll('[data-stage]').find(n=>n.dataset.stage==='P4');assert.equal(preview.querySelector('small').textContent,'状态未知');assert.equal(preview.getAttribute('aria-pressed'),'false');const last=new URL(h.requests.at(-1).url);assert.equal(last.searchParams.get('project'),'WP-other');assert.equal(last.searchParams.get('instance'),'I-2');
 });
 
 test('shared tasks UNKNOWN reconciliation submits the task owner while all instances remain selected',async()=>{
   const h=domHarness(),unknown=fakeTask('shared-unknown'),posts=[];unknown.instance_id='I-owner';
-  const s=withTasks([unknown],['UNKNOWN']);s.workflow.instances.push({instance_id:'I-owner',kind:'TRW',name:'共享任务所属实例',status:'ACTIVE'});
+  const s=withTasks([unknown],['UNKNOWN']);s.workflow.instances.push({instance_id:'I-owner',kind:'TRH',name:'共享任务所属实例',status:'ACTIVE'});
   h.ui.setState(s,{instance:'',viewName:'tasks',readSnapshot:s.commit});h.setResponse(fullResponse(s,posts));
   const card=h.ui.task(unknown);h.document.ids.content.append(card);assert.equal(h.document.ids.instance.value,'');
   await click(h,findButton(card,'处理不确定请求'));h.document.ids['reconcile-note'].value='放弃等待此实例的原请求，不确认未发送';
@@ -238,7 +239,7 @@ test('4.0 browser persistence cannot pick up an old selected project or pending 
   const h=domHarness();assert.equal(h.ui.getState().project,'');assert.deepEqual(h.localKeys,[{method:'get',key:'pmrs_4_0_project'}]);
   const opened=[],keys=[];const indexedDB={open(name,version){opened.push({name,version});const request={result:{transaction(storeName,mode){assert.equal(storeName,'operations');assert.equal(mode,'readonly');const tx={objectStore(){return {get(key){keys.push(key);const result={result:null};queueMicrotask(()=>{result.onsuccess();tx.oncomplete();});return result;}};}};return tx;}}};queueMicrotask(()=>request.onsuccess());return request;}};
   assert.equal(await indexedOperationStorage(indexedDB,'WORKSPACE-new').get(),null);assert.deepEqual(opened,[{name:'pmrs-4.0-business-operations',version:1}]);assert.deepEqual(keys,['active:WORKSPACE-new']);
-  const html=fs.readFileSync(path.join(__dirname,'../research_studio/static/index.html'),'utf8');assert.match(html,/<title[^>]*>PMRS 4\.1\.0/);assert.match(html,/<footer><!--[^>]+-->PMRS 4\.1\.0/);assert.doesNotMatch(html,/data-view="legacy"|导入与恢复/);
+  const html=fs.readFileSync(path.join(__dirname,'../research_studio/static/index.html'),'utf8');assert.match(html,/<title[^>]*>PMRS 4\.2\.1/);assert.match(html,/<footer><!--[^>]+-->PMRS 4\.2\.1/);assert.doesNotMatch(html,/data-view="legacy"|导入与恢复/);
 });
 test('backup UI checks and restores only native archives with the preserved 128 MiB bound',async()=>{
   const h=domHarness(),posts=[];h.ui.setState(status());h.setResponse(async(url,options)=>{
@@ -276,8 +277,8 @@ test('locale saving uses only preferences endpoint and preserves workflow and co
 
 test('report revision binds the clicked report and only its selected edition',async()=>{
   const h=domHarness(),s=status(),posts=[];s.workflow.instances=[{instance_id:'I-1',kind:'SURVEY',status:'PAUSED',name:'Survey'}];h.ui.setState(s);h.setResponse(async(url,opts)=>{if(opts.method==='POST'&&url.pathname.startsWith('/api/action/')){posts.push(JSON.parse(opts.body));return {};}if(url.pathname==='/api/status')return s;return {records:[],reports:[]};});
-  h.ui.reportRevision(false,{report_id:'REPORT-original',selected_profiles:['thematic']});assert.deepEqual(h.document.ids['report-profile'].children.map(o=>o.value),['thematic']);h.document.ids['report-reason'].value='Fix the comparison';h.document.ids.instance.value='I-other';await submitDialog(h);assert.equal(posts[0].report_id,'REPORT-original');assert.equal(posts[0].profile,'thematic');assert.equal(posts[0].instance,'I-1');
-  h.ui.reportRevision(true,{report_id:'REPORT-original',selected_profiles:['thematic']});h.document.ids['report-reason'].value='Retain history';await submitDialog(h);assert.equal(posts[1].report_id,'REPORT-original');
+  await h.ui.reportRevision(false,{report_id:'REPORT-original',selected_profiles:['thematic']});assert.deepEqual(h.document.ids['report-profile'].children.map(o=>o.value),['thematic']);h.document.ids['report-revision-scope'].value='FULL';h.document.ids['report-revision-instruction'].value='Fix the comparison';h.document.ids.instance.value='I-other';await submitDialog(h);assert.equal(posts[0].report_id,'REPORT-original');assert.equal(posts[0].profile,'thematic');assert.equal(posts[0].instance,'I-1');
+  await h.ui.reportRevision(true,{report_id:'REPORT-original',selected_profiles:['thematic']});h.document.ids['report-reason'].value='Retain history';await submitDialog(h);assert.equal(posts[1].report_id,'REPORT-original');
 });
 test('Survey freeze sends an explicit question subset with selected knowledge',async()=>{
   const h=domHarness(),s=status(),posts=[];s.workflow.instances=[{instance_id:'I-1',kind:'SURVEY',status:'PAUSED',name:'Survey'}];h.ui.setState(s);h.setResponse(async(url,opts)=>{if(opts.method==='POST'&&url.pathname.startsWith('/api/action/')){posts.push(JSON.parse(opts.body));return {};}if(url.pathname==='/api/workflow-inputs')return {records:[{ref:'KR-one',title:'Result'}],statements:[],sources:[]};if(url.pathname==='/api/survey')return {scope:{questions:['Ready question','Open question']},readiness:{status:'READY'}};if(url.pathname==='/api/status')return s;return {records:[]};});
@@ -294,83 +295,57 @@ test('pending operation label localizes while its exact raw identity survives lo
   const h=domHarness();h.ui.setState(status());await h.ui.operations.storage.claim({key:'original-operation-id',name:'upload-archive',payload:{}});await h.ui.renderOperationRecovery();const banner=h.document.ids['operation-recovery'];assert.match(banner.textContent,/操作 upload-archive · original-operation-id/);assert.doesNotMatch(banner.textContent,/[\uE000\uE001]/);h.ui.applyLocale('en');assert.match(banner.textContent,/Operation upload-archive · original-operation-id/);assert.doesNotMatch(banner.textContent,/[\uE000\uE001]/);assert.equal(h.requests.length,0);assert.equal((await h.ui.operations.current()).key,'original-operation-id');
 });
 test('a view clicked during project loading never combines a new project with the old instance',async()=>{
-  const h=domHarness(),old=status(),next=status();h.ui.setState(old);next.workflow.instances=[{instance_id:'I-new',kind:'TRW',name:'New project workflow',status:'PAUSED'}];next.activity={instance_id:'I-new',workflow_kind:'TRW',instance_status:'PAUSED',active_stages:[],waiting_stages:[],recent_stages:[],stages:[]};let releaseWorkspace;h.setResponse(async url=>{if(url.pathname==='/api/workspace')return new Promise(resolve=>releaseWorkspace=resolve);if(url.pathname==='/api/status'){assert.equal(url.searchParams.get('project'),'WP-new');assert.notEqual(url.searchParams.get('instance'),'I-1');return next;}return {records:[]};});
+  const h=domHarness(),old=status(),next=status();h.ui.setState(old);next.workflow.instances=[{instance_id:'I-new',kind:'TRH',name:'New project workflow',status:'PAUSED'}];next.activity={instance_id:'I-new',workflow_kind:'TRH',instance_status:'PAUSED',active_stages:[],waiting_stages:[],recent_stages:[],stages:[]};let releaseWorkspace;h.setResponse(async url=>{if(url.pathname==='/api/workspace')return new Promise(resolve=>releaseWorkspace=resolve);if(url.pathname==='/api/status'){assert.equal(url.searchParams.get('project'),'WP-new');assert.notEqual(url.searchParams.get('instance'),'I-1');return next;}return {records:[]};});
   h.document.ids.project.value='WP-new';const changing=h.document.ids.project.onchange();assert.equal(h.document.ids.instance.value,'');await h.ui.selectView('tasks');releaseWorkspace({projects:[{key:'WP-new',title:'New'}]});await changing;assert.equal(h.document.ids.instance.value,'I-new');assert.equal(h.ui.getState().project,'WP-new');assert.equal(h.document.ids.error.textContent,'');assert.equal(h.requests.every(r=>new URL(r.url).searchParams.get('instance')!=='I-1'),true);
 });
 
-function assistantResponse(context={instance_id:'I-1'},session='AS-1'){
-  return {sessions:[{session_id:session,context}],session_id:session,context,
-    model:{model:'gpt-6-astra',reasoning_effort:'xhigh'},budget:{max_calls:3,used:0,remaining:3,turn_limit:1},
-    messages:[],turns:[],effective_requirements:[],model_calls:0};
+function mainResponse(instance='I-1'){
+  return {instance_id:instance,target_ref:'KR-target',model:{model:'gpt-6-astra',reasoning_effort:'ultra'},remaining_calls:3,
+    execution_state:'IDLE',waiting_reason:null,directions:[],routes:[],proposals:[],model_calls:0,read_only:true};
 }
-function assistantTransport(h,data,posts){h.setResponse(async(url,options)=>{
-  if(url.pathname.startsWith('/api/action/assistant-')){const payload=JSON.parse(options.body);posts.push({name:url.pathname.split('/').pop(),payload});return {session_id:data.session_id,turn_id:'AT-1',state:'QUEUED',model_calls:0};}
-  if(url.pathname==='/api/assistant')return data;
-  if(url.pathname==='/api/assistant-evidence')return {summary_text:'request R-1: UNKNOWN; send outcome remains uncertain.',collected_at:'2026-10-08T00:00:00Z'};
-  throw Error('Unexpected assistant request '+url.pathname);
+function mainTransport(h,data,posts){h.setResponse(async(url,options)=>{
+  if(url.pathname==='/api/action/main-direction'){const payload=JSON.parse(options.body);posts.push(payload);return {direction_id:'D-1',status:'QUEUED',model_calls:0};}
+  if(url.pathname==='/api/main')return data;
+  if(url.pathname==='/api/incidents')return {incidents:[]};
+  throw Error('Unexpected main request '+url.pathname);
 });}
-test('assistant project issue and report entries share the same pinned panel without send or research actions',async()=>{
-  for(const entry of ['project','issue','report']){
-    const h=domHarness(),posts=[],data=assistantResponse();h.ui.setState(status());assistantTransport(h,data,posts);
-    if(entry==='project')await h.document.ids['project-assistant'].click();
-    if(entry==='issue'){const card=h.ui.task({task_id:'T-1',request_id:'R-1',instance_id:'I-1',stage_id:'P4',role:'RESEARCH'});await card.querySelectorAll('button').find(b=>b.textContent.includes('询问此问题')).click();}
-    if(entry==='report'){const card=h.ui.report({report_id:'REP-1',selected_profiles:['minimal'],profiles:{minimal:{revision:2,raw_body_sha256:'raw-hash'}},instance_ids:['I-1']});await card.querySelectorAll('button').find(b=>b.textContent.includes('讨论或修改')).click();}
-    assert.equal(h.document.ids['project-assistant-panel'].hidden,false);assert.equal(posts.length,1);assert.equal(posts[0].name,'assistant-open');
-    assert.equal(posts[0].payload.project,'WP-test');if(entry==='issue')assert.equal(posts[0].payload.request_id,'R-1');if(entry==='report'){assert.equal(posts[0].payload.revision,2);assert.equal(posts[0].payload.body_hash,'raw-hash');}
-    assert.equal(h.requests.some(r=>/assistant-send|\/action\/(start|report|continue|revise-report)$/.test(r.url)),false);
+test('project and task main entries are read-only and preserve exact pinned instance and model',async()=>{
+  for(const entry of ['project','task']){
+    const h=domHarness(),posts=[],data=mainResponse();h.ui.setState(status());mainTransport(h,data,posts);
+    if(entry==='project')await h.document.ids['main-researcher'].click();
+    else {const card=h.ui.task({task_id:'TASK-1',request_id:'R-1',instance_id:'I-1',stage_id:'P4',role:'RESEARCH'});await card.querySelectorAll('button').find(b=>b.textContent.includes('主研究者')).click();}
+    assert.equal(h.document.ids['main-researcher-panel'].hidden,false);assert.equal(posts.length,0);
+    assert.match(h.document.ids['main-context'].textContent,/gpt-6-astra.*ultra/);assert.equal(h.ui.getState().mainInstance,'I-1');
+    assert.equal(h.requests.every(r=>r.options.method==='GET'),true);assert.equal(h.requests.some(r=>r.url.includes('assistant')),false);
   }
 });
-test('assistant sends and authorizes only the pinned session after workbench project selection changes',async()=>{
-  const h=domHarness(),posts=[],data=assistantResponse();h.ui.setState(status());assistantTransport(h,data,posts);await h.ui.openAssistant();h.ui.setScope('WP-other','I-other');
-  const message=h.document.ids['assistant-message'];message.value='Explain only; do not change the report.';
-  const form=message.parentNode.parentNode;await form.listeners.submit({preventDefault(){},currentTarget:form});
-  const sent=posts.find(p=>p.name==='assistant-send');assert.equal(sent.payload.project,'WP-test');assert.equal(sent.payload.session_id,'AS-1');assert.equal(sent.payload.text,'Explain only; do not change the report.');assert.equal(Object.hasOwn(sent.payload,'report_calls'),false);
-  const grant=h.document.ids['assistant-calls'];grant.value='4';const grantForm=grant.parentNode.parentNode;await grantForm.listeners.submit({preventDefault(){},currentTarget:grantForm});
-  assert.deepEqual(posts.at(-1),{name:'assistant-authorize',payload:{project:'WP-test',instance:'',session_id:'AS-1',max_calls:4}});
-  assert.equal(h.ui.getState().project,'WP-other');assert.equal(h.ui.getState().assistantProject,'WP-test');
+test('a submitted direction keeps original project and instance when workbench selection changes',async()=>{
+  const h=domHarness(),posts=[],data=mainResponse();h.ui.setState(status());mainTransport(h,data,posts);await h.ui.openMain({task_id:'TASK-1'});h.ui.setScope('WP-other','I-other');
+  const text=h.document.ids['main-direction-text'];text.value='原文方向：检查所选假设，不改变目标。';const form=text.parentNode.parentNode;
+  await form.listeners.submit({preventDefault(){},currentTarget:form});
+  assert.equal(posts.length,1);assert.deepEqual(posts[0],{project:'WP-test',instance:'I-1',text:'原文方向：检查所选假设，不改变目标。',refs:['TASK-1']});
+  assert.equal(h.ui.getState().project,'WP-other');assert.equal(h.ui.getState().mainProject,'WP-test');assert.equal(text.value,'');
 });
-test('assistant history evidence refresh locale and panel close are read-only and retain raw original messages',async()=>{
-  const h=domHarness(),posts=[],data=assistantResponse();data.messages=[{message_id:'M-1',role:'user',text:'原文 <script>not HTML</script>',created_at:'2026-10-08'}];data.turns=[{turn_id:'AT-1',state:'UNKNOWN',execution_state:'UNKNOWN',request_id:'R-1',evidence_at:'2026-10-08'}];
-  h.ui.setState(status());assistantTransport(h,data,posts);await h.ui.openAssistant();const before=posts.length;await h.ui.loadAssistant();await h.ui.assistantEvidence();h.ui.applyLocale('en');
-  assert.match(h.document.ids['assistant-context'].textContent,/Extra high/);assert.match(h.document.ids['assistant-messages'].textContent,/原文 <script>not HTML<\/script>/);assert.match(h.document.ids['assistant-status'].textContent,/uncertain/);
-  assert.equal(h.document.ids['assistant-turns'].querySelectorAll('button').length,0);assert.match(h.document.ids['assistant-evidence'].textContent,/R-1: UNKNOWN/);
-  await h.document.ids['project-assistant-panel'].querySelectorAll('button').find(b=>b.textContent==='Close assistant panel').click();assert.equal(h.document.ids['project-assistant-panel'].hidden,true);assert.equal(posts.length,before);
+test('main refresh and locale changes preserve raw directions, route expansion and user draft without model actions',async()=>{
+  const h=domHarness(),posts=[],data=mainResponse();data.execution_state='UNKNOWN';data.directions=[{direction_id:'D-1',status:'APPLIED',text:'原文 <script>not HTML</script>',answer:'条件尚未证明。',work_keys:['derive-bound']}];data.routes=[{route_id:'ROUTE-1',route_key:'bound',status:'ACTIVE',reason:'Establish the exact conditional estimate.',revision:1}];
+  h.ui.setState(status());mainTransport(h,data,posts);await h.ui.openMain();const original=h.document.ids['main-directions'].children[1],route=h.document.ids['main-routes'].querySelector('[data-route-id]');route.open=true;h.document.ids['main-direction-text'].value='尚未发送的草稿';
+  await h.ui.pollMain();h.ui.applyLocale('en');
+  assert.equal(h.document.ids['main-directions'].children[1],original);assert.match(original.textContent,/原文 <script>not HTML<\/script>/);assert.match(original.textContent,/derive-bound/);assert.equal(h.document.ids['main-routes'].querySelector('[data-route-id]').open,true);assert.equal(h.document.ids['main-direction-text'].value,'尚未发送的草稿');assert.equal(posts.length,0);
+  await h.document.ids['main-researcher-panel'].querySelectorAll('button').find(b=>b.textContent==='Close panel').click();assert.equal(h.document.ids['main-researcher-panel'].hidden,true);
 });
-test('a stale assistant history response cannot replace a newly selected session',async()=>{
-  const h=domHarness(),posts=[],first=assistantResponse();h.ui.setState(status());assistantTransport(h,first,posts);await h.ui.openAssistant();
-  let finish;h.setResponse(async url=>url.searchParams.get('session_id')==='AS-1'?new Promise(resolve=>finish=resolve):assistantResponse({instance_id:'I-other'},'AS-2'));
-  const old=h.ui.loadAssistant();await new Promise(setImmediate);await h.ui.selectAssistantSession('WP-other','AS-2');finish({...first,messages:[{message_id:'stale',role:'assistant',text:'stale response'}]});await old;
-  assert.equal(h.ui.getState().assistantSession,'AS-2');assert.equal(h.ui.getState().assistantProject,'WP-other');assert.doesNotMatch(h.document.ids['assistant-messages'].textContent,/stale response/);
+test('late main reads cannot replace a newly pinned instance and waiting states do not auto-send',async()=>{
+  const h=domHarness(),posts=[],first=mainResponse();h.ui.setState(status());mainTransport(h,first,posts);await h.ui.openMain();let finish;
+  h.setResponse(async url=>{if(url.pathname==='/api/incidents')return {incidents:[]};if(url.searchParams.get('instance')==='I-1')return new Promise(resolve=>finish=resolve);return {...mainResponse('I-other'),execution_state:'IDLE',remaining_calls:0,waiting_reason:'BUDGET_EXHAUSTED'};});
+  const stale=h.ui.loadMain();await new Promise(setImmediate);await h.ui.openMain({project:'WP-other',instance_id:'I-other'});finish({...first,directions:[{direction_id:'D-stale',text:'STALE BODY',status:'QUEUED'}]});await stale;
+  assert.equal(h.ui.getState().mainInstance,'I-other');assert.doesNotMatch(h.document.ids['main-directions'].textContent,/STALE BODY/);assert.match(h.document.ids['main-status'].textContent,/额度已耗尽/);assert.equal(posts.length,0);
 });
-
-test('assistant report versions show real checks and exact historical URLs; budget recovery retains the original turn',async()=>{
-  const h=domHarness(),posts=[],data=assistantResponse({instance_id:'I-1',report_id:'REP-1',profile:'minimal',revision:2});
-  data.report_versions=[{profile:'minimal',revision:2,current:false,semantic_status:'PASS',rendered:true,visual_pages:1,url:'/api/report-file?project=WP-test&report=REP-1&profile=minimal&revision=2'},{profile:'minimal',revision:3,current:true,rendered:false,visual_pages:0}];
-  data.turns=[{turn_id:'AT-original',state:'ACCEPTED',action:{state:'WAITING_REPORT_BUDGET',error:'REPORT_BUDGET_REQUIRED'}}];
-  data.jobs=[{turn_id:'AT-original',state:'WAITING_REPORT_BUDGET'}];h.ui.setState(status());assistantTransport(h,data,posts);await h.ui.openAssistant();
-  const links=h.document.ids['assistant-context'].querySelectorAll('a');assert.equal(links.length,1);assert.match(links[0].href,/revision=2$/);assert.match(h.document.ids['assistant-context'].textContent,/PASS/);assert.match(h.document.ids['assistant-context'].textContent,/尚未检查/);assert.match(h.document.ids['assistant-status'].textContent,/报告额度/);
-  h.ui.setScope('WP-other','I-other');h.document.ids['assistant-report-calls'].value='6';await h.document.ids['assistant-turns'].querySelectorAll('button')[0].click();
-  assert.deepEqual(posts.at(-1),{name:'assistant-recover',payload:{project:'WP-test',instance:'',session_id:'AS-1',turn_id:'AT-original',report_calls:6}});assert.equal(posts.some(p=>p.name==='assistant-send'),false);
+test('native usage keeps unknown totals distinct from known partial counts and displays communication delivery evidence',()=>{
+  const h=domHarness(),parent=h.document.createElement('div');h.ui.renderUsageAndCommunication({usage:{actual_started:2,actual_completed:1,input_tokens:null,output_tokens:null,known_input_tokens:120,known_output_tokens:20,unknown_usage_requests:1,synthetic_requests:3},communication:{message_count:2,delivery_count:2,confirmed_delivery_count:1,ack_count:1,messages:[{message_id:'MSG-1',kind:'QUESTION',body_preview:'Exact original question'}]}},parent);
+  assert.match(parent.textContent,/输入 token: 未知/);assert.match(parent.textContent,/已知部分合计: 120 \/ 20/);assert.match(parent.textContent,/模拟请求: 3/);assert.match(parent.textContent,/已确认交付: 1/);assert.match(parent.textContent,/Exact original question/);assert.equal(h.requests.length,0);
 });
-test('assistant queued send remains disabled and assistant errors never expose raw server internals',async()=>{
-  const h=domHarness(),posts=[],data=assistantResponse();h.ui.setState(status());assistantTransport(h,data,posts);await h.ui.openAssistant();
-  data.budget.remaining=0;data.turns=[{turn_id:'AT-1',state:'QUEUED'}];h.document.ids['assistant-message'].value='Explain this task.';const form=h.document.ids['assistant-message'].parentNode.parentNode;await form.listeners.submit({preventDefault(){},currentTarget:form});assert.equal(h.document.ids['assistant-send'].disabled,true);
-  // A recorded backend error is rendered from its narrow code, not arbitrary internal messages.
-  h.ui.renderAssistant({...data,turns:[{turn_id:'AT-1',state:'ERROR',error:{code:'ASSISTANT_CONTEXT_INVALID',message:'PRIVATE_INTERNAL_TRACE'}}]});assert.doesNotMatch(h.document.ids['assistant-turns'].textContent,/PRIVATE_INTERNAL_TRACE/);assert.match(h.document.ids['assistant-turns'].textContent,/ASSISTANT_CONTEXT_INVALID/);
-});
-
-test('assistant history pages can be read in either direction without issuing another message',async()=>{
-  const h=domHarness(),posts=[],data=assistantResponse();h.ui.setState(status());assistantTransport(h,data,posts);await h.ui.openAssistant();const before=posts.length,offsets=[];
-  h.setResponse(async url=>{assert.equal(url.pathname,'/api/assistant');const offset=Number(url.searchParams.get('offset'));offsets.push(offset);return {...data,message_count:65,offset,next_offset:offset<60?offset+30:null,messages:[{message_id:'M-'+offset,role:'user',text:'page '+offset}],effective_requirements:[{message_id:'M-'+offset,text:'Keep prior constraints'}]};});
-  await h.ui.loadAssistant();await h.document.ids['assistant-more'].click();assert.match(h.document.ids['assistant-messages'].textContent,/page 30/);await h.document.ids['assistant-previous'].click();assert.match(h.document.ids['assistant-messages'].textContent,/page 0/);
-  h.ui.applyLocale('en');await h.document.ids['project-assistant-panel'].querySelectorAll('button').find(b=>b.textContent==='Show latest messages').click();assert.match(h.document.ids['assistant-messages'].textContent,/page 60/);assert.equal(h.document.ids['assistant-more'].hidden,true);assert.deepEqual(offsets,[0,30,0,60]);assert.equal(posts.length,before);
-});
-
-test('assistant report completion and exact revision checks lead status while section numbers remain visible',async()=>{
-  const h=domHarness(),posts=[],data=assistantResponse({instance_id:'I-1',report_id:'REP-1',profile:'lecture',revision:1,sections:[{number:1,title:'Background'},{number:3,title:'Argument'}]});
-  const action={report_id:'REP-1',profile:'lecture',old_revision:0,revision:1,result:{state:'COMPLETED_CURRENT_REPORT'},report_state:'AUTHOR_REQUIRED',change_summary:{non_target_bytes_preserved:true,summary:'The specified symbols were defined; other sections were preserved.',requirements_verdict:'SATISFIED'},unmet_requirements:[],checks:{lecture:{semantic:'PASS',requirements:{verdict:'SATISFIED',unmet_requirement_refs:[],uncertain_requirement_refs:[]},rendered:true,reviewed_pages:1,total_pages:1},minimal:{semantic:'PASS',requirements:{verdict:'SATISFIED'},rendered:true,reviewed_pages:2,total_pages:2}}};
-  data.turns=[{turn_id:'AT-1',state:'ACCEPTED',execution_state:'SETTLED',action}];data.jobs=[{turn_id:'AT-1',state:'COMPLETED'}];h.ui.setState(status());assistantTransport(h,data,posts);await h.ui.openAssistant();h.ui.applyLocale('en');
-  assert.match(h.document.ids['assistant-status'].textContent,/Current report completed with its required checks/);assert.match(h.document.ids['assistant-status'].textContent,/lecture.*Semantic review: PASS.*Revision requirements: SATISFIED.*1\/1/);assert.match(h.document.ids['assistant-status'].textContent,/minimal.*2\/2/);assert.match(h.document.ids['assistant-status'].textContent,/specified symbols/);assert.match(h.document.ids['assistant-context'].textContent,/1\. Background/);assert.match(h.document.ids['assistant-context'].textContent,/3\. Argument/);assert.doesNotMatch(h.document.ids['assistant-turns'].textContent,/Submitting a revision is not completion/);
-  action.result.state='RESOURCE_WAIT';h.ui.renderAssistant(data);assert.match(h.document.ids['assistant-status'].textContent,/Waiting for resources/);assert.match(h.document.ids['assistant-turns'].textContent,/Submitting a revision is not completion/);
-  action.result.state='COMPLETED_CURRENT_REPORT';data.turns[0].execution_state='UNKNOWN';h.ui.renderAssistant(data);assert.match(h.document.ids['assistant-status'].textContent,/Unknown original request outcome/);
+test('direct report revision submits exact selected section, body and prior version without assistant calls',async()=>{
+  const h=domHarness(),posts=[],target={report_id:'REPORT-exact',profile:'lecture',revision:4,body_hash:'c'.repeat(64),sections:[{id:'SECTION-3-exact',number:3,title:'Argument'}]};h.ui.setState(status());
+  h.setResponse(async(url,options)=>{if(url.pathname==='/api/report-revision-target')return target;if(url.pathname==='/api/action/revise-report'){posts.push(JSON.parse(options.body));return {state:'QUEUED'};}if(url.pathname==='/api/status')return status();if(url.pathname==='/api/workflow-graph')return {workflows:[]};if(url.pathname==='/api/reports')return {reports:[]};return {};});
+  await h.ui.reportRevision(false,{report_id:'REPORT-exact',selected_profiles:['lecture']},'lecture');h.document.ids['report-revision-sections'].children[0].selected=true;h.document.ids['report-revision-instruction'].value='Define the symbols in this section; retain all earlier requirements.';h.document.ids['report-revision-calls'].value='3';h.ui.setScope('WP-other','I-other');await submitDialog(h);
+  assert.equal(posts.length,1);assert.deepEqual(posts[0],{project:'WP-test',instance:'I-1',report_id:'REPORT-exact',profile:'lecture',revision:4,body_hash:'c'.repeat(64),instruction:'Define the symbols in this section; retain all earlier requirements.',scope:{kind:'SECTIONS',sections:['SECTION-3-exact']},report_calls:3});assert.equal(h.requests.some(r=>r.url.includes('assistant')),false);
 });

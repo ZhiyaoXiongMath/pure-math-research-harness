@@ -1,1 +1,1 @@
-"""TRW and TFDW share the research kernel and independent control contracts."""
+"""TRH and FDH share the research kernel and independent control contracts."""

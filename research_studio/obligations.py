@@ -44,11 +44,18 @@ def purpose(snapshot, obligation, consumer, role):
     return identity({'responsibility':responsibility_key(snapshot,obligation,consumer),'role':role}, 'PURPOSE-')
 
 def dependency_inputs(snapshot,definition):
+    """Only explicitly scientific dependencies supply mathematical bodies.
+
+    WORK_DISPOSITION_RECORDED / HUMAN_DECISION_RECORDED are gates. Their exact
+    accepted request identities are recorded by the consumer input planner;
+    completing a duty does not make every one of its outputs a premise.
+    """
     from .corrections import resolve_dependency
     refs=set()
     for original in definition.get('dependency_bindings',[]):
         dep=resolve_dependency(snapshot,original)
         if dep is None:continue
+        if dep.get('threshold') in {'WORK_DISPOSITION_RECORDED','HUMAN_DECISION_RECORDED'}:continue
         ref=dep.get('binding_ref')
         if ref in snapshot.get('records',{}):refs.add(ref)
         if ref in snapshot.get('obligations',{}):
@@ -63,11 +70,17 @@ def fingerprint(snapshot, obligation, consumer, *, method_ref=None):
     refs=set(d['target_refs']+d.get('scope_context_refs', [])+consumer.get('input_refs', [])+dependency_inputs(snapshot,d))
     sources=set(consumer.get('source_refs', []))
     selected_supports=consumer.get('selected_support_refs') or consumer.get('selected_supports', []) or ([consumer['selected_support']] if consumer.get('selected_support') else [])
+    input_plan=None
+    if consumer.get('input_plan'):
+        from .input_plans import build
+        input_plan=build(snapshot,obligation,consumer)
+        refs.update(input_plan['scientific_input_refs']);sources.update(input_plan['required_source_refs'])
     return identity({'records':{r:identity(snapshot.get('records',{}).get(r)) for r in sorted(refs)},
                      'sources':{r:identity(snapshot.get('sources',{}).get(r)) for r in sorted(sources)},
                      'supports':{r:identity(snapshot.get('supports',{}).get(r)) for r in sorted(selected_supports)},
                      'dependencies':d['dependency_bindings'], 'method':method_ref,
-                     'report_context':consumer.get('report_context')}, 'INPUT-')
+                     'report_context':consumer.get('report_context'),
+                     **({'input_plan_hash':input_plan['plan_hash']} if input_plan else {})}, 'INPUT-')
 
 def keys(snapshot, obligation, consumer, role, method_ref=None):
     p=purpose(snapshot,obligation,consumer,role)

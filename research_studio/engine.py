@@ -48,7 +48,7 @@ class Engine:
 
     def update_discovery_scope(self,store,instance_id,scope):
         s=store.read_snapshot();instance=W.select_instance(s,instance_id)
-        require(instance['kind']=='TFDW','DISCOVERY_SCOPE_INVALID','Only TFDW has discovery scope')
+        require(instance['kind']=='FDH','DISCOVERY_SCOPE_INVALID','Only FDH has discovery scope')
         require(not instance.get('mission_ids') and not any(t['instance_id']==instance_id for t in s['tasks'].values()),
                 'DISCOVERY_SCOPE_IMMUTABLE','只能补齐尚未授权或派发的发现草稿；请为新的范围另建流程。')
         # Existing fields remain immutable once a mission was authorized; callers
@@ -67,15 +67,15 @@ class Engine:
         return self.update_discovery_scope(store,instance_id,discovery_scope)
 
     def new_workflow(self,store,kind,*,name=None,target_ref=None,target=None,brief=None,discovery_scope=None,survey_scope=None):
-        require(kind in {'TRW','TFDW','SURVEY'},'WORKFLOW_KIND_INVALID',str(kind))
+        require(kind in {'TRH','FDH','SURVEY'},'WORKFLOW_KIND_INVALID',str(kind))
         if name is not None:require(isinstance(name,str) and 0<len(name.strip())<=200,'INSTANCE_NAME_INVALID','研究流程名称须为 1–200 字符。')
-        require(kind!='TRW' or not discovery_scope and brief is None,'DISCOVERY_SCOPE_INVALID','TRW uses a fixed target, not a discovery scope')
+        require(kind!='TRH' or not discovery_scope and brief is None,'DISCOVERY_SCOPE_INVALID','TRH uses a fixed target, not a discovery scope')
         require(not (target_ref and target is not None),'TARGET_REQUIRED','Choose an exact existing target or provide new original text')
-        require(kind=='TRW' or target is None,'TARGET_REQUIRED','TFDW does not have a fixed target')
+        require(kind=='TRH' or target is None,'TARGET_REQUIRED','FDH does not have a fixed target')
         source_ref=None;scope=None
         if target is not None:
             result=store.commit(changes.prepare_source_input(store.read_snapshot(),target,title=name or '研究题目',purpose='PROBLEM',blob_get=store.read_blob));target_ref=result['target_ref']
-        if kind=='TFDW':
+        if kind=='FDH':
             scope=self.prepare_discovery_scope(store,discovery_scope or {},brief=brief)
             source_ref=scope.get('phenomenon_ref')
         snapshot=store.read_snapshot();instance=W.new_instance(snapshot,kind,target_ref=target_ref,discovery_brief_ref=source_ref,
@@ -105,6 +105,7 @@ class Engine:
         return start_round(store,instance_id,intent,**options)
 
     def plan_work(self,store,instance_id,intent,items,**options):
+        require(store.read_snapshot()['instances'][instance_id]['kind']=='SURVEY','MAIN_DECISION_REQUIRED','Harness stages are selected by product MAIN; submit a research direction instead')
         from .research_plans import plan_work
         return plan_work(store,instance_id,intent,items,**options)
 
@@ -131,6 +132,16 @@ class Engine:
         receipt=store.commit_control(W.event(s,'RETIRE_CONSUMER',{'binding_id':binding_id,'reason':reason},
             instance_id=instance_id,mission_id=matches[0]['mission_id']))
         return {**receipt,'binding_id':binding_id,'model_calls':0,'status':'DEFERRED_WITH_REASON'}
+
+    def add_unsent_sources(self,store,instance_id,binding_id,source_refs,reason):
+        return execution.add_unsent_sources(store,instance_id,binding_id,source_refs,reason)
+
+    def add_unsent_inputs(self,store,instance_id,binding_id,input_refs,reason):
+        return execution.add_unsent_inputs(store,instance_id,binding_id,input_refs,reason)
+
+    def apply_strategy_proposal(self,store,request_id):
+        # The original capture owns both science and the atomic native plan.
+        return execution.recover(store,request_id)
 
     def run_round(self,store,instance_id,*,executor=None,max_tasks=1000):
         return run_round(store,instance_id,executor=executor,max_tasks=max_tasks)
@@ -177,8 +188,8 @@ class Engine:
                 'content_added':proposal.get('receipt',{}).get('content_added',[]),'model_calls':0,
                 'remaining_live_checks':['related inputs','scope membership','authorization and cancellation','write guards']}
 
-    def recover(self,store,request_id,*,check_only=False):
-        return execution.recover(store,request_id,check_only=check_only)
+    def recover(self,store,request_id,*,check_only=False,recheck=False,reason=None):
+        return execution.recover(store,request_id,check_only=check_only,recheck=recheck,reason=reason)
 
     def reconcile_unknown(self,store,instance_id,request_id,disposition,note,*,not_sent_evidence_ref=None):
         s=store.read_snapshot();W.select_instance(s,instance_id);request=s['requests'].get(request_id)
@@ -209,7 +220,7 @@ class Engine:
         return {**result,'instance_id':state['handoff_adoptions'][ref]['instance_id'],'status':'PAUSED','model_calls':0}
 
 
-def start_round(store,instance_id,intent,*,max_calls=8,max_workers=None,policy=None,model_overrides=None,max_research_attempts=1,allow_reports=True,report_first_actions=None,stage=None,selected_refs=None,source_refs=None,role=None,items=None,entry_basis=None):
+def start_round(store,instance_id,intent,*,max_calls=8,max_workers=None,policy=None,model_overrides=None,max_research_attempts=1,allow_reports=True,report_first_actions=None,stage=None,selected_refs=None,source_refs=None,role=None,items=None,entry_basis=None,p14_mode="AUTO_P14"):
     """Translate one human round form into an exact, finite native authorization.
 
     No model is used to translate or normalize the supplied intent. Later English
@@ -223,83 +234,18 @@ def start_round(store,instance_id,intent,*,max_calls=8,max_workers=None,policy=N
     if report_first_actions is not None:W.validate_report_first_actions(report_first_actions)
     s=store.read_snapshot();instance=W.select_instance(s,instance_id)
     max_workers=s.get('max_workers',1) if max_workers is None else max_workers
-    if items is not None or stage is not None and instance['kind']!='SURVEY':
-        from .research_plans import plan_work
-        work=items if items is not None else [{'key':'work','stage':stage,'role':role,'intent':intent,
-              'input_refs':list(selected_refs or []),'source_refs':list(source_refs or []),'entry_basis':entry_basis or {}}]
-        return plan_work(store,instance_id,intent,work,max_calls=max_calls,max_workers=max_workers,policy=policy,
-            model_overrides=model_overrides,max_research_attempts=max_research_attempts,allow_reports=allow_reports,
-            report_first_actions=report_first_actions)
+    require(instance['kind']=='SURVEY' or items is None and stage is None,
+            'MAIN_DECISION_REQUIRED','TRH and FDH research stages are selected by product MAIN; submit a research direction instead')
     if stage is None and items is None:
         from .autoflow import start_round as automatic_round
         return automatic_round(store,instance_id,intent,max_calls=max_calls,max_workers=max_workers,policy=policy,
             model_overrides=model_overrides,max_research_attempts=max_research_attempts,allow_reports=allow_reports,
-            report_first_actions=report_first_actions,selected_refs=selected_refs,source_refs=source_refs)
+            report_first_actions=report_first_actions,selected_refs=selected_refs,source_refs=source_refs,p14_mode=p14_mode)
     if instance['kind']=='SURVEY':
         from .survey import start_activity
         return start_activity(store,instance_id,stage,intent,max_calls=max_calls,max_workers=max_workers,policy=policy,
             model_overrides=model_overrides,max_research_attempts=max_research_attempts,allow_reports=allow_reports,report_first_actions=report_first_actions,selected_refs=selected_refs,source_refs=source_refs,role=role)
-    discovery_scope=W.validate_discovery_scope(s,instance)
-    if model_overrides is not None:
-        from .model_policy import merge_overrides
-        policy=deepcopy(policy or {});existing=deepcopy(policy.get('model_overrides',[]))
-        if policy.get('model_override'):existing.append(policy.pop('model_override'))
-        policy['model_overrides']=merge_overrides(existing,model_overrides,workflow_kind=instance['kind'],capabilities=policy.get('model_capabilities'))
-    require(instance['status']!='ENDED','AUTHORIZATION_REQUIRED','An ended workflow needs an explicit new research instance')
-    intent_ref=store.blob(intent.encode('utf-8'))
-    mid=identity({'instance':instance_id,'intent':intent_ref,'ordinal':len(instance['mission_ids'])+1},'MISSION-')
-    oid=identity({'instance':instance_id,'intent':intent_ref,'responsibility':'initial-research'},'OB-')
-    bid=identity({'mission':mid,'obligation':oid},'BINDING-');gid=identity({'mission':mid,'obligation':oid},'RETRY-')
-    # A genuinely new human round may share an existing scientific responsibility.
-    # The identity/ledger is not reset by the new mission wrapper.
-    targets=[instance['target_ref']] if instance['kind']=='TRW' else []
-    if instance['kind']=='TRW':
-        stage,role,kind='P4','RESEARCH','ESTABLISH'
-        criterion='Investigate the exact fixed target under its original hypotheses and quantifiers, within the attached human research intent. Produce an actual argument, construction or precisely located failure. If a concrete missing step is discovered, propose only that bounded responsibility. Do not replace the original target or claim proof from task completion.'
-    else:
-        stage,role,kind='D1','LEARN','APPLICABILITY'
-        criterion='Investigate the supplied phenomenon and the exact human discovery intent. Preserve the immutable background and permitted variation axes. Account for positive, negative and unknown evidence. Propose a precise candidate or a concrete bounded formulation or discrimination responsibility only when justified; zero candidates is a valid outcome.'
-    criterion_ref=store.blob(criterion.encode())
-    source_refs=list(source_refs or [])
-    require(all(ref in s.get('sources',{}) for ref in source_refs),'INCOMPLETE_CONTEXT','Selected sources are unavailable')
-    require(all(ref in s.get('records',{}) for ref in selected_refs or []),'INCOMPLETE_CONTEXT','Selected knowledge is unavailable')
-    # The intent itself is an immutable user source, so it is present in every
-    # actual request and counted in the model context rather than just named.
-    intent_receipt=store.commit(changes.prepare_source_input(s,intent.encode(),title='Human research intent',purpose='PHENOMENON',blob_get=store.read_blob))
-    source_refs.append(intent_receipt['source_ref']);s=store.read_snapshot()
-    inherited=s.get('handoffs',{}).get(instance.get('inherited_handoff_ref'),{})
-    inherited_refs=list(dict.fromkeys(inherited.get('context_refs',[])+inherited.get('argument_refs',[])+inherited.get('example_refs',[])+([inherited['target_ref']] if inherited.get('target_ref') else [])+list(selected_refs or [])))
-    consumer={'binding_id':bid,'instance_id':instance_id,'mission_id':mid,'stage_id':stage,'role':role,
-              'retry_grant_id':gid,'method_ref':'INITIAL_INVESTIGATION','scope':{'target_refs':targets,'intent_ref':intent_ref},
-              'entry_basis':{},'input_refs':inherited_refs,'source_refs':sorted(set(source_refs)),'threshold':'ARTIFACT_AVAILABLE',
-              'success_criterion':criterion_ref,'ready_since':s.get('_snapshot_sequence',0)}
-    obligation=O.make(oid,kind,targets,criterion_ref,consumer_bindings=[consumer],created_by='HUMAN_SCOPE',effect='FIXED_TARGET_RESEARCH' if targets else 'DISCOVERY_EVIDENCE')
-    if oid in s['obligations']:
-        # Exact repeated round intent shares the original responsibility. The
-        # existing definition and attempts are retained; add the new consumer
-        # after authorization through the typed host path.
-        obligation=None
-    mission={'mission_id':mid,'instance_id':instance_id,'intent_ref':intent_ref,'authorized_scope':{
-                'target_refs':targets,'source_refs':sorted(set(source_refs)),'allow_derived_work':True,
-                'max_research_attempts':max_research_attempts,'formal_target_review':instance['kind']=='TRW',
-                'formulation_review':instance['kind']=='TFDW','reports':bool(allow_reports)},'budget_grant_id':'BUDGET-'+mid,
-             'obligations':[obligation] if obligation else [],'retry_grants':[{'grant_id':gid,'obligation_id':oid,
-                'method_ref':'INITIAL_INVESTIGATION','max_research_attempts':max_research_attempts,
-                'max_responsibility_attempts':max_research_attempts,'reason_ref':intent_ref}] if obligation else []}
-    if discovery_scope:
-        consumer['scope']['discovery_scope']=deepcopy(discovery_scope)
-        mission['authorized_scope']['discovery_scope']=deepcopy(discovery_scope)
-    if report_first_actions:mission['report_first_actions']=list(report_first_actions)
-    budget={'budget_grant_id':mission['budget_grant_id'],'max_calls':max_calls,'max_workers':max_workers,
-            'execution_policy':{**deepcopy(policy or {}),'max_workers':max_workers}}
-    receipt=store.commit_control(W.authorize_event(s,instance_id,mission,budget))
-    if not obligation:
-        current=store.read_snapshot();existing=deepcopy(current['obligations'][oid]);existing['definition']['consumer_bindings'].append(consumer);existing['definition']['definition_revision']+=1
-        store.commit_execution(execution.event('ASSIGN_OBLIGATION',{'instance_id':instance_id,'mission_id':mid,'obligation':existing,
-            'retry_grant':{'grant_id':gid,'obligation_id':oid,'method_ref':'INITIAL_INVESTIGATION','max_research_attempts':max_research_attempts,
-                'max_responsibility_attempts':max_research_attempts},'authorization_basis_ref':intent_ref}))
-    return {**receipt,'instance_id':instance_id,'mission_id':mid,'status':'ACTIVE','model_calls':0,
-            'message_zh':'已记录本轮研究目的和调用上限；后台按具体义务运行，不逐阶段重复询问。'}
+    raise PMRSError('MAIN_DECISION_REQUIRED','Use the product MAIN research entry point')
 
 
 def _assign_followup(store,instance,mission,obligation,consumer,*,basis_ref):
@@ -307,6 +253,9 @@ def _assign_followup(store,instance,mission,obligation,consumer,*,basis_ref):
     if proposed['definition']['obligation_id'] in store.read_snapshot()['obligations']:
         proposed['definition']['consumer_bindings'].append(consumer);proposed['definition']['definition_revision']+=1
     else:proposed['definition']['consumer_bindings']=[consumer]
+    from .input_plans import enrich_consumer
+    consumer=enrich_consumer(store.read_snapshot(),proposed,consumer,blob_get=store.read_blob)
+    proposed['definition']['consumer_bindings']=[consumer if c['binding_id']==consumer['binding_id'] else c for c in proposed['definition']['consumer_bindings']]
     oid=proposed['definition']['obligation_id'];grant={'grant_id':consumer['retry_grant_id'],'obligation_id':oid,
         'method_ref':consumer.get('method_ref'),'max_research_attempts':mission['authorized_scope'].get('max_research_attempts',1)}
     if consumer.get('max_responsibility_attempts'):grant['max_responsibility_attempts']=consumer['max_responsibility_attempts']
@@ -315,93 +264,9 @@ def _assign_followup(store,instance,mission,obligation,consumer,*,basis_ref):
 
 
 def derive_followups(store,instance_id):
-    """Bind only accepted concrete gaps and explicitly required review scopes.
-
-    There is no phase counter and no rule which runs every available role.
-    """
-    from . import obligations as O,assurance,contracts as C
-    s=store.read_snapshot();instance=W.select_instance(s,instance_id);mission=s['missions'].get(instance['current_mission_id'])
-    if not mission or instance['status']!='ACTIVE':return []
-    if instance['kind']=='SURVEY':
-        from .autoflow import advance
-        return advance(store,instance_id)
-    mid=mission['mission_id'];created=[]
-    from .workflows import trw,tfdw
-    workflow=trw if instance['kind']=='TRW' else tfdw
-    for oid,o in list(s['obligations'].items()):
-        d=o['definition']
-        if d['consumer_bindings']:continue
-        origin=[r for r in s['requests'].values() if r['mission_id']==mid and 'CHANGE-'+str(r.get('capture_ref'))==d.get('created_by')]
-        if not origin:continue
-        from .autoflow import proposal_activity
-        origin_stages={s['tasks'][request['task_id']]['stage_id'] for request in origin}
-        activity=proposal_activity(d,next(iter(origin_stages),None),instance['kind']) or workflow.activity_for_obligation(d)
-        if not activity:continue
-        stage,role,basis=activity
-        # A concrete attempt requested by method synthesis or targeted research
-        # remains P8 work, including its first proof/construction attempt.
-        if instance['kind']=='TRW' and origin_stages & {'P7','P8'} and d['type'] in {'ESTABLISH','REFUTE'}:
-            stage,role='P8','RESEARCH' if d['type']=='ESTABLISH' else 'FALSIFY'
-        consumer={'binding_id':identity({'mission':mid,'obligation':oid,'role':role},'BINDING-'),
-            'instance_id':instance_id,'mission_id':mid,'stage_id':stage,'role':role,'entry_basis':basis,
-            'retry_grant_id':identity({'mission':mid,'obligation':oid,'role':role},'RETRY-'),'method_ref':'ACCEPTED_CONCRETE_GAP',
-            'scope':{'target_refs':d['target_refs']},'threshold':'ARTIFACT_AVAILABLE',
-            'source_refs':sorted({item['ref'] for request in origin for item in s['tasks'][request['task_id']].get('input_manifest',[])
-                if item['kind']=='source'}) if d['type'] in {'APPLICABILITY','MATERIAL'} else []}
-        if mission['authorized_scope'].get('autoflow'):
-            from .autoflow import _bindings,_branch
-            consumer['entry_basis']['autoflow']={'mission_id':mid,'key':oid,'reused_work':{}}
-            consumer['entry_basis']['research_plan']={'plan_id':'AUTOFLOW-'+mid,'branch_key':oid,
-                'selected_branches':[_branch(x,y) for x,y in _bindings(s,instance_id,mid)],
-                'common_input_refs':mission['authorized_scope']['autoflow']['selected_refs'],
-                'common_source_refs':mission['authorized_scope']['autoflow']['source_refs'],
-                'plan_intent':'Accepted concrete mathematical gap'}
-        created.append(_assign_followup(store,instance,mission,o,consumer,basis_ref=d['created_by']))
-    s=store.read_snapshot()
-    # Only original-target candidate arguments trigger the existing formal dual
-    # consumer. Other intermediate artifacts remain usable without extra review.
-    if instance['kind']=='TRW' and mission['authorized_scope'].get('formal_target_review'):
-        for support_id,support in list(s.get('supports',{}).items()):
-            if support['statement_ref']!=instance['target_ref']:continue
-            author=s.get('tasks',{}).get(support.get('author_task_id'),{})
-            if author.get('mission_id')!=mid:continue
-            if any(x['support_id']==support_id for x in s.get('coverage_plans',{}).values()):continue
-            argument=support['argument_ref']
-            scope=[{'target_ref':ref,'locators':[],'aspects':['full_argument' if ref==argument else 'original_target']} for ref in [instance['target_ref'],argument]]
-            req=assurance.requirement('REFUTATION_SUPPORT' if s['records'][argument]['data']['mode']=='REFUTATION' else 'PROOF_SUPPORT',scope,review_mode='TARGET_DUAL')
-            evaluation=assurance.evaluate_requirement(s,support_id,req)
-            for slot in req['review_slots']:
-                if slot['slot_id'] not in evaluation['missing_slots']:continue
-                role=slot['allowed_roles'][0];oid=identity({'support':support_id,'review_slot':slot['slot_id'],'scope':scope},'OB-')
-                if oid in s['obligations']:continue
-                criterion=store.blob(('Independently examine the exact original target and selected candidate argument for '+slot['review_kind']+'. Cover the entire frozen scope, retain all unchecked parts, and state defects or uncertainty honestly.').encode())
-                c={'binding_id':'BINDING-'+oid,'instance_id':instance_id,'mission_id':mid,'stage_id':'P9','role':role,
-                    'retry_grant_id':'RETRY-'+oid,'method_ref':'INDEPENDENT_TARGET_AUDIT','scope':scope,'input_refs':[argument],
-                    'source_refs':[],'threshold':'WORK_DISPOSITION_RECORDED',
-                    'required_assurance':req,'selected_support':support_id,'policy_digest':C.digest(req),
-                    'entry_basis':{'consumer_requirement':req},'author_execution_event':support.get('author_execution_event')}
-                o=O.make(oid,'VERIFY',[instance['target_ref']],criterion,created_by=argument,effect='FORMAL_ORIGINAL_TARGET_REVIEW')
-                created.append(_assign_followup(store,instance,mission,o,c,basis_ref=argument));s=store.read_snapshot()
-    discovery_ready=not mission['authorized_scope'].get('autoflow') or any(c['stage_id']=='D3' and O.dependency_met(s,
-        {'binding_ref':oid,'binding_id':c['binding_id'],'threshold':'WORK_DISPOSITION_RECORDED'})
-        for oid,o in s['obligations'].items() for c in o['definition']['consumer_bindings'] if c['mission_id']==mid)
-    if instance['kind']=='TFDW' and mission['authorized_scope'].get('formulation_review') and discovery_ready:
-        refs=sorted({c['statement_ref'] for c in s.get('candidates',{}).values() if c['instance_id']==instance_id})
-        if refs:
-            oid=identity({'frontier':refs,'instance':instance_id,'purpose':'FORMULATION'},'OB-')
-            if oid not in s['obligations']:
-                scope=[{'target_ref':r,'locators':[],'aspects':['formulation_precision','counterevidence','inter_candidate_comparisons','hypothesis_cost','explanation_boundary']} for r in refs]
-                req=assurance.requirement('FORMULATION',scope)
-                criterion=store.blob(b'Independently examine the exact candidate frontier, quantifiers, hypothesis costs, positive and negative evidence, and unknown comparisons. Preference cannot grant proof support.')
-                c={'binding_id':'BINDING-'+oid,'instance_id':instance_id,'mission_id':mid,'stage_id':'D4','role':'FORMULATION_REVIEW',
-                    'retry_grant_id':'RETRY-'+oid,'method_ref':'INDEPENDENT_FORMULATION_REVIEW','scope':scope,
-                    'input_refs':refs,'source_refs':[],'threshold':'WORK_DISPOSITION_RECORDED',
-                    'required_assurance':req,'entry_basis':{}}
-                o=O.make(oid,'VERIFY',refs,criterion,created_by=refs[0],effect='FORMULATION_ONLY')
-                created.append(_assign_followup(store,instance,mission,o,c,basis_ref=refs[0]))
+    """Only relay scientific events to MAIN; Survey retains linear advancement."""
     from .autoflow import advance
-    created.extend(advance(store,instance_id))
-    return created
+    return advance(store,instance_id)
 
 
 def _close_accounted_visits(store,instance_id):
@@ -432,16 +297,32 @@ def run_round(store,instance_id,*,executor=None,max_tasks=1000):
     report_waits={}
     def refresh_work(current_store,*_):
         current=current_store.read_snapshot();before=current['knowledge_commit']
+        for request in current['requests'].values():
+            if request['execution_state']=='PREPARED' and current['tasks'][request['task_id']].get('purpose')=='PROJECT_ASSISTANT':
+                current_store.commit_execution(execution.event('LEGACY_ASSISTANT_RETIRED_UNSENT',{
+                    'request_id':request['request_id'],'reason':'4.2.2 removed new assistant dispatch. This unsent original task and its history remain readable.'}))
         authorized[:]=[iid for iid,row in current['instances'].items() if row['status']=='ACTIVE' and row.get('current_mission_id') in current['missions']]
         for selected_instance in authorized:
             now=current_store.read_snapshot()['instances'][selected_instance]
             if now['status']!='ACTIVE':continue
             from . import corrections
-            corrections.advance(current_store,selected_instance)
-            if not any(not c['complete'] for c in corrections.pending(current_store.read_snapshot(),selected_instance)):
+            if now['kind']=='SURVEY':corrections.advance(current_store,selected_instance)
+            if now['kind'] in {'TRH','FDH'} or not any(not c['complete'] for c in corrections.pending(current_store.read_snapshot(),selected_instance)):
                 derive_followups(current_store,selected_instance)
-            scheduler.derive_coverage_integration(current_store,selected_instance)
+            if now['kind']=='SURVEY':scheduler.derive_coverage_integration(current_store,selected_instance)
             _close_accounted_visits(current_store,selected_instance)
+        from . import communication
+        snapshot=current_store.read_snapshot();groups={}
+        for task in snapshot.get('tasks',{}).values():
+            gid=task.get('communication_contract',{}).get('group_ref')
+            if gid and task['instance_id'] in authorized:
+                groups.setdefault(gid,[]).append(task['request_id'])
+        for gid,requests in groups.items():
+            if len(requests)<2:continue
+            old=snapshot.get('collaboration_groups',{}).get(gid)
+            if old and set(old['request_ids'])==set(requests):continue
+            communication.bind_group(current_store,requests,'Accepted main scientific collaboration',
+                'The accepted native plan binds these exact frozen responsibilities to one cooperative interface.',group_id=gid)
         # Explicitly requested reports join the same live project queue, including
         # requests made while another workflow has slow model calls in flight.
         from . import reports
@@ -458,7 +339,6 @@ def run_round(store,instance_id,*,executor=None,max_tasks=1000):
                     report_waits[rid]={'code':exc.code,'message':exc.message,'report_id':rid,'model_calls':0}
                 else:raise
         return current_store.read_snapshot()['knowledge_commit']!=before
-    refresh_work(store)
     try:
         # One live queue refills on each result; independent slow requests stay active.
         result=run(store,instance_ids=authorized,executor=executor,max_tasks=max_tasks,
@@ -470,4 +350,8 @@ def run_round(store,instance_id,*,executor=None,max_tasks=1000):
         return result
     except PMRSError as exc:
         if exc.code=='COORDINATOR_BUSY':return {'state':'COORDINATOR_ACTIVE','tasks':[],'model_calls':0}
+        from .rounds import record
+        from . import incidents
+        incidents.detect(store,instance_id,exc,location='Engine.run_round')
+        record(store,instance_id,{'state':'FAULT','error':{'code':exc.code,'message':str(exc)}})
         raise

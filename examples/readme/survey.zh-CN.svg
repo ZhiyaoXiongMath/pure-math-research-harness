@@ -60,6 +60,6 @@
 <text x="190" y="646" font-size="18" font-weight="700" fill="#355f9f" text-anchor="middle">可迭代，但需具体依据</text>
 <text x="190" y="675" font-size="15" font-weight="400" fill="#4b6179" text-anchor="middle">变化输入、具体问题、有限授权</text>
 <rect x="38" y="736" width="1004" height="75" rx="14" fill="#fff" stroke="#d8e1eb" stroke-width="1.5"/>
-<text x="60" y="767" font-size="20" font-weight="600" fill="#805211" text-anchor="start">人工交接：精确命题／范围 → 新的暂停 TRW 或 TFDW</text>
+<text x="60" y="767" font-size="20" font-weight="600" fill="#805211" text-anchor="start">人工交接：精确命题／范围 → 新的暂停 TRH 或 FDH</text>
 <text x="60" y="796" font-size="17" font-weight="400" fill="#4b6179" text-anchor="start">单独授权后启动；交接不会授予证明资格。更新已结束调查须创建关联实例。</text>
 </svg>

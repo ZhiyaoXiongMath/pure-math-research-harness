@@ -136,7 +136,8 @@ def status(snapshot,store,*,instance_id=None):
     return {'commit':snapshot['knowledge_commit'],'project_id':snapshot['project_id'],'title':snapshot['title'],
             'mathematical':{'target_refs':[i['target_ref'] for i in instances.values() if i.get('target_ref')],
                 'records':len(scope_refs(snapshot,instance_id)&set(snapshot['records'])),'qualification':'EXACT_CONSUMER_SCOPE_ONLY','formal_proof':'NOT_GRANTED'},
-            'workflow':{'instances':deepcopy(list(instances.values())),'automatic_next_round':False},
+            'workflow':{'instances':deepcopy(list(instances.values())),
+                'automatic_next_round':any(i.get('run_control',{}).get('mode')=='AUTO_P14' for i in instances.values())},
             'execution':{'requests':[{k:r.get(k) for k in ('request_id','execution_state','capture_ref','usage','fenced')} for r in requests],
                 'running_processes':'NOT_INFERRED_FROM_WORKFLOW_STATUS','unknown':sum(r['execution_state']=='UNKNOWN' for r in requests)},
             'acceptance':{'pending_captures':sum(r['execution_state']=='CAPTURED' for r in requests),
@@ -144,6 +145,187 @@ def status(snapshot,store,*,instance_id=None):
             'report':catalog(store,snapshot,instance_id),'language_policy':snapshot['language_policy'],
             'native_usage':deepcopy(snapshot.get('usage',{})),
             'read_only':True,'model_calls':0}
+
+
+def task_artifacts(snapshot,store,task_id,*,instance_id=None):
+    """An exact task-scoped allowlist, never an arbitrary blob/path reader."""
+    from .util import canonical, safe_path
+    from .tasks import model_task_payload
+    from .runner import input_files
+    task=snapshot.get('tasks',{}).get(task_id)
+    require(task is not None and (instance_id is None or task['instance_id']==instance_id),
+            'TASK_UNKNOWN','Choose an existing task in the selected instance.')
+    request=snapshot['requests'][task['request_id']];artifacts={}
+    def add(section,name,*,digest=None,raw=None,path=None,math=False,metadata=None):
+        key=identity([section,name,digest], 'ARTIFACT-')
+        artifacts[key]={'artifact_id':key,'section':section,'name':name,'sha256':digest,
+            'math':math,'metadata':deepcopy(metadata or {}),'_raw':raw,'_path':path}
+    add('inputs','task.json',raw=canonical(model_task_payload(task)))
+    add('metadata','native-task.json',raw=canonical(task))
+    add('metadata','request.json',raw=canonical(request))
+    accepted=snapshot.get('accepted_requests',{}).get(request['request_id'])
+    if accepted:add('acceptance','accepted-request.json',raw=canonical(accepted))
+    if request.get('acceptance_state','').startswith('REJECTED'):
+        add('acceptance','rejection.json',raw=canonical({k:request.get(k) for k in
+            ('request_id','capture_ref','acceptance_state','admission_error','admission_diagnostic','receipt_ref')}))
+    for path,digest in input_files(task).items():
+        add('inputs' if path in {'packet.json','prompt.md'} else 'materials',path,digest=digest,
+            metadata=task.get('material_refs',{}).get(digest,{}))
+    for name in ('client-system.md','bootstrap.txt'):
+        path=safe_path(store.root,'runs/'+task_id+'/'+name)
+        if path.is_file():add('inputs',name,path=path)
+    if task.get('method_manual',{}).get('blob_ref'):
+        add('materials','MAIN-method-handbook.md',digest=task['method_manual']['blob_ref'],metadata=task['method_manual'])
+    if task.get('input_packet_ref')!=task.get('model_packet_ref',task.get('input_packet_ref')):
+        add('metadata','native-input-packet.json',digest=task['input_packet_ref'])
+    origin=request.get('repair_of',request['request_id'])
+    family=[r for r in snapshot['requests'].values() if r['request_id']==origin or r.get('repair_of')==origin]
+    for row in family:
+        if row.get('capture_ref'):
+            add('repairs' if row.get('repair_of') else 'outputs',row['request_id']+'.json',digest=row['capture_ref'],
+                metadata={k:row.get(k) for k in ('request_id','task_id','repair_kind','repair_index','acceptance_state','admission_error','admission_diagnostic')})
+    for production in snapshot.get('production_events',{}).values():
+        if production.get('task_id')!=task_id:continue
+        ref=production.get('record_ref');record=snapshot['records'].get(ref)
+        if record:add('science',ref+'.md',digest=record['body_sha256'],math=True,metadata=record)
+    rid=request['request_id']
+    message_ids={d for row in snapshot.get('input_deliveries',{}).values() if row.get('request_id')==rid for d in row.get('message_ids',[])}
+    for mid,row in snapshot.get('research_messages',{}).items():
+        if row.get('sender_request_id')==rid or row.get('recipient_request_id')==rid or mid in message_ids:
+            add('communication',mid+'.txt',digest=row['body_ref'],metadata=row)
+    for did,row in snapshot.get('input_deliveries',{}).items():
+        if row.get('request_id')==rid:add('deliveries',did+'.json',digest=row['response_ref'],metadata=row)
+    for name in ('events.jsonl','stderr.log','capture.json','command.json','execution-profile.json','client-profile.json','input-manifest.json',
+            'native-request.json','native-input-mapping.json','thread-resume.json','thread-resume-result.json'):
+        path=safe_path(store.root,'runs/'+task_id+'/'+name)
+        if path.is_file():add('logs',name,path=path)
+    for turn in snapshot.get('native_main_turns',{}).values():
+        if turn.get('request_id')==rid:
+            add('metadata','native-turn-'+turn['turn_id']+'.json',raw=canonical(turn))
+    for recovery in snapshot.get('main_execution_recoveries',{}).values():
+        if recovery.get('instance_id')!=task['instance_id'] or recovery.get('request_id')!=rid:continue
+        key=recovery['recovery_id'];add('metadata',key+'.json',raw=canonical(recovery))
+        for field,name,section in [('native_rollout_ref','original-native-failure.jsonl','logs'),
+                ('repaired_runtime_manifest_ref','repaired-runtime-manifest.json','metadata'),
+                ('thread_start_evidence_ref','original-thread-start.json','metadata')]:
+            if recovery.get(field):add(section,key+'-'+name,digest=recovery[field])
+    return artifacts
+
+
+def task_artifact_bytes(row,store):
+    from .util import read
+    if row['_raw'] is not None:return row['_raw']
+    if row['_path'] is not None:return read(row['_path'],64*1024**2)
+    return store.read_blob(row['sha256'])
+
+
+def task_detail(snapshot,store,task_id,*,instance_id=None):
+    from .usage_ledger import request_usage
+    from .incidents import project as incident_projection
+    rows=task_artifacts(snapshot,store,task_id,instance_id=instance_id)
+    task=snapshot['tasks'][task_id];rid=task['request_id'];request=snapshot['requests'][rid]
+    artifacts=[]
+    for row in rows.values():
+        raw=task_artifact_bytes(row,store)
+        try:raw.decode('utf-8');textual=b'\0' not in raw
+        except UnicodeDecodeError:textual=False
+        artifacts.append({k:v for k,v in row.items() if not k.startswith('_')} | {
+            'sha256':row['sha256'] or sha(raw),'bytes':len(raw),'textual':textual,
+            'live':row['section']=='logs' and request['execution_state'] in {'RESERVED','SENT','UNKNOWN'}})
+    dependencies=[]
+    for binding in task.get('obligation_bindings',[]):
+        obligation=snapshot.get('obligations',{}).get(binding['obligation_id'],{})
+        definition=obligation.get('definition',{})
+        dependencies.append({'binding':binding,'definition':deepcopy(definition),
+            'criterion':store.read_blob(definition['criterion_body_ref']).decode() if definition.get('criterion_body_ref') else None,
+            'projection':deepcopy(obligation.get('projection',{}))})
+    return {'commit':snapshot['knowledge_commit'],'task':deepcopy(task),'request':deepcopy(request),
+        'artifacts':artifacts,'duties':dependencies,'usage':request_usage(snapshot,rid),
+        'message_acks':[deepcopy(row) for row in snapshot.get('message_acks',{}).values() if row.get('request_id')==rid],
+        'input_window':deepcopy(snapshot.get('input_windows',{}).get(rid)),
+        'backend_turns':[deepcopy(row) for row in snapshot.get('backend_usage',{}).values() if row.get('request_id')==rid],
+        'native_delegation':[deepcopy(row) for row in snapshot.get('delegation_observations',{}).values() if row.get('request_id')==rid],
+        'incidents':[incident_projection(snapshot,row) for row in snapshot.get('incidents',{}).values() if row.get('request_id')==rid or row.get('task_id')==task_id],
+        'read_only':True,'model_calls':0}
+
+
+RESEARCH_MEMORY_MAPS={'checkpoint':'research_checkpoints','audit':'research_audits',
+    'guidance':'research_guidance','event':'research_audit_events','recovery':'main_execution_recoveries'}
+
+
+def research_memory(snapshot,store,kind,record_id,*,instance_id,offset=0,limit=24000):
+    """Read published research or immutable recovery evidence, not replay caches."""
+    require(kind in RESEARCH_MEMORY_MAPS,'RESEARCH_MEMORY_UNKNOWN','Choose an instance-bound research or maintenance record.')
+    row=snapshot.get(RESEARCH_MEMORY_MAPS[kind],{}).get(record_id)
+    require(row is not None and row.get('instance_id')==instance_id,'UNAUTHORIZED','Research memory belongs to another instance or does not exist.')
+    require(kind not in {'checkpoint','audit','guidance'} or row.get('status')=='PUBLISHED','RESEARCH_MEMORY_UNPUBLISHED','Only published MAIN research records are readable as research memory.')
+    require(type(offset) is int and offset>=0 and type(limit) is int and 1<=limit<=64000,'PAGE_INVALID','Choose a bounded body page.')
+    body_ref=next((row.get(key) for key in ('body_ref','body_sha256','checkpoint_body_ref','summary_body_ref') if isinstance(row.get(key),str)),None)
+    body=store.read_blob(body_ref).decode('utf-8') if body_ref else next((row[key] for key in ('body','summary','text') if isinstance(row.get(key),str)),'')
+    rid=row.get('author_request_id') or row.get('request_id') or row.get('main_request_id')
+    request=snapshot.get('requests',{}).get(rid,{})
+    if request.get('instance_id')!=instance_id:request={}
+    task=snapshot.get('tasks',{}).get(request.get('task_id'),{})
+    invalidated=[]
+    for ref in row.get('evidence_refs',[]):
+        source_status=snapshot.get('survey_source_status',{}).get(ref,{})
+        linked=[(sid,support) for sid,support in snapshot.get('supports',{}).items()
+            if ref in {support.get('statement_ref'),support.get('argument_ref')}]
+        if ref not in snapshot.get('records',{}) and ref not in snapshot.get('sources',{}):invalidated.append(ref)
+        elif source_status.get('withdrawn') or source_status.get('version_conflict'):invalidated.append(ref)
+        elif any(support.get('needs_recheck') or any(w.get('support_id')==sid and w.get('active',True)
+            for w in snapshot.get('withdrawals',{}).values()) for sid,support in linked):invalidated.append(ref)
+    return {'commit':snapshot['knowledge_commit'],'instance_id':instance_id,'kind':kind,'record_id':record_id,
+        'record':deepcopy(row),'body':body[offset:offset+limit],'body_ref':body_ref,'total_chars':len(body),
+        'offset':offset,'next_offset':offset+limit if offset+limit<len(body) else None,
+        'origin_task':{**{k:task.get(k) for k in ('task_id','stage_id','role','instance_id')},
+            'request_id':request.get('request_id')} if task else None,
+        'author_request_id':request.get('request_id'),
+        'applicability':{'as_of_commit':snapshot['knowledge_commit'],'invalidated_refs':invalidated,
+            'assessment':'INVALIDATED_EVIDENCE' if invalidated else 'NO_INVALIDATION_DETECTED_IN_NATIVE_FLAGS',
+            'mathematical_qualification':False},
+        'original_output_available':bool(request.get('capture_ref')),'read_only':True,'model_calls':0}
+
+
+def research_memory_bytes(snapshot,store,kind,record_id,*,instance_id,format='body'):
+    from .util import canonical
+    detail=research_memory(snapshot,store,kind,record_id,instance_id=instance_id,limit=1)
+    require(format in {'body','record','output'},'PATH_INVALID','Choose body, native record or original output.')
+    row=detail['record']
+    if format=='record':return canonical(row),'application/json; charset=utf-8'
+    if format=='output':
+        rid=detail['author_request_id'];request=snapshot.get('requests',{}).get(rid,{})
+        require(request.get('capture_ref'),'RESEARCH_OUTPUT_UNAVAILABLE','No original MAIN output is bound to this record.')
+        expected=row.get('author_capture_ref') or (row.get('capture_ref') if kind=='recovery' else None)
+        if expected:require(expected==request['capture_ref'],'ORIGINAL_BYTES_MISMATCH','Record and original MAIN capture identity differ.')
+        return store.read_blob(request['capture_ref']),'application/json; charset=utf-8'
+    if detail['body_ref']:return store.read_blob(detail['body_ref']),'text/plain; charset=utf-8'
+    text=next((row[key] for key in ('body','summary','text') if isinstance(row.get(key),str)),'')
+    require(bool(text),'RESEARCH_BODY_UNAVAILABLE','This event has no separate research body; download its native record.')
+    return text.encode('utf-8'),'text/plain; charset=utf-8'
+
+
+NATIVE_MAIN_FILES={'protocol':'protocol.jsonl','stderr':'stderr.log'}
+
+
+def native_main_files(snapshot,store,instance_id):
+    """Instance-owned shared transport streams, distinct from a task capture."""
+    from .util import safe_path
+    instance=snapshot.get('instances',{}).get(instance_id)
+    require(instance and instance['kind'] in {'TRH','FDH'},'MAIN_NOT_APPLICABLE','Select a harness instance with its own MAIN.')
+    rows=[]
+    for key,name in NATIVE_MAIN_FILES.items():
+        path=safe_path(store.root,'execution/native-main/'+instance_id+'/'+name)
+        if path.is_file():rows.append({'file':key,'name':name,'bytes':path.stat().st_size,'live':True})
+    return {'commit':snapshot['knowledge_commit'],'instance_id':instance_id,'scope':'INSTANCE_SHARED_NATIVE_MAIN_STREAM',
+        'files':rows,'read_only':True,'model_calls':0}
+
+
+def native_main_file_path(snapshot,store,instance_id,file):
+    from .util import safe_path
+    listing=native_main_files(snapshot,store,instance_id)
+    require(file in {row['file'] for row in listing['files']},'PATH_INVALID','Select an existing original stream from this MAIN instance.')
+    return safe_path(store.root,'execution/native-main/'+instance_id+'/'+NATIVE_MAIN_FILES[file])
 
 
 

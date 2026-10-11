@@ -34,12 +34,12 @@ class WebApplicationTests(unittest.TestCase):
         with closing(http.client.HTTPConnection('127.0.0.1',self.server.server_port,timeout=30)) as c:
             c.request(method,path,body=canonical(p) if p is not None else None,headers=headers);r=c.getresponse();raw=r.read();h=dict(r.getheaders())
             return r.status,json.loads(raw) if h.get('Content-Type','').startswith('application/json') else raw,h
-    def create(self,kind='TRW'):
-        p={'kind':kind,'title':'<script>alert(1)</script> 原始项目','text':demo.ARITHMETIC.decode() if kind=='TRW' else 'Positive definite symmetric matrices and their eigenvalues.'}
+    def create(self,kind='TRH'):
+        p={'kind':kind,'title':'<script>alert(1)</script> 原始项目','text':demo.ARITHMETIC.decode() if kind=='TRH' else 'Positive definite symmetric matrices and their eigenvalues.'}
         code,r,h=self.req('POST','/api/action/example',p,key='create-'+kind+'-1234567890123456');self.assertEqual(code,200,r)
         return r
     def test_authenticated_business_actions_csrf_origin_and_idempotence(self):
-        p={'kind':'TRW','title':'Example','text':'For every n, n + 0 = n.'}
+        p={'kind':'TRH','title':'Example','text':'For every n, n + 0 = n.'}
         for kw in ({'session':False},{'csrf':'bad'},{'origin':'https://evil.invalid'}):
             code,r,_=self.req('POST','/api/action/create',p,**kw);self.assertEqual(code,403,r)
         self.assertEqual(self.w.list()['projects'],[])
@@ -80,7 +80,7 @@ class WebApplicationTests(unittest.TestCase):
         code,script,_=self.req('GET','/static/workbench.js');self.assertEqual(code,200);self.assertNotIn(b'innerHTML',script)
     def test_public_handoff_and_binary_upload_preserve_target(self):
         created=self.create();store=self.w.project(created['project']);iid=created['instance_id'];target=store.read_snapshot()['instances'][iid]['target_ref']
-        code,r,_=self.req('POST','/api/action/handoff',{'project':created['project'],'instance':iid,'direction':'TRW_TO_TFDW','brief':'Explore precise variants and counterexamples.','discovery_scope':demo.discovery_scope('Explore precise variants and counterexamples.'),'note':'Study variations without changing the original target.'},key='handoff-123456789012345678')
+        code,r,_=self.req('POST','/api/action/handoff',{'project':created['project'],'instance':iid,'direction':'TRH_TO_FDH','brief':'Explore precise variants and counterexamples.','discovery_scope':demo.discovery_scope('Explore precise variants and counterexamples.'),'note':'Study variations without changing the original target.'},key='handoff-123456789012345678')
         self.assertEqual(code,200,r);s=store.read_snapshot();self.assertEqual(s['instances'][iid]['target_ref'],target);self.assertEqual(s['instances'][r['instance_id']]['status'],'PAUSED')
         raw=b'%PDF-1.5\n\x00\xff original binary bytes';before=len(s['records'])
         code,r,_=self.req('POST','/api/action/add-source',{'project':created['project'],'filename':'paper.pdf','media_type':'application/pdf','data':base64.b64encode(raw).decode()},key='material-123456789012345678')
@@ -103,7 +103,7 @@ class WebApplicationTests(unittest.TestCase):
         with patch('research_studio.runner.CodexExecutor.execute',side_effect=AssertionError('Upload and restore cannot call a model')):
             engine=Engine();original=engine.create(Path(self.tmp.name)/'large-native',demo.ARITHMETIC,synthetic=True)
             target=next(r for r,v in original.read_snapshot()['records'].items() if v['kind']=='Statement')
-            engine.new_workflow(original,'TRW',target_ref=target)
+            engine.new_workflow(original,'TRH',target_ref=target)
             random_source=random.Random(4000)
             for index in range(3):
                 raw_material=random_source.randbytes(17*1024**2)
@@ -165,7 +165,7 @@ class WebApplicationTests(unittest.TestCase):
 
     def test_pending_operation_is_not_blindly_repeated_after_restart(self):
         from research_studio.util import identity,atomic
-        p={'title':'Test','text':'Original target','kind':'TRW'};key='crashed-operation-12345678'
+        p={'title':'Test','text':'Original target','kind':'TRH'};key='crashed-operation-12345678'
         atomic(self.w.root/'actions'/(identity(key)+'.json'),canonical({'digest':identity({'action':'create','payload':p}),'state':'PENDING','operation':{'id':identity(key),'name':'create','payload':p,'created_at':'2026-10-08T00:00:00Z'}}))
         with self.assertRaisesRegex(PMRSError,'ACTION_UNCERTAIN'):Workspace(self.w.root).action('create',p,key)
         self.assertEqual(self.w.list()['projects'],[])
@@ -262,7 +262,7 @@ class NativeReaderTests(unittest.TestCase):
         from research_studio import demo
         with tempfile.TemporaryDirectory() as tmp:
             e=Engine();s=e.create(Path(tmp)/'p',demo.ARITHMETIC,synthetic=True);target=next(iter(s.read_snapshot()['records']))
-            iid=e.new_workflow(s,'TRW',target_ref=target)['instance_id'];baseline=s.read_snapshot()
+            iid=e.new_workflow(s,'TRH',target_ref=target)['instance_id'];baseline=s.read_snapshot()
             e.start_round(s,iid,'Investigate arithmetic',max_calls=4,policy=demo.policy());after_control=s.read_snapshot()
             d=views.diff(baseline,after_control,instance_id=iid);self.assertEqual(d['classification'],'CONTROL_ONLY');self.assertEqual(d['content_added'],[])
             e.run_round(s,iid,executor=demo.executor());after=s.read_snapshot();d=views.diff(baseline,after,instance_id=iid)

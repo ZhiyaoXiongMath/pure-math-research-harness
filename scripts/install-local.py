@@ -65,7 +65,8 @@ def extract_release(archive_path, destination):
         infos = archive.infolist(); names = [i.filename for i in infos]
         if not names or len(names) > 3000 or len(set(names)) != len(names): raise ValueError('Invalid release member inventory')
         if len({unicodedata.normalize('NFC', n).casefold() for n in names}) != len(names): raise ValueError('Ambiguous release member aliases')
-        if sum(i.file_size for i in infos) > 512 * 1024**2: raise ValueError('Release extraction size exceeds bound')
+        # The verified native MAIN binary is also inside the offline wheel.
+        if sum(i.file_size for i in infos) > 1024 * 1024**2: raise ValueError('Release extraction size exceeds bound')
         roots = set()
         for info in infos:
             parts = safe_name(info.filename).parts
@@ -132,7 +133,7 @@ def verify_wheel(raw):
         return {n: archive.read(n) for n in names}
 
 
-def desktop_entry(launcher, version='4.2.0'):
+def desktop_entry(launcher, version='4.2.2'):
     value = str(launcher).replace('%', '%%').replace('\\', '\\\\').replace('"', '\\"').replace('`', '\\`').replace('$', '\\$')
     return ('[Desktop Entry]\nType=Application\nName=Pure Math Research Studio ' + version + '\nName[zh_CN]=纯数学研究工作室 ' + version + '\n'
             'Comment=Shared mathematical research workspace\nExec="' + value + '"\n'
@@ -150,6 +151,9 @@ def install(source, target, bin_dir, *, use_venv=False, desktop_dir=None, runtim
         raise ValueError('Choose a new installation prefix outside the release')
     if any((bin_dir / name).exists() for name in names): raise ValueError('Installation launcher already exists; choose another launcher directory')
     manifest, content = verify_release(source)
+    if 'research_studio/native/codex-app-server' in content:
+        import platform
+        if platform.machine() not in {'x86_64','AMD64'}:raise ValueError('The bundled native MAIN client requires Linux x86_64')
     desktop = Path(desktop_dir).expanduser().absolute() / ('pmrs-' + manifest['version'] + '.desktop') if desktop_dir else None
     if desktop:
         no_symlinks(desktop)
@@ -165,6 +169,10 @@ def install(source, target, bin_dir, *, use_venv=False, desktop_dir=None, runtim
             if len(wheels) != 1: raise ValueError('One bundled offline wheel required')
             for name, raw in verify_wheel(wheels[0][1]).items():
                 path = purelib / name; path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(raw)
+                if name in {'research_studio/native/codex-app-server','research_studio/native/codex-code-mode-host'}:
+                    import platform
+                    if platform.machine() not in {'x86_64','AMD64'}:raise ValueError('The bundled native MAIN client requires Linux x86_64')
+                    path.chmod(0o755)
             library = purelib
         else:
             python = Path(sys.executable); library = target

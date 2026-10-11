@@ -20,7 +20,8 @@ from . import activity
 
 class Workspace:
     def __init__(self,root,*,create=True):
-        self.root=safe_path(Path(root));self.engine=Engine();self.login=Login();self.jobs={};self.assistant_jobs={};self.lock=threading.RLock();self.project_locks={};self.object_labels={};self.assistant_sections={}
+        self.root=safe_path(Path(root));self.engine=Engine();self.login=Login();self.jobs={};self.lock=threading.RLock();self.project_locks={};self.object_labels={};self.assistant_sections={}
+        self.maintenance_wakeup=threading.Event();self.maintenance_stop=threading.Event();self.maintenance_thread=None
         if create:
             for directory in ('projects','uploads','downloads','actions','runtime'):
                 (self.root/directory).mkdir(parents=True,exist_ok=True,mode=0o700)
@@ -100,7 +101,8 @@ class Workspace:
         project_jobs=[{**j,'scope':'PROJECT_COORDINATOR','initiated_by_instance_id':i}
                       for (p,i),j in self.jobs.items() if p==key]
         v={'commit':s['knowledge_commit'],'project_id':s['project_id'],'title':s['title'],
-           'synthetic':s['synthetic_test_only'],'workflow':{'instances':rows,'automatic_next_round':False},
+           'synthetic':s['synthetic_test_only'],'workflow':{'instances':rows,
+               'automatic_next_round':any(row.get('run_control',{}).get('mode')=='AUTO_P14' for row in rows)},
            'mathematical':{'records':len(views.scope_refs(s,instance)&set(s['records'])),
                           'target_refs':[r['target_ref'] for r in rows if r.get('target_ref')],
                           'qualification':'EXACT_CONSUMER_SCOPE_ONLY','formal_proof':'NOT_GRANTED'},
@@ -114,9 +116,18 @@ class Workspace:
         grants=[g for g in s['budget_grants'].values() if g.get('budget_domain','SCIENCE')=='SCIENCE'
                 and (not instance or g.get('instance_id')==instance)]
         remaining=sum(budget_remaining(s,g['budget_grant_id']) for g in grants);total=project_remaining(s)
+        from .host_pool import status as pool_status
+        pool=pool_status()
+        v['host_pool']=pool
+        stage_requests=[r for r in requests if s['tasks'].get(r['task_id'],{}).get('actor_kind')!='MAIN']
+        v['stage_pool']={'in_flight':sum(r['execution_state'] in {'RESERVED','SENT','UNKNOWN'} and r.get('unknown_disposition')!='ABANDON_UNKNOWN' for r in stage_requests),
+            'instance_limit':1 if len(rows)==1 and rows[0]['kind']=='SURVEY' else 8,
+            'queued':sum(r['execution_state']=='PREPARED' and not r.get('fenced') for r in stage_requests),
+            'scope':'INSTANCE' if instance else 'PROJECT','global_limit':20,
+            'main_in_flight':sum(r['execution_state'] in {'RESERVED','SENT','UNKNOWN'} and s['tasks'].get(r['task_id'],{}).get('actor_kind')=='MAIN' for r in requests)}
         v['synthetic']=s['synthetic_test_only'];v['budget']={'project':s['project_budget'],'grants':grants,
-            'remaining_calls':remaining if remaining!=float('inf') else None,'project_remaining_calls':total if total!=float('inf') else None,'max_workers':s.get('max_workers',1),'project_max_workers':8,'host_model_pool':10}
-        v['tasks']=[{k:t.get(k) for k in ('task_id','instance_id','stage_id','role','model_policy','model_policy_resolution','request_id')}
+            'remaining_calls':remaining if remaining!=float('inf') else None,'project_remaining_calls':total if total!=float('inf') else None,'max_workers':s.get('max_workers',1),'project_max_workers':8,'host_model_pool':pool['limit']}
+        v['tasks']=[{k:t.get(k) for k in ('task_id','instance_id','mission_id','stage_id','role','actor_kind','strategy_ref','communication_contract','model_policy','model_policy_resolution','request_id','entry_basis','round_number','repair_of')}
                     for t in s['tasks'].values() if t.get('purpose')!='PROJECT_ASSISTANT' and (not instance or t['instance_id']==instance)]
         from .workflows.registry import spec
         for task in v['tasks']:task['activity_label']=spec(task['stage_id'])['ui_labels']['zh-CN']
@@ -140,16 +151,30 @@ class Workspace:
             from . import survey
             v['survey']=survey.status(s,instance)
         from . import rounds,corrections
-        runtime=next((j.get('result') or ({'state':'FAULT','error':j.get('error')} if j.get('error') else {})
-            for j in reversed(project_jobs) if j.get('instance_id')==instance),{})
-        v['round_result']=rounds.describe(s,instance,runtime) if instance else None
+        from .runner import coordinator_status
+        from . import usage_ledger,main_session
+        native_coordinator=coordinator_status(store)
+        v['current_execution']={'coordinator':native_coordinator,'requests':requests}
+        v['project_execution']['running_coordinators']=int(native_coordinator['active'])
+        v['execution']['running_processes']=None  # Active native requests are not a process census.
+        v['usage']=usage_ledger.summary(s,instance_id=instance)
+        v['main']=main_session.view(store,instance) if instance and selected.get('kind')!='SURVEY' else None
+        v['round_result']=rounds.describe(s,instance) if instance else None
+        v['last_delivery']=s.get('round_deliveries',{}).get(mission.get('delivery_ref'))
+        v['round_deliveries']=[{'delivery_id':did,**deepcopy(row)} for did,row in s.get('round_deliveries',{}).items()
+            if not instance or row.get('instance_id',row.get('summary',{}).get('instance_id'))==instance]
+        from .incidents import project as incident_projection
+        v['incidents']=[incident_projection(s,row) for row in s.get('incidents',{}).values() if not instance or row['instance_id']==instance]
+        from . import communication
+        v['communication']=communication.view(store,instance_id=instance)
+
         v['corrections']=corrections.pending(s,instance) if instance else []
         v['correctable_work']=[{'binding_id':c['binding_id'],'stage_id':c['stage_id'],'role':c['role'],
             'description':store.read_blob(o['definition']['criterion_body_ref']).decode('utf-8')[:300]}
             for o in s['obligations'].values() for c in o['definition']['consumer_bindings']
             if c['instance_id']==instance and c['mission_id']==selected.get('current_mission_id')
             and o['definition']['type'] not in {'REPORT','CONTROL'}]
-        v['control_fingerprint']=identity({k:v[k] for k in ('tasks','pending_work','execution','missions','reports','workflow','model_configuration','activity','project_jobs','project_execution','budget','round_result','corrections')} | {'survey':v.get('survey')})
+        v['control_fingerprint']=identity({k:v[k] for k in ('tasks','pending_work','execution','missions','reports','workflow','model_configuration','activity','project_jobs','project_execution','budget','round_result','corrections')} | {'survey':v.get('survey'),'main':v.get('main'),'usage':v.get('usage'),'communication':v.get('communication')})
         return v
 
     def workflow_inputs(self,key,query='',offset=0,limit=100):
@@ -175,8 +200,7 @@ class Workspace:
         require(type(offset) is int and offset>=0 and type(limit) is int and 1<=limit<=100,
                 'PAGE_INVALID','Select a bounded conversation page.')
         store=self.project(key);result=assistant.status(store,session_id,offset=offset,limit=limit)
-        result['jobs']=[deepcopy(job) for (project,turn),job in self.assistant_jobs.items()
-                        if project==key and (not session_id or job['session_id']==session_id)]
+        result['jobs']=[];result['read_only_legacy']=True
         snapshot=store.read_snapshot()
         context=result.get('context') or {}
         if context.get('report_id') in snapshot['reports']:
@@ -314,8 +338,8 @@ class Workspace:
         require(isinstance(p,dict),'ACTION_INVALID','表单格式无效。')
         require(name in {'quit','login','setup-status','setup-configure','setup-select','setup-install','check-environment',
                 'create','example','upload-archive','restore','add-source','new-workflow','configure-discovery','start','plan-work','defer-work','request-correction','extend-budget','pause',
-                'continue','end','recover','reconcile','report','revise-report','abandon-report','configure','handoff','export',
-                'assistant-open','assistant-authorize','assistant-send','assistant-recover',
+                'continue','continue-discovery','end','recover','reconcile','report','revise-report','abandon-report','configure','handoff','export',
+                'main-direction','main-recover-execution','add-unsent-sources','add-unsent-inputs','p14-mode','stop-next-p14','cancel-stop-p14','research-audit-policy',
                 'survey-activity','survey-retrieve','survey-freeze','survey-plan','survey-source-status'},
                 'ACTION_UNKNOWN','未登记的操作。')
         path=self.root/'actions'/(identity(key)+'.json');digest=identity({'action':name,'payload':p})
@@ -345,6 +369,7 @@ class Workspace:
                     atomic(path,canonical({**base,'state':'FAILED','at':now(),'error':getattr(e,'code','ACTION_FAILED')}))
                     raise
                 atomic(path,canonical({**base,'state':'COMPLETED','at':now(),'result':result}))
+                self.maintenance_wakeup.set()
                 return result
 
     def _action(self,name,p,key):
@@ -366,7 +391,7 @@ class Workspace:
             from .render import doctor as pdf_doctor
             return {'client':self.login.inspect(),'execution':doctor(),'pdf':pdf_doctor(),'model_calls':0}
         if name in ('create','example'):
-            kind=p.get('kind','TRW');require(kind in {'TRW','TFDW','SURVEY'},'WORKFLOW_KIND_INVALID','Choose a workflow.')
+            kind=p.get('kind','TRH');require(kind in {'TRH','FDH','SURVEY'},'WORKFLOW_KIND_INVALID','Choose a workflow.')
             if kind=='SURVEY':
                 title=str(p.get('title') or p.get('name') or 'Literature survey').strip()
                 require(0<len(title)<=200,'TITLE_INVALID','Project titles must contain 1–200 characters.')
@@ -380,16 +405,16 @@ class Workspace:
             require(raw.strip(),'SOURCE_REQUIRED','请输入完整题目或现象，或选择文件。')
             title=str(p.get('title','数学研究')).strip();require(0<len(title)<=200,'TITLE_INVALID','项目名称须为 1–200 字符。')
             discovery=None
-            if kind=='TFDW':
+            if kind=='FDH':
                 if name=='example':
                     from .demo import discovery_scope
                     discovery=discovery_scope(raw.decode('utf-8'))
                     discovery.update(p.get('discovery_scope') or {})
                 else:discovery=self._discovery_form(p,raw)
             wid='WP-'+identity(key)[:32];root=self.root/'projects'/wid
-            store=self.engine.create(root,raw,title=title,phenomenon=kind=='TFDW',synthetic=name=='example')
+            store=self.engine.create(root,raw,title=title,phenomenon=kind=='FDH',synthetic=name=='example')
             s=store.read_snapshot();target=next(iter(s['records']),None)
-            if kind=='TFDW':
+            if kind=='FDH':
                 if discovery.get('phenomenon','').encode()==raw:
                     discovery.pop('phenomenon',None);discovery['phenomenon_ref']=next(iter(s['sources']))
                 result=self.engine.new_workflow(store,kind,name=p.get('name') or title,discovery_scope=discovery)
@@ -411,36 +436,27 @@ class Workspace:
             result=restore(source,out)
             return {'project':wid,'summary':result,'model_calls':0}
         store=self.project(p.get('project'));iid=p.get('instance')
-        if name.startswith('assistant-'):
-            from . import assistant
-            if name=='assistant-open':
-                context=deepcopy(p.get('context') or {})
-                for source,destination in (('instance','instance_id'),('task_id','task_id'),('request_id','request_id'),
-                        ('report_id','report_id'),('profile','profile'),('revision','revision'),('body_hash','body_hash')):
-                    if p.get(source) is not None:context[destination]=p[source]
-                return assistant.open_session(store,context,operation_id=identity(key))
-            sid=p.get('session_id')
-            if name=='assistant-authorize':return assistant.authorize(store,sid,p['max_calls'],operation_id=identity(key))
-            if name=='assistant-send':
-                result=assistant.submit(store,sid,p['text'],operation_id=identity(key),report_allowance=p.get('report_calls'))
-                self.launch_assistant(p['project'],sid,result['turn_id'])
-                return result
-            # Recovery always names the original turn and therefore the original
-            # request. A new finite report allowance does not add assistant calls.
-            current=assistant.status(store,sid)
-            require(any(t['turn_id']==p.get('turn_id') for t in current.get('turns',[])),
-                    'ASSISTANT_TURN_UNKNOWN','Select a turn in this exact conversation.')
-            if p.get('report_calls') is not None:
-                assistant.authorize_report(store,sid,p['turn_id'],p['report_calls'],operation_id=identity(key))
-            self.launch_assistant(p['project'],sid,p['turn_id'])
-            return {'session_id':sid,'turn_id':p['turn_id'],'state':'QUEUED','model_calls':0}
+        if name=='main-recover-execution':
+            from .main_session import authorize_execution_recovery
+            return authorize_execution_recovery(store,iid,p['request_id'],p['capture_ref'],
+                p['repair_reason'],p['authorization_note'],client_action_id=identity(key))
+        if name=='main-direction':
+            from .main_session import submit_direction
+            result=submit_direction(store,iid,p['text'],client_action_id=identity(key),refs=p.get('refs',[]),
+                kind=p.get('kind','GUIDANCE'),source='DIRECT_USER',supersedes=p.get('supersedes',[]),revokes=p.get('revokes',[]))
+            state=store.read_snapshot();instance=state['instances'][iid]
+            if instance.get('current_mission_id') and instance['status']=='ACTIVE':
+                self.launch(p['project'],iid)
+            return result
+        if name=='add-unsent-sources':return self.engine.add_unsent_sources(store,iid,p['binding_id'],p['source_refs'],p['reason'])
+        if name=='add-unsent-inputs':return self.engine.add_unsent_inputs(store,iid,p['binding_id'],p['input_refs'],p['reason'])
         if name=='add-source':
             raw=self._raw(p) if p.get('data') else str(p.get('text','')).encode()
             result=store.commit(changes.prepare_material_input(store.read_snapshot(),raw,title=str(p.get('filename','补充材料')),media_type=str(p.get('media_type','text/plain')),blob_get=store.read_blob))
             return {**result,'model_calls':0}
         if name=='new-workflow':
             require(isinstance(p.get('name'),str) and p['name'].strip(),'INSTANCE_NAME_REQUIRED','请为新的研究流程填写可识别的名称。')
-            scope=self._discovery_form(p) if p['kind']=='TFDW' else None
+            scope=self._discovery_form(p) if p['kind']=='FDH' else None
             return self.engine.new_workflow(store,p['kind'],name=p['name'],target_ref=p.get('target_ref'),target=p.get('target_text'),discovery_scope=scope,survey_scope=p.get('survey_scope'))
         if name.startswith('survey-'):
             from . import survey
@@ -489,16 +505,31 @@ class Workspace:
             if p.get('model_override'):config['model_override']=p['model_override']
             require(type(p.get('report_first',False)) is bool,'ACTION_INVALID','报告前置选项必须明确选择。')
             result=self.engine.start_round(store,iid,p['intent'],max_calls=int(p['max_calls']),max_workers=int(p.get('max_workers',store.read_snapshot().get('max_workers',1))),policy=config,
-                model_overrides=p.get('model_overrides',[]),selected_refs=p.get('selected_refs'),source_refs=p.get('source_refs'),report_first_actions=['CONTINUE','END','ADOPT','ADOPT_HANDOFF'] if p.get('report_first') else [])
+                model_overrides=p.get('model_overrides',[]),selected_refs=p.get('selected_refs'),source_refs=p.get('source_refs'),p14_mode=p.get('p14_mode','AUTO_P14'),report_first_actions=['CONTINUE','END','ADOPT','ADOPT_HANDOFF'] if p.get('report_first') else [])
             self.launch(p['project'],iid);return result
+        if name in {'p14-mode','stop-next-p14','cancel-stop-p14'}:
+            return W.configure_p14(store,iid,mode=p.get('p14_mode') if name=='p14-mode' else None,
+                stop_next=None if name=='p14-mode' else name=='stop-next-p14')
+        if name=='research-audit-policy':
+            s=store.read_snapshot()
+            result=store.commit_control(W.event(s,'SET_RESEARCH_AUDIT_POLICY',
+                {'light_check_seconds':p['light_check_seconds'],'full_audit_seconds':p['full_audit_seconds']},instance_id=iid))
+            return {**result,'model_calls':0}
         if name=='pause':return self.engine.pause(store,iid,'用户在网页中暂停研究；保留在途请求及捕获。')
-        if name in ('continue','end'):
+        if name in ('continue','continue-discovery','end'):
             selected=store.read_snapshot(p['commit']);report_ref=selected.get('active_reports',{}).get(iid)
-            result=self.engine.decide(store,iid,'CONTINUE' if name=='continue' else 'END',p.get('note','用户在网页明确作出决定。'),snapshot_commit=p['commit'],report_ref=report_ref)
-            if name=='continue':self.launch(p['project'],iid)
+            result=self.engine.decide(store,iid,{'continue':'CONTINUE','continue-discovery':'CONTINUE_DISCOVERY','end':'END'}[name],p.get('note','用户在网页明确作出决定。'),snapshot_commit=p['commit'],report_ref=report_ref)
+            if name in {'continue','continue-discovery'}:self.launch(p['project'],iid)
             return result
         if name=='recover':
-            result=self.engine.recover(store,p['request_id']);return result
+            require(type(p.get('recheck',False)) is bool,'ACTION_INVALID','Recheck must be explicit.')
+            result=self.engine.recover(store,p['request_id'],recheck=p.get('recheck',False),reason=p.get('reason'))
+            if result.get('state') in {'ACCEPTED','EXACT_DUPLICATE'}:
+                state=store.read_snapshot();request=state['requests'][p['request_id']]
+                owner=state['instances'][request['instance_id']]
+                if owner['status']=='ACTIVE' and owner.get('current_mission_id'):
+                    self.launch(p['project'],request['instance_id'])
+            return result
         if name=='reconcile':
             return self.engine.reconcile_unknown(store,iid,p['request_id'],p['disposition'],p['note'],not_sent_evidence_ref=p.get('not_sent_evidence_ref'))
         if name=='report':
@@ -506,7 +537,7 @@ class Workspace:
             result=reports.create(store,iid,profiles=p.get('profiles'),plan_ref=p.get('plan_ref'));self.launch(p['project'],iid,report=True,report_id=result);return {'report_id':result}
         if name=='revise-report':
             from . import reports
-            result=reports.revise(store,iid,p['profile'],p['reason'],report_id=p.get('report_id'));self.launch(p['project'],iid,report=True,report_id=result['report_id']);return result
+            result=reports.revise_direct(store,iid,p['report_id'],p['profile'],p['revision'],p['instruction'],p['scope'],int(p['report_calls']),operation_id=identity(key),body_hash=p['body_hash']);self.launch(p['project'],iid,report=True,report_id=result['report_id']);return result
         if name=='abandon-report':
             from . import reports
             return reports.abandon(store,iid,p['reason'],report_id=p.get('report_id'))
@@ -514,13 +545,13 @@ class Workspace:
             return self.engine.update_configuration(store,iid,p.get('model_overrides',[]),reset_scopes=p.get('reset_scopes',[]))
         if name=='handoff':
             direction=p['direction'];discovery=None
-            is_survey=direction in {'SURVEY_TO_TRW','SURVEY_TO_TFDW'}
-            scope={'target_refs':[p.get('target_ref') or p.get('candidate_ref')]} if is_survey else {'candidate_refs':[p['candidate_ref']]} if direction=='TFDW_TO_TRW' else {'target_refs':[store.read_snapshot()['instances'][iid]['target_ref']]}
-            if direction in {'TRW_TO_TFDW','SURVEY_TO_TFDW'}:
+            is_survey=direction in {'SURVEY_TO_TRH','SURVEY_TO_FDH'}
+            scope={'target_refs':[p.get('target_ref') or p.get('candidate_ref')]} if is_survey else {'candidate_refs':[p['candidate_ref']]} if direction=='FDH_TO_TRH' else {'target_refs':[store.read_snapshot()['instances'][iid]['target_ref']]}
+            if direction in {'TRH_TO_FDH','SURVEY_TO_FDH'}:
                 discovery=self.engine.prepare_discovery_scope(store,self._discovery_form(p, str(p.get('brief','')).encode() or None))
                 scope['source_refs']=list(discovery.values());scope['discovery_scope']=discovery
             prepared=self.engine.prepare_handoff(store,iid,direction,scope)
-            s=store.read_snapshot();decision=self.engine.decide(store,iid,'ADOPT' if direction=='TFDW_TO_TRW' else 'ADOPT_HANDOFF',p['note'],snapshot_commit=s['knowledge_commit'],candidate_ref=None if is_survey else p.get('candidate_ref'),report_ref=s.get('active_reports',{}).get(iid))
+            s=store.read_snapshot();decision=self.engine.decide(store,iid,'ADOPT' if direction=='FDH_TO_TRH' else 'ADOPT_HANDOFF',p['note'],snapshot_commit=s['knowledge_commit'],candidate_ref=None if is_survey else p.get('candidate_ref'),report_ref=s.get('active_reports',{}).get(iid))
             if discovery:
                 decision['discovery_brief_ref']=discovery.get('phenomenon_ref');decision['discovery_scope']=discovery
             if p.get('name'):decision['name']=p['name']
@@ -589,96 +620,62 @@ class Workspace:
                 except Exception as e:
                     code=getattr(e,'code','EXECUTION_FAILED')
                     job.update(state='WAITING_RESOURCE' if code in {'RESOURCE_WAIT','RESOURCE_DISK_LOW'} else 'BLOCKED',error=code,message=str(e),finished_at=now(),retry_pending=False)
+                finally:self.maintenance_wakeup.set()
             threading.Thread(target=work,name='pmrs-'+iid[-12:],daemon=True).start();return job
 
-    def launch_assistant(self,key,session_id,turn_id):
-        """Run one original assistant turn, then only its authorized report action.
+    def start_maintenance(self):
+        """Observe persisted research events even while every browser is closed.
 
-        This driver never resumes a research instance or invokes run_round.
-        All durable state remains in the native service and operation ledger.
+        This loop never chooses scientific work. The harness admits one MAIN
+        only for a pending relevant event or due audit, under existing controls.
+        Periodic observation alone cannot create a paid analysis request.
         """
-        with self.lock:
-            current=self.assistant_jobs.get((key,turn_id))
-            if current and (current['state'] in {'RUNNING','QUEUED','REPORT_RUNNING'} or current.get('retry_pending')):
-                return current
-            job={'session_id':session_id,'turn_id':turn_id,'state':'QUEUED','started_at':now(),'retry_pending':False}
-            self.assistant_jobs[(key,turn_id)]=job
-            def work():
-                from . import assistant,reports
-                store=self.project(key)
+        if self.maintenance_thread and self.maintenance_thread.is_alive():return
+        from . import harness_runtime,native_main
+        def maintain():
+            while not self.maintenance_stop.is_set():
+                self.maintenance_wakeup.clear()
+                observations=[]
                 try:
-                    synthetic=store.read_snapshot()['synthetic_test_only']
-                    from .demo import policy as demo_policy,executor as report_demo_executor
-                    from .runner import CodexExecutor
-                    executor=assistant.demo_executor() if synthetic else CodexExecutor()
-                    policy=demo_policy() if synthetic else None
-                    while True:
-                        job.update(state='RUNNING',retry_pending=False)
-                        result=assistant.run_turn(store,turn_id,executor=executor,policy=policy)
-                        if result.get('state') not in {'RESOURCE_WAIT','WAITING_RESOURCE'}:break
-                        job.update(state='WAITING_RESOURCE',result=result,retry_pending=True)
-                        threading.Event().wait(.75)
-                    job['result']=result
-                    if result.get('state') not in {'ACCEPTED','EXACT_DUPLICATE'}:
-                        job.update(state=result.get('state','BLOCKED'),finished_at=now(),retry_pending=False)
-                        return
-                    # The helper checks accepted output and the actual original
-                    # user message. A model's proposed action has no authority.
-                    authorization=assistant.revision_authorization(store,turn_id)
-                    if authorization is not None:
-                        action=reports.revise_from_assistant(store,authorization,
-                            operation_id=identity({'assistant_turn':turn_id},'REPORT-ACTION-'))
-                        assistant.record_action(store,turn_id,action)
-                        rid=action['report_id'];entry=store.read_snapshot()['reports'][rid]
-                        # A new human allowance event extends only this original
-                        # report. Repeated recovery of the same event adds zero.
-                        reports.extend_revision_budget(store,rid,authorization)
-                        iid=entry['scope']['instance_ids'][0]
-                        from .render import Renderer
-                        report_executor=report_demo_executor(blob_get=store.read_blob) if synthetic else CodexExecutor()
-                        while True:
-                            job.update(state='REPORT_RUNNING',report_id=rid,retry_pending=False)
-                            result=reports.run(store,iid,executor=report_executor,
-                                policy=reports.policy_for_report(store,rid),renderer=Renderer(),report_id=rid)
-                            if result.get('state') not in {'RESOURCE_WAIT','WAITING_RESOURCE','COORDINATOR_ACTIVE'}:break
-                            job.update(state='WAITING_RESOURCE',result=result,retry_pending=True)
-                            threading.Event().wait(.75)
-                        from .scheduler import budget_remaining
-                        exhausted=(result.get('state')=='WAIT' and not result.get('code') and
-                            budget_remaining(store.read_snapshot(),action['budget_grant_id'])<=0)
-                        if exhausted:result={**result,'state':'WAITING_REPORT_BUDGET','code':'REPORT_BUDGET_REQUIRED'}
-                        assistant.record_action(store,turn_id,{**action,'result':result,
-                            **({'state':'WAITING_REPORT_BUDGET','error':'REPORT_BUDGET_REQUIRED'} if exhausted else {})})
-                        job['result']=result
-                    job.update(state='COMPLETED' if result.get('state') in {'ACCEPTED','EXACT_DUPLICATE','COMPLETED_CURRENT_REPORT'}
-                               else result.get('state','BLOCKED'),finished_at=now(),retry_pending=False)
-                except Exception as error:
-                    code=getattr(error,'code','ASSISTANT_EXECUTION_FAILED')
-                    job.update(state='WAITING_REPORT_BUDGET' if code=='REPORT_BUDGET_REQUIRED' else 'BLOCKED',
-                               error=code,finished_at=now(),retry_pending=False)
-                    # Store only a stable public error code here. Captured model
-                    # bytes and bounded diagnostic evidence retain their native
-                    # identities; raw process errors can contain sensitive text.
-                    try:
-                        previous=assistant.turn_status(store,turn_id).get('action') or {}
-                        assistant.record_action(store,turn_id,{**previous,'state':job['state'],'error':code})
-                    except (PMRSError,ValueError,KeyError,OSError):pass
-            threading.Thread(target=work,name='pmrs-assistant-'+turn_id[-12:],daemon=True).start()
-            return job
+                    for project in self.list()['projects']:
+                        if project.get('error'):continue
+                        store=self.project(project['key'])
+                        native_main.sync_pending(store)
+                        for iid,instance in store.read_snapshot()['instances'].items():
+                            if instance['kind'] not in {'TRH','FDH'}:continue
+                            result=harness_runtime.maintenance(store,iid)
+                            observations.append({'project':project['key'],'instance_id':iid,**result})
+                            if result.get('should_wake'):self.launch(project['key'],iid)
+                    atomic(self.root/'runtime/maintenance.json',canonical({'at':now(),'observations':observations,'model_calls':0}))
+                except Exception as exc:
+                    atomic(self.root/'runtime/maintenance.json',canonical({'at':now(),'error':getattr(exc,'code',type(exc).__name__),
+                        'message':str(exc),'model_calls':0}))
+                # Results and user actions signal immediately. This fallback
+                # observes clock passage and externally committed events only.
+                self.maintenance_wakeup.wait(30)
+        self.maintenance_thread=threading.Thread(target=maintain,name='pmrs-research-events',daemon=True)
+        self.maintenance_thread.start()
 
-    def live_jobs(self):return any(j['state'] in {'RUNNING','QUEUED','REPORT_RUNNING'} or j.get('retry_pending')
-                                  for j in [*self.jobs.values(),*self.assistant_jobs.values()])
+    def stop_maintenance(self):
+        self.maintenance_stop.set();self.maintenance_wakeup.set()
+        if self.maintenance_thread:self.maintenance_thread.join(timeout=2)
+
+    def live_jobs(self):
+        if any(j['state'] in {'RUNNING','QUEUED'} or j.get('retry_pending') for j in self.jobs.values()):return True
+        from .runner import coordinator_status
+        return any(coordinator_status(self.project(row['key']))['active'] for row in self.list()['projects'] if not row.get('error'))
 
     def recover_backend_state(self):
         """Startup reconciliation only; ordinary readers never change a store."""
         from .runner import coordinator
-        from . import execution
-        results=[]
+        from . import execution,usage_ledger
+        results=[];classification_repairs=[]
         for row in self.list()['projects']:
             if row.get('error'):continue
             store=self.project(row['key'])
             try:
                 with coordinator(store):
+                    classification_repairs.append(usage_ledger.reconcile_delegation_classifications(store))
                     for request in store.read_snapshot()['requests'].values():
                         if request['execution_state'] in {'RESERVED','SENT'}:
                             store.commit_execution(execution.event('UNKNOWN',{'request_id':request['request_id'],
@@ -686,4 +683,4 @@ class Workspace:
                             results.append(request['request_id'])
             except PMRSError as error:
                 if error.code!='COORDINATOR_BUSY':raise
-        return {'uncertain_requests':results,'resent':0,'admitted':0}
+        return {'uncertain_requests':results,'delegation_classification_repairs':classification_repairs,'resent':0,'admitted':0}

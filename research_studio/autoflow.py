@@ -13,12 +13,12 @@ from .research_prompts import DUTIES
 PREREQUISITES = ('P1', 'P2', 'P3')
 ROLES = {'P1':'PLAN','P2':'PLAN','P3':'PLAN','P4':'RESEARCH','P5':'SYNTHESIS',
          'P6':'PLAN','P7':'LEARN','P8':'RESEARCH','P10':'SYNTHESIS','P11':'SYNTHESIS',
-         'P12':'INDEPENDENT','D1':'LEARN','D2':'DIRECT','D3':'DIRECT','D4':'FORMULATION_REVIEW',
+         'P12':'INDEPENDENT','D1':'LEARN','D2':'PLAN','D3':'DIRECT','D4':'FORMULATION_REVIEW','D5':'SYNTHESIS',
          'S1':'SEARCH_PLAN','S2':'SOURCE_READ','S3':'ORGANIZE','S4':'READINESS_REVIEW'}
 KINDS = {'P1':'MATERIAL','P2':'REDUCE','P3':'ESTABLISH','P4':'ESTABLISH','P5':'COMPARE',
          'P6':'REDUCE','P7':'APPLICABILITY','P8':'ESTABLISH','P10':'INTEGRATE','P11':'ACCOUNT',
          'P12':'VERIFY','D1':'APPLICABILITY','D2':'FORMULATE','D3':'DISCRIMINATE',
-         'D4':'VERIFY','S1':'MATERIAL','S2':'MATERIAL','S3':'INTEGRATE','S4':'VERIFY'}
+         'D4':'VERIFY','D5':'ACCOUNT','S1':'MATERIAL','S2':'MATERIAL','S3':'INTEGRATE','S4':'VERIFY'}
 
 
 def _bindings(snapshot, iid, mid=None):
@@ -114,7 +114,7 @@ def _prerequisite_bindings(rows,current):
 
 def start_round(store,iid,intent,*,max_calls=8,max_workers=None,policy=None,model_overrides=None,
                 max_research_attempts=1,allow_reports=True,report_first_actions=None,
-                selected_refs=None,source_refs=None):
+                selected_refs=None,source_refs=None,p14_mode="AUTO_P14"):
     s=store.read_snapshot();instance=W.select_instance(s,iid)
     require(instance['status']!='ENDED','AUTHORIZATION_REQUIRED','An ended instance needs an explicit new instance')
     discovery=W.validate_discovery_scope(s,instance)
@@ -128,16 +128,22 @@ def start_round(store,iid,intent,*,max_calls=8,max_workers=None,policy=None,mode
     refs=sorted(set(refs));sources=sorted(set(sources))
     require(all(ref in s['records'] for ref in refs) and all(ref in s['sources'] for ref in sources),
             'INCOMPLETE_CONTEXT','Select exact available knowledge and source materials')
-    max_workers=s.get('max_workers',1) if max_workers is None else max_workers
+    from .input_plans import _source_version
+    for ref in sources:_source_version(s,ref)
+    if instance['kind'] in {'TRH','FDH'} and (policy or {}).get('executor_contract',{}).get('executor')=='codex':
+        from .model_policy import resolve
+        main_stage,main_role='MAIN_'+instance['kind'],'MAIN_DECIDE'
+        resolve(instance['kind'],main_stage,main_role,'MAIN_STRATEGY',actor_kind='MAIN',capabilities=policy.get('model_capabilities'))
+    max_workers=1 if instance['kind']=='SURVEY' else 8
     require(type(max_workers) is int and 1<=max_workers<=8,'AUTHORIZATION_REQUIRED','One to eight project workers required')
     intent_ref=store.blob(intent.encode())
     receipt=store.commit(changes.prepare_source_input(s,intent.encode(),title='Human research intent',purpose='PHENOMENON',blob_get=store.read_blob))
     s=store.read_snapshot();mid=identity({'instance':iid,'intent':intent_ref,'ordinal':len(instance['mission_ids'])+1},'MISSION-')
-    config={'schema':'pmrs.autoflow/1','selected_refs':refs,'source_refs':sources,'intent_source_ref':receipt['source_ref'],
-            'prerequisites':prerequisites(s,iid,{'selected_refs':refs,'source_refs':sources}) if instance['kind']=='TRW' else {}}
+    config={'schema':'pmrs.harness-runtime/4.2.2','main_enabled':instance['kind'] in {'TRH','FDH'},'selected_refs':refs,'source_refs':sources,'intent_source_ref':receipt['source_ref'],
+            'method_version':'pmrs.harness-methods/4.2.2'}
     scope={'target_refs':refs,'source_refs':sources,'allow_derived_work':True,
-           'max_research_attempts':max_research_attempts,'formal_target_review':instance['kind']=='TRW',
-           'formulation_review':instance['kind']=='TFDW','reports':bool(allow_reports),'autoflow':config}
+           'max_research_attempts':max_research_attempts,'formal_target_review':instance['kind']=='TRH',
+           'formulation_review':instance['kind']=='FDH','reports':bool(allow_reports),'autoflow':config}
     if discovery:scope['discovery_scope']=deepcopy(discovery)
     if instance['kind']=='SURVEY':
         scope['survey_scope']=deepcopy(instance['survey_scope'])
@@ -153,7 +159,12 @@ def start_round(store,iid,intent,*,max_calls=8,max_workers=None,policy=None,mode
             workflow_kind=instance['kind'],capabilities=policy.get('model_capabilities'))
     budget={'budget_grant_id':mission['budget_grant_id'],'max_calls':max_calls,'max_workers':max_workers,
             'execution_policy':{**policy,'max_workers':max_workers}}
+    if instance['kind']=='TRH':
+        W.configure_p14(store,iid,mode=p14_mode)
+        s=store.read_snapshot()
     result=store.commit_control(W.authorize_event(s,iid,mission,budget))
+    from . import strategy
+    if instance['kind'] in {'TRH','FDH'}:strategy.initialize(store,iid)
     advance(store,iid)
     now=store.read_snapshot()
     return {**result,'instance_id':iid,'mission_id':mid,'status':'ACTIVE','model_calls':0,
@@ -186,12 +197,13 @@ def _assign(store,instance,mission,sid,*,role=None,kind=None,criterion=None,refs
         'common_input_refs':cfg['selected_refs'],'common_source_refs':cfg['source_refs'],'plan_intent':'Actual result-driven bounded round'}
     if sid=='P7':b.setdefault('analysis_route','SOURCE_APPLICATION' if role=='LEARN' else 'DIRECT_ANALYSIS' if role=='DIRECT' else 'COMPARATIVE')
     validate_assignment(sid,kind,role,b)
-    inputs=sorted(set(refs)|{r for row in cfg.get('prerequisites',{}).get('reused',{}).values() for r in row['evidence_refs']})
+    inputs=sorted(set(refs))
     # Every predecessor's exact evidence is supplied through native dependencies.
     c={'binding_id':bid,'instance_id':iid,'mission_id':mid,'stage_id':sid,'role':role,'retry_grant_id':'RETRY-'+bid,
        'method_ref':'AUTOFLOW_SCIENTIFIC_DUTY','scope':{'target_refs':refs},'entry_basis':b,'input_refs':inputs,
        'source_refs':sorted(set(sources+[cfg['intent_source_ref']]+list(mission['authorized_scope'].get('discovery_scope',{}).values()))),
        'threshold':'WORK_DISPOSITION_RECORDED','success_criterion':criterion_ref,'ready_since':s.get('_snapshot_sequence',0)}
+    require(instance['kind']=='SURVEY','MAIN_DECISION_REQUIRED','Only Survey permits host-created stage tasks')
     if instance['kind']=='SURVEY':
         from .survey import plan_consumer
         c=plan_consumer(store,s,instance,{'item':{},'scope':{'target_refs':refs},'stage':sid,'role':role},c,deps)
@@ -211,106 +223,14 @@ def proposal_activity(definition,origin_stage,workflow_kind):
     parts=effect.split(':')
     if len(parts)!=3:return None
     sid,role=parts[1:]
-    permitted={'TRW':set(ROLES)&{'P1','P2','P3','P4','P5','P6','P7','P8','P10','P11','P12'},
-               'TFDW':{'D1','D2','D3'},'SURVEY':{'S1','S2','S3'}}[workflow_kind]
+    permitted={'TRH':set(ROLES)&{'P1','P2','P3','P4','P5','P6','P7','P8','P10','P11','P12'},
+               'FDH':{'D1','D2','D3'},'SURVEY':{'S1','S2','S3'}}[workflow_kind]
     if sid not in permitted:return None
     basis={}
     if sid=='P7':basis['analysis_route']='SOURCE_APPLICATION' if role=='LEARN' else 'DIRECT_ANALYSIS'
     try:validate_assignment(sid,definition['type'],role,basis)
     except PMRSError:return None
     return sid,role,basis
-
-
-def _trw_advance(store,s,instance,mission):
-    iid=instance['instance_id'];mid=mission['mission_id'];cfg=mission['authorized_scope']['autoflow']
-    rows=_bindings(s,iid,mid);created=[]
-    current=prerequisites(s,iid,cfg)
-    missing=current['missing']
-    if missing:
-        sid=missing[0];assigned=[(o,c) for o,c in rows if c['stage_id']==sid]
-        if not assigned:
-            deps=_prerequisite_bindings(rows,current)
-            out=_assign(store,instance,mission,sid,dependencies=deps)
-            if out:created.append(out)
-        return created
-    # All prerequisite work is evidenced, not inferred from three settled tasks.
-    scientific=[(o,c) for o,c in rows if c['stage_id'] not in PREREQUISITES and not c['role'].startswith('REPORT_')]
-    if not scientific:
-        deps=_prerequisite_bindings(rows,current)
-        out=_assign(store,instance,mission,'P4',dependencies=deps)
-        return [out] if out else []
-    # A concrete transfer obstacle has a separately frozen direct baseline.
-    # Their common input is the original problem, not one another's output.
-    transfers=[(o,c) for o,c in scientific if c['stage_id']=='P7' and c['role']=='LEARN']
-    direct=[(o,c) for o,c in scientific if c['stage_id']=='P7' and c['role']=='DIRECT']
-    for o,c in transfers:
-        if any(x.get('entry_basis',{}).get('direct_for')==c['binding_id'] for _,x in direct):continue
-        out=_assign(store,instance,mission,'P7',role='DIRECT',kind='APPLICABILITY',
-            criterion='Independently analyze this concrete obstacle directly from the shared original baseline: '+store.read_blob(o['definition']['criterion_body_ref']).decode(),
-            basis={'direct_for':c['binding_id'],'analysis_route':'DIRECT_ANALYSIS'})
-        if out:created.append(out)
-    if created:return created
-    branches=transfers+direct
-    if branches and all(_finished(s,o,c) for o,c in branches):
-        selected=[_branch(o,c) for o,c in branches]
-        if not any(c['stage_id']=='P7' and c['role']=='SYNTHESIS' and c['entry_basis'].get('synthesis_branches')==selected for o,c in scientific):
-            out=_assign(store,instance,mission,'P7',role='SYNTHESIS',kind='APPLICABILITY',dependencies=branches,
-                criterion='Compare every selected transfer and independent direct attempt for this exact obstacle set: '+
-                    '; '.join(sorted(store.read_blob(o['definition']['criterion_body_ref']).decode() for o,c in transfers)),
-                basis={'analysis_route':'COMPARATIVE','synthesis_branches':selected})
-            if out:return [out]
-    # Wait only for actual outstanding work; concrete gap proposals are assigned
-    # separately by the host before this hook runs again.
-    if any(not _finished(s,o,c) for o,c in scientific):return []
-    unassigned=[o for o in s['obligations'].values() if not o['definition']['consumer_bindings']
-        and any('CHANGE-'+str(r.get('capture_ref'))==o['definition'].get('created_by') and r['mission_id']==mid for r in s['requests'].values())]
-    if unassigned:return []
-    # A global mathematical account is needed after actual research/review. Its
-    # identity includes the exact work frontier, never a task-count iteration.
-    frontier=[(o,c) for o,c in scientific if c['stage_id'] not in {'P11','P12'}]
-    covered={bid for o,c in scientific if c['stage_id']=='P11'
-             for bid in c.get('entry_basis',{}).get('autoflow',{}).get('accounted_bindings',[])}
-    if frontier and any(c['binding_id'] not in covered for o,c in frontier):
-        bids=sorted(c['binding_id'] for o,c in frontier)
-        criterion='Reassess the global mathematical gap for the exact original target using this concrete work frontier: '+', '.join(bids)+'. '+DUTIES['P11'][1]+' Return only concrete missing duties; preserve every failed and unperformed scope.'
-        out=_assign(store,instance,mission,'P11',criterion=criterion,dependencies=frontier,
-                    basis={'autoflow_accounted_bindings':bids})
-        return [out] if out else []
-    # A genuinely new global assembly needs a fresh independent check. A mere
-    # gap account, an unchanged old argument or a checklist stage does not.
-    for o,c in scientific:
-        if c['stage_id'] not in {'P10','P11'}:continue
-        authors={snapshot_request['task_id'] for account in _accounts(s,o,c)
-                 if (snapshot_request:=s['requests'].get(account['request_id']))}
-        produced={p['record_ref'] for p in s.get('production_events',{}).values() if p.get('task_id') in authors}
-        arguments=[ref for ref in o['projection'].get('evidence_refs',[])
-                   if ref in produced and s['records'].get(ref,{}).get('kind')=='Argument']
-        if not arguments:continue
-        criterion='Independently inspect this exact newly assembled global argument and its unresolved interfaces: '+', '.join(sorted(arguments))
-        out=_assign(store,instance,mission,'P12',criterion=criterion,dependencies=[(o,c)],refs=cfg['selected_refs'])
-        if out:return [out]
-    return []
-
-
-def _discovery_advance(store,s,instance,mission):
-    iid=instance['instance_id'];mid=mission['mission_id'];rows=_bindings(s,iid,mid)
-    if not rows:return [_assign(store,instance,mission,'D1')]
-    if any(not _finished(s,o,c) for o,c in rows if not c['role'].startswith('REPORT_')):return []
-    candidates=sorted({c['statement_ref'] for c in s.get('candidates',{}).values() if c['instance_id']==iid})
-    if not candidates:
-        learned=[(o,c) for o,c in rows if c['stage_id']=='D1' and o['projection'].get('evidence_refs')
-                 and any(a['work_disposition']=='ADDRESSED' for a in _accounts(s,o,c))]
-        if learned and not any(c['stage_id']=='D2' for o,c in rows):
-            out=_assign(store,instance,mission,'D2',dependencies=learned,
-                criterion='Formulate precise candidates only to the extent supported by the actually learned evidence and permitted discovery axes. Zero justified candidates is valid.')
-            return [out] if out else []
-        return []
-    # A precise frontier needs actual discrimination before independent review.
-    if not any(c['stage_id']=='D3' and set(candidates)<=set(c['input_refs']) for o,c in rows):
-        out=_assign(store,instance,mission,'D3',refs=candidates,dependencies=[(o,c) for o,c in rows if c['stage_id'] in {'D1','D2'}],
-            criterion='Compare this exact candidate frontier using distinguishing examples, local deductions, counterevidence and hypothesis costs. Preserve every unknown relation. Frontier: '+', '.join(candidates))
-        return [out] if out else []
-    return []
 
 
 def _survey_advance(store,s,instance,mission):
@@ -331,8 +251,8 @@ def _survey_advance(store,s,instance,mission):
             read_sources.add(row['source_ref'])
     missing=[r for r in sources if r not in read_sources]
     if missing:
-        if not any(c['stage_id']=='S2' and set(missing)<=set(c['source_refs']) for o,c in rows):
-            return [_assign(store,instance,mission,'S2',refs=refs,sources=missing,dependencies=rows)]
+        if not any(c['stage_id']=='S2' and missing[0] in c['source_refs'] for o,c in rows):
+            return [_assign(store,instance,mission,'S2',refs=refs,sources=missing[:1],dependencies=rows)]
         return []
     coverage=[r for r in s.get('survey_coverage',{}).values() if r['instance_id']==iid]
     if not coverage or not refs:
@@ -348,24 +268,17 @@ def _survey_advance(store,s,instance,mission):
         if not any(c['stage_id']=='S4' and c.get('survey_context',{}).get('scope_fingerprint')==ready['scope_fingerprint'] for o,c in rows):
             return [_assign(store,instance,mission,'S4',refs=refs,sources=sources,dependencies=rows)]
         return []
-    # Explicit review findings/coverage gaps are bounded return duties; retain
-    # the finding text and exact affected refs. The ordinary cumulative gate is
-    # unchanged, and no automatic retrieval or source expansion occurs.
-    created=[]
-    for error in problems:
-        sid=error.get('return_stage')
-        if sid not in {'S2','S3'}:continue
-        criterion='Resolve only this exact Survey coverage finding: '+error['code']+'; '+error.get('message','')
-        out=_assign(store,instance,mission,sid,refs=refs,sources=sources,dependencies=rows,criterion=criterion)
-        if out:created.append(out)
-    return created
+    # Insufficient science stops the linear workflow. A user revision can
+    # authorize a necessary suffix; no hidden autonomous return loop.
+    return []
 
 
 def advance(store,iid):
     s=store.read_snapshot();instance=W.select_instance(s,iid);mission=s['missions'].get(instance.get('current_mission_id'),{})
     if instance['status']!='ACTIVE' or not mission.get('authorized_scope',{}).get('autoflow'):return []
-    if instance['kind']=='TRW':return _trw_advance(store,s,instance,mission)
-    if instance['kind']=='TFDW':return _discovery_advance(store,s,instance,mission)
+    if instance['kind'] in {'TRH','FDH'}:
+        from .harness_runtime import advance as wake_main
+        return wake_main(store,s,instance,mission)
     return _survey_advance(store,s,instance,mission)
 
 
@@ -374,8 +287,8 @@ def status(snapshot,iid):
     cfg=mission.get('authorized_scope',{}).get('autoflow')
     if not cfg:return {'enabled':False,'complete':False,'missing':[],'waiting_human':[]}
     rows=_bindings(snapshot,iid,mission['mission_id']);missing=[];human=[]
-    if instance['kind']=='TRW':missing=prerequisites(snapshot,iid,cfg)['missing']
-    if instance['kind']=='TFDW' and rows and all(_finished(snapshot,o,c) for o,c in rows):
+    if instance['kind']=='TRH':missing=[]
+    if instance['kind']=='FDH' and rows and __import__('research_studio.strategy',fromlist=['completed_global']).completed_global(snapshot,iid):
         candidates=any(c['instance_id']==iid for c in snapshot.get('candidates',{}).values())
         human=['CANDIDATE_FRONTIER_SELECTION' if candidates else 'NO_CANDIDATES_DECISION']
     if instance['kind']=='SURVEY':
@@ -385,14 +298,22 @@ def status(snapshot,iid):
         missing=[e['code'] for e in r['errors']]
         if not cfg['source_refs'] and not refs:human=['SOURCE_SELECTION']
         if r['status'] in {'READY','SYNTHETIC_READY'}:missing=[]
-    outstanding=[{'obligation_id':o['definition']['obligation_id'],'binding_id':c['binding_id'],'stage_id':c['stage_id']}
-                 for o,c in rows if not _finished(snapshot,o,c)]
+    from .main_recovery import binding_disposition
+    outstanding=[]
+    for o,c in rows:
+        if _finished(snapshot,o,c):continue
+        maintenance=binding_disposition(snapshot,c['binding_id'])
+        outstanding.append({'obligation_id':o['definition']['obligation_id'],'binding_id':c['binding_id'],'stage_id':c['stage_id'],
+            **maintenance,'current_blocking':not maintenance.get('historical_execution_failure',False)})
+    current_outstanding=[row for row in outstanding if row['current_blocking']]
     origins={'CHANGE-'+str(r.get('capture_ref')) for r in snapshot['requests'].values() if r['mission_id']==mission['mission_id']}
     unassigned=[{'obligation_id':o['definition']['obligation_id'],'criterion_ref':o['definition']['criterion_body_ref'],
                  'type':o['definition']['type'],'code':'UNASSIGNED_SCIENTIFIC_GAP'} for o in snapshot['obligations'].values()
                 if not o['definition']['consumer_bindings'] and o['definition'].get('created_by') in origins]
-    if unassigned:
-        missing.append('UNASSIGNED_SCIENTIFIC_GAP');human.append('SCOPED_GAP_DISPOSITION')
-    return {'enabled':True,'complete':not missing and not outstanding,'missing':missing,'waiting_human':human,
-            'outstanding':outstanding,'unassigned':unassigned,'prerequisites':prerequisites(snapshot,iid,cfg) if instance['kind']=='TRW' else {},
+    if unassigned:missing.append('MAIN_GAP_DISPOSITION_REQUIRED')
+    if cfg.get('main_enabled') and instance['kind'] in {'TRH','FDH'}:
+        from . import strategy
+        if not strategy.completed_global(snapshot,iid):missing.append('MAIN_GLOBAL_ACCOUNT_REQUIRED')
+    return {'enabled':True,'complete':not missing and not current_outstanding,'missing':missing,'waiting_human':human,
+            'outstanding':outstanding,'current_outstanding':current_outstanding,'unassigned':unassigned,'prerequisites':{},
             'automatic_manuscript':False,'mission_id':mission['mission_id']}

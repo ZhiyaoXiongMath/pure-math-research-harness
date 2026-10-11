@@ -763,7 +763,7 @@
         "desktop-install-launch",
         "empty-workspace",
         "local-client-configuration",
-        "create-trw",
+        "create-trh",
         "upload-original-material",
         "authorize-budget",
         "start-frozen-request",
@@ -784,12 +784,12 @@
       "phase_gate": "M6",
       "browser_test_id": "tests.browser.WEB02",
       "required_browser_paths": [
-        "create-tfdw",
+        "create-fdh",
         "inspect-candidates-and-comparison",
         "select-exact-candidate",
         "prepare-handoff",
         "human-adopt-handoff",
-        "new-trw-paused-with-exact-revision"
+        "new-trh-paused-with-exact-revision"
       ]
     },
     {
@@ -941,7 +941,7 @@
         "selected-survey-readable-evidence",
         "explicit-single-profile-plan",
         "locale-persists-after-restart-port",
-        "existing-trw-tfdw-both-locales"
+        "existing-trh-fdh-both-locales"
       ]
     },
     {

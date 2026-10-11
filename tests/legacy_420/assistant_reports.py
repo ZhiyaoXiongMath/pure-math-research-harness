@@ -63,7 +63,7 @@ def paused_report(path, *, survey_profile=None, research_calls=6):
     else:
         store=engine.create(path,demo.ARITHMETIC,synthetic=True)
         target=next(iter(store.read_snapshot()['records']))
-        iid=engine.new_workflow(store,'TRW',target_ref=target)['instance_id']
+        iid=engine.new_workflow(store,'TRH',target_ref=target)['instance_id']
         engine.authorize(store,iid,{'intent':'Produce only the controlled initial report.',
             'authorized_scope':{'target_refs':[target],'reports':True,'allow_derived_work':True},'obligations':[]},
             {'max_calls':research_calls,'max_workers':2,'execution_policy':demo.policy()})
@@ -201,7 +201,7 @@ class AssistantReportRevisions(unittest.TestCase):
     def test_a9_long_old_manuscript_and_three_turn_requirements_use_exact_blob_references(self):
         engine=Engine();store=engine.create(self.root/'long',demo.ARITHMETIC,synthetic=True)
         target=next(iter(store.read_snapshot()['records']))
-        iid=engine.new_workflow(store,'TRW',target_ref=target)['instance_id']
+        iid=engine.new_workflow(store,'TRH',target_ref=target)['instance_id']
         engine.authorize(store,iid,{'intent':'Prepare the controlled old report manuscript only.',
             'authorized_scope':{'target_refs':[target],'reports':True,'allow_derived_work':True},'obligations':[]},
             {'max_calls':1,'max_workers':1,'execution_policy':demo.policy()})

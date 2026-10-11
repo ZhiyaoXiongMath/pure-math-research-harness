@@ -24,10 +24,10 @@ def no_result(task,snapshot):
 
 
 class ScientificPlans(unittest.TestCase):
-    def trw(self,path):
+    def trh(self,path):
         engine=Engine();store=engine.create(path,demo.ARITHMETIC,synthetic=True)
         target=next(iter(store.read_snapshot()['records']))
-        iid=engine.new_workflow(store,'TRW',target_ref=target)['instance_id']
+        iid=engine.new_workflow(store,'TRH',target_ref=target)['instance_id']
         return engine,store,iid,target
 
     def dispatch_one(self,store,iid,key=None,response=no_result):
@@ -54,7 +54,7 @@ class ScientificPlans(unittest.TestCase):
                     self.assertIn(DUTIES[sid][1],prompt['sections']['SCIENTIFIC_WORK'])
                     self.assertIn(DUTIES[sid][2],prompt['sections']['RESULT_AND_DOWNSTREAM_DUTY'])
         with TemporaryDirectory() as d:
-            e,store,iid,target=self.trw(d+'/p')
+            e,store,iid,target=self.trh(d+'/p')
             for sid,role in [('P1','PLAN'),('P2','PLAN'),('P3','PLAN'),('P5','SYNTHESIS'),('P6','PLAN'),('P8','RESEARCH'),('P10','SYNTHESIS'),('P11','SYNTHESIS'),('P12','INDEPENDENT')]:
                 result=e.start_round(store,iid,'Synthetic exact '+sid+' scientific responsibility.',stage=sid,role=role,max_calls=1,policy=demo.policy())
                 self.assertEqual(result['model_calls'],0)
@@ -72,7 +72,7 @@ class ScientificPlans(unittest.TestCase):
 
     def test_t2_p7_n_plus_m_complete_dispositions_first_research_and_global_gap(self):
         with TemporaryDirectory() as d:
-            e,store,iid,target=self.trw(d+'/p');sources=[]
+            e,store,iid,target=self.trh(d+'/p');sources=[]
             for n in range(3):
                 sources.append(store.commit(changes.prepare_material_input(store.read_snapshot(),('Synthetic framework '+str(n)+' with its explicit assumptions.').encode(),title='Framework '+str(n),media_type='text/plain',blob_get=store.read_blob))['source_ref'])
             items=[{'key':'learn'+str(n),'stage':'P7','role':'LEARN','intent':'Reconstruct framework '+str(n)+' and test its transfer to the additive identity obstacle.',
@@ -135,7 +135,7 @@ class ScientificPlans(unittest.TestCase):
 
     def test_t2_labels_methods_and_new_missions_do_not_reset_duty_budget(self):
         with TemporaryDirectory() as d:
-            e,store,iid,target=self.trw(d+'/p')
+            e,store,iid,target=self.trh(d+'/p')
             item={'key':'original','stage':'P8','role':'RESEARCH','intent':'Attempt the same exact scientific question.','framework_scope':'Same obstacle and scope','method_ref':'FIRST_LABEL'}
             original=e.plan_work(store,iid,'First wrapper',[item],max_calls=1,policy=demo.policy());task=self.dispatch_one(store,iid)
             changed={**item,'key':'renamed','method_ref':'RENAMED_METHOD'}
@@ -151,7 +151,7 @@ class ScientificPlans(unittest.TestCase):
 
     def test_t2_synthesis_cannot_omit_selected_branch_or_read_pending_work(self):
         with TemporaryDirectory() as d:
-            e,store,iid,target=self.trw(d+'/p')
+            e,store,iid,target=self.trh(d+'/p')
             branches=[{'key':'l'+str(n),'stage':'P7','role':'LEARN','intent':'Study exact framework '+str(n),'framework_scope':'Framework '+str(n)} for n in range(2)]
             branches.append({'key':'direct','stage':'P7','role':'DIRECT','intent':'An independent direct derivation.'})
             items=branches+[{'key':'join','stage':'P7','role':'SYNTHESIS','intent':'Compare selected methods.','synthesis_of':['l0','direct']}]
@@ -168,7 +168,7 @@ class ScientificPlans(unittest.TestCase):
     def test_t2_accepted_concrete_method_followup_enters_p8_and_d4_keeps_comparisons(self):
         from research_studio.engine import derive_followups
         with TemporaryDirectory() as d:
-            e,store,iid,target=self.trw(d+'/trw')
+            e,store,iid,target=self.trh(d+'/trh')
             result=e.plan_work(store,iid,'A source-free direct investigation followed only by its concrete gap.',
                 [{'key':'direct','stage':'P7','role':'DIRECT','intent':'Analyze a precise additive identity interface directly.'}],max_calls=2,policy=demo.policy())
             def concrete_gap(task,snapshot):
@@ -185,7 +185,7 @@ class ScientificPlans(unittest.TestCase):
             self.assertEqual(c['mission_id'],result['mission_id']);self.assertEqual(len(state['budget_grants']),1)
             task=self.dispatch_one(store,iid,response=demo.response);self.assertEqual(task['stage_id'],'P8')
             discovery=e.create(d+'/discovery',b'Synthetic frontier.',phenomenon=True,synthetic=True)
-            di=e.new_workflow(discovery,'TFDW',discovery_scope=demo.discovery_scope())['instance_id']
+            di=e.new_workflow(discovery,'FDH',discovery_scope=demo.discovery_scope())['instance_id']
             e.start_round(discovery,di,'Explore only the declared evidence and its precise candidate.',max_calls=3,policy=demo.policy())
             self.dispatch_one(discovery,di,response=demo.response);derive_followups(discovery,di)
             self.assertFalse(any(c['stage_id']=='D4' for o in discovery.read_snapshot()['obligations'].values() for c in o['definition']['consumer_bindings']))
@@ -223,7 +223,7 @@ class ScientificPlans(unittest.TestCase):
             with self.assertRaises(PMRSError):survey.start_activity(store,iid,intent='Rename the wrapper',items=items,max_calls=4,policy=demo.policy())
             self.assertEqual(store.read_snapshot()['project_budget']['max_calls'],before)
             target=next(r for r in ready['selected_refs'] if state['records'][r]['kind']=='Statement')
-            handoff=e.prepare_handoff(store,iid,'SURVEY_TO_TRW',{'target_refs':[target]})
+            handoff=e.prepare_handoff(store,iid,'SURVEY_TO_TRH',{'target_refs':[target]})
             decision=e.decide(store,iid,'ADOPT_HANDOFF','Select the exact synthetic target for a paused handoff.',snapshot_commit=store.read_snapshot()['knowledge_commit'])
             adopted=e.adopt_handoff(store,handoff['handoff_id'],decision)
             self.assertEqual(adopted['status'],'PAUSED');self.assertEqual(len(store.read_snapshot()['requests']),4)
@@ -232,7 +232,7 @@ class ScientificPlans(unittest.TestCase):
     def test_t3_discovery_zero_candidates_and_frontier_comparison_remain_native(self):
         with TemporaryDirectory() as d:
             e=Engine();store=e.create(d+'/p',b'Synthetic discovery phenomenon.',phenomenon=True,synthetic=True)
-            iid=e.new_workflow(store,'TFDW',discovery_scope=demo.discovery_scope())['instance_id']
+            iid=e.new_workflow(store,'FDH',discovery_scope=demo.discovery_scope())['instance_id']
             items=[{'key':'evidence','stage':'D1','role':'LEARN','intent':'Assess the positive and negative evidence without requiring a candidate.'},
                    {'key':'axis','stage':'D2','role':'DIRECT','intent':'Explore the permitted positivity axis only.','depends_on':['evidence']},
                    {'key':'second_axis','stage':'D2','role':'DIRECT','intent':'Explore the semidefinite boundary axis only.','depends_on':['evidence']},

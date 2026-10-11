@@ -40,24 +40,24 @@ class ModelPolicy(unittest.TestCase):
             ('P7','SYNTHESIS','MATHEMATICAL_INTEGRATION','max'),('P8','SYNTHESIS','MATHEMATICAL_INTEGRATION','max'),
             ('D1','LEARN','NEW_CONSTRUCTION','max'),('D1','RESEARCH','PROVE_APPLICABILITY','max'),
             ('D3','LEARN','MATHEMATICAL_DERIVATION','max')]:
-            out=M.resolve('TRW' if sid.startswith('P') else 'TFDW',sid,role,purpose,capabilities=CAP)
+            out=M.resolve('TRH' if sid.startswith('P') else 'FDH',sid,role,purpose,capabilities=CAP)
             self.assertEqual(out['reasoning_effort'],expected)
-        self.assertEqual(M.resolve('TRW','P10','SYNTHESIS',capabilities=CAP)['reasoning_effort'],'max')
-        self.assertEqual(M.resolve('TFDW','D2','SYNTHESIS',capabilities=CAP)['reasoning_effort'],'max')
-        self.assertFalse(M.resolve('TRW','P11','SYNTHESIS','DETERMINISTIC_DIFF',capabilities=CAP)['call_model'])
-        self.assertEqual(M.resolve('TRW','P13','REPORT_AUTHOR','LAYOUT_ONLY',capabilities=CAP)['reasoning_effort'],'high')
+        self.assertEqual(M.resolve('TRH','P10','SYNTHESIS',capabilities=CAP)['reasoning_effort'],'max')
+        self.assertEqual(M.resolve('FDH','D2','SYNTHESIS',capabilities=CAP)['reasoning_effort'],'max')
+        self.assertFalse(M.resolve('TRH','P11','SYNTHESIS','DETERMINISTIC_DIFF',capabilities=CAP)['call_model'])
+        self.assertEqual(M.resolve('TRH','P13','REPORT_AUTHOR','LAYOUT_ONLY',capabilities=CAP)['reasoning_effort'],'high')
 
     def test_unsupported_capability_no_fallback_or_implicit_ultra(self):
         for cap in [None,{**CAP,'models':{'gpt-6-astra':{'reasoning_efforts':['xhigh']}}}]:
-            with self.assertRaises(PMRSError):M.resolve('TRW','P10','SYNTHESIS',capabilities=cap)
-        override={'explicit':True,'scope':{'workflow_kind':'TRW','stage_id':'P10','role':'SYNTHESIS','purpose':'DEFAULT'},'reasoning_effort':'ultra'}
+            with self.assertRaises(PMRSError):M.resolve('TRH','P10','SYNTHESIS',capabilities=cap)
+        override={'explicit':True,'scope':{'workflow_kind':'TRH','stage_id':'P10','role':'SYNTHESIS','purpose':'DEFAULT'},'reasoning_effort':'ultra'}
         cap=deepcopy(CAP);cap['models']['gpt-6-astra']['reasoning_efforts'].append('ultra')
-        with self.assertRaises(PMRSError):M.resolve('TRW','P10','SYNTHESIS',override=override,capabilities=cap)
-        with self.assertRaises(PMRSError):M.resolve('TRW','P10','SYNTHESIS','UNREGISTERED',capabilities=CAP)
-        self.assertFalse(M.resolve('TRW','P14','HUMAN',override=override,capabilities=cap)['call_model'])
+        with self.assertRaises(PMRSError):M.resolve('TRH','P10','SYNTHESIS',override=override,capabilities=cap)
+        with self.assertRaises(PMRSError):M.resolve('TRH','P10','SYNTHESIS','UNREGISTERED',capabilities=CAP)
+        self.assertFalse(M.resolve('TRH','P14','HUMAN',override=override,capabilities=cap)['call_model'])
 
     def test_generic_override_cannot_shadow_specific_stage(self):
-        with self.assertRaises(PMRSError):M.resolve('TRW','P10','SYNTHESIS',override={'explicit':True,'scope':{'role':'SYNTHESIS'},'reasoning_effort':'xhigh'},capabilities=CAP)
+        with self.assertRaises(PMRSError):M.resolve('TRH','P10','SYNTHESIS',override={'explicit':True,'scope':{'role':'SYNTHESIS'},'reasoning_effort':'xhigh'},capabilities=CAP)
 
     def test_checked_in_schema_is_single_source_export(self):
         path=Path(__file__).parents[1]/'research_studio/schemas/model-policy.schema.json'
@@ -71,10 +71,10 @@ class ModelPolicy(unittest.TestCase):
             made=scheduler.commit_dispatch(store,scheduler.plan(store.read_snapshot(),['I']),policy=policy)
             t=store.read_snapshot()['tasks'][made['prepared'][0]['task_id']]
             self.assertEqual(t['model_policy']['reasoning_effort'],'max')
-            self.assertEqual(t['model_policy_resolution']['rule_id'],'TRW:P4:RESEARCH:DEFAULT')
+            self.assertEqual(t['model_policy_resolution']['rule_id'],'TRH:P4:RESEARCH:DEFAULT')
             args=M.codex_arguments(t['model_policy_resolution'])
             self.assertEqual(args,['--model','gpt-6-astra','-c','model_reasoning_effort="max"','-c','service_tier="default"'])
-            changed=deepcopy(policy);changed['model_override']={'explicit':True,'scope':{'workflow_kind':'TRW','stage_id':'P4','role':'RESEARCH','purpose':'DEFAULT'},'reasoning_effort':'xhigh'}
+            changed=deepcopy(policy);changed['model_override']={'explicit':True,'scope':{'workflow_kind':'TRH','stage_id':'P4','role':'RESEARCH','purpose':'DEFAULT'},'reasoning_effort':'xhigh'}
             plan=scheduler.plan(store.read_snapshot(),['I'])
             self.assertFalse(plan['selected']);self.assertEqual(plan['actions'][0]['action'],'REUSE')
             self.assertEqual(store.read_snapshot()['tasks'][t['task_id']]['model_policy'],t['model_policy'])

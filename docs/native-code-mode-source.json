@@ -1,0 +1,33 @@
+{
+  "schema": "pmrs.native-code-mode-startup/1",
+  "source": "Installed official Codex desktop bundled sidecar",
+  "source_cli_version": "codex-cli 0.160.0",
+  "source_binary_sha256": "37cab1584302611e9936902219640ab5e7a79fcfccd2504c6e85ea8cb97d0e10",
+  "request": {
+    "type": "connection/hello",
+    "supportedVersions": [
+      1
+    ],
+    "requiredCapabilities": [],
+    "optionalCapabilities": [
+      "session-cell-execution-resource-limits",
+      "yield-observation"
+    ]
+  },
+  "response": {
+    "type": "connection/ready",
+    "selectedVersion": 1,
+    "capabilities": [
+      "session-cell-execution-resource-limits",
+      "yield-observation"
+    ]
+  },
+  "exit_code": 0,
+  "stderr": "",
+  "model_calls": 0,
+  "executed_cells": 0,
+  "verification_scope": "PROTOCOL_V1_INITIALIZATION_METADATA_ONLY; actual tool behavior requires the same HSC continuation",
+  "pinned_client_protocol_source": "codex-rs/code-mode/src/remote_session/connection.rs @ 2351d9e1b608e6f9d9a3699b71d7eb39ee41cfa4",
+  "same_source_as_patched_app_server": false,
+  "same_source_build_unavailable_reason": "Official rusty_v8 v150.4.0 sandbox Linux prebuilt archive returned HTTP404; no sandbox changes or V8 source build attempted"
+}

@@ -15,7 +15,7 @@ class SchedulerAging(unittest.TestCase):
         for kind in ('REPORT','ACCOUNT'):
             with self.subTest(kind=kind),TemporaryDirectory() as tmp,patch.dict(os.environ,{'PMRS_HOST_POOL_ROOT':tmp+'/pool'}):
                 engine=Engine();store=engine.create(Path(tmp)/'p',demo.ARITHMETIC,synthetic=True)
-                target=next(iter(store.read_snapshot()['records']));iid=engine.new_workflow(store,'TRW',target_ref=target)['instance_id']
+                target=next(iter(store.read_snapshot()['records']));iid=engine.new_workflow(store,'TRH',target_ref=target)['instance_id']
                 items=[{'key':'ordinary'+str(n),'stage':'P4','role':'RESEARCH','intent':'Different bounded native aging responsibility '+str(n)} for n in range(12)]
                 items.append({'key':'previous-account','stage':'P11','role':'SYNTHESIS','intent':'Earlier explicit global account.'})
                 if kind=='ACCOUNT':items.append({'key':'waiting-account','stage':'P11','role':'SYNTHESIS','intent':'Later explicit global account.'})

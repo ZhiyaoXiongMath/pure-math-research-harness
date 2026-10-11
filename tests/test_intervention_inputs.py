@@ -21,7 +21,7 @@ class InterventionInputs(unittest.TestCase):
 
     def project(self):
         engine=Engine();store=engine.create(self.root/'project',demo.ARITHMETIC,synthetic=True)
-        target=next(iter(store.read_snapshot()['records']));iid=engine.new_workflow(store,'TRW',target_ref=target)['instance_id']
+        target=next(iter(store.read_snapshot()['records']));iid=engine.new_workflow(store,'TRH',target_ref=target)['instance_id']
         return engine,store,iid,target
 
     def material(self,store,body,title):
@@ -66,7 +66,7 @@ class InterventionInputs(unittest.TestCase):
         prompt=store.read_blob(task['prompt_ref']).decode();budget,details=tasks.request_budget(task,prompt,packet,demo.policy()['capacity'],
             reserved_output_tokens=task['context_budget']['reserved_output_tokens'],safety_margin_tokens=1024)
         self.assertEqual(task['context_budget'],budget);self.assertEqual(task['context_budget_details'],details)
-        actual_metadata=len(canonical(task))+len(prompt.encode())+len(canonical(packet))+len(tasks.INPUT_BOOTSTRAP.encode())
+        actual_metadata=len(canonical(tasks.model_task_payload(task)))+len(prompt.encode())+len(canonical(tasks.model_packet_payload(packet)))+len(tasks.INPUT_BOOTSTRAP.encode())
         self.assertEqual(budget['input_tokens'],actual_metadata+sum(x['bytes'] for x in task['material_refs'].values()))
 
     def test_t7_utf8_binary_png_and_128k_output_reserve_are_disclosed(self):

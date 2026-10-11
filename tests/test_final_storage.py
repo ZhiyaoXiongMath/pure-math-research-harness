@@ -33,7 +33,7 @@ class JournalTests(unittest.TestCase):
     def test_science_control_boundary_record_bytes_and_checkpoint_integrity(self):
         with tempfile.TemporaryDirectory() as tmp:
             s=Engine().create(Path(tmp)/'p',demo.ARITHMETIC,synthetic=True);target=next(iter(s.read_snapshot()['records']))
-            i=Engine().new_workflow(s,'TRW',target_ref=target)['instance_id'];before=s.read_snapshot()
+            i=Engine().new_workflow(s,'TRH',target_ref=target)['instance_id'];before=s.read_snapshot()
             with self.assertRaisesRegex(PMRSError,'STATE_PATCH_FORBIDDEN'):Store.create(Path(tmp)/'bad','bad',initial={'records':{}})
             with self.assertRaises(PMRSError):s.commit({'outcome':'ACCEPTED','records':{}})
             with self.assertRaises(PMRSError):s.commit_control({'event_type':'PATCH','records':{}})
@@ -60,7 +60,7 @@ class JournalTests(unittest.TestCase):
         from research_studio import scheduler,tasks,execution
         with tempfile.TemporaryDirectory() as tmp:
             s=Engine().create(Path(tmp)/'p',demo.ARITHMETIC,synthetic=True);target=next(iter(s.read_snapshot()['records']))
-            e=Engine();i=e.new_workflow(s,'TRW',target_ref=target)['instance_id'];e.start_round(s,i,'Investigate',max_calls=2,policy=demo.policy())
+            e=Engine();i=e.new_workflow(s,'TRH',target_ref=target)['instance_id'];e.start_round(s,i,'Investigate',max_calls=2,policy=demo.policy())
             made=e.prepare(s,i);t=tasks.load(s,made['prepared'][0]['task_id']);r=execution.reserve(s,t['request_id'],execution_kind='SYNTHETIC_TEST_ONLY')
             execution.capture(s,t['request_id'],demo.response(t,s.read_snapshot()),execution_id=r['execution_id'])
             path=s.root/'records'/(target+'.json');data=loads(path.read_bytes());data['kind']='Context';path.write_bytes(canonical(data))
@@ -90,7 +90,7 @@ class JournalTests(unittest.TestCase):
         for boundary in ('after_blobs','after_records','after_commit','before_head','after_head'):
             with self.subTest(boundary=boundary),tempfile.TemporaryDirectory() as tmp:
                 e=Engine();s=e.create(Path(tmp)/'p',demo.ARITHMETIC,synthetic=True);target=next(iter(s.read_snapshot()['records']))
-                iid=e.new_workflow(s,'TRW',target_ref=target)['instance_id'];e.start_round(s,iid,'Investigate',max_calls=2,policy=demo.policy())
+                iid=e.new_workflow(s,'TRH',target_ref=target)['instance_id'];e.start_round(s,iid,'Investigate',max_calls=2,policy=demo.policy())
                 made=e.prepare(s,iid);t=tasks.load(s,made['prepared'][0]['task_id']);raw=loads(demo.response(t,s.read_snapshot()))
                 body='For every integer m, m + 1 is an integer.';loc=locator(body)
                 raw['payload']['operations'].append({'op':'NEW','local_key':'extra','kind':'Statement','context_refs':[],'body':body,'data':{'statement_locator':loc,'scope_context_refs':[],'hypothesis_locators':[],'conclusion_locators':[loc],'quantifier_locators':[loc],'form':'CONJECTURE','representation':'AUTHORED','source_binding':None}})
@@ -124,7 +124,7 @@ class JournalTests(unittest.TestCase):
                 # this private writer never becomes a public bulk-state API.
                 with store._locked():store._publish(snapshot['_head'],snapshot,state,actor='TEST_FIXTURE',events=[{'type':'GENERATED_NATIVE_PRESSURE_FIXTURE','count':min(64,10000-offset)}])
             s=store.read_snapshot();self.assertEqual(len(s['records']),10000)
-            target=next(iter(s['records']));i=Engine().new_workflow(store,'TRW',target_ref=target)['instance_id']
+            target=next(iter(s['records']));i=Engine().new_workflow(store,'TRH',target_ref=target)['instance_id']
             body_refs={r['body_sha256'] for r in s['records'].values()};body_hashes={h:sha(store.read_blob(h)) for h in body_refs}
             baseline=store.read_snapshot();begin=baseline['_snapshot_sequence'];journal_bytes=[];delta_bytes=[]
             for n in range(1000):

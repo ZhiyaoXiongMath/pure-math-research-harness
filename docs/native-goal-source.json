@@ -1,0 +1,10 @@
+{
+  "commit": "2351d9e1b608e6f9d9a3699b71d7eb39ee41cfa4",
+  "source_archive_sha256": "7a9c5090781a917bf53eb7ca0d1cfae56a2230e00c2d670bc8122c810873deed",
+  "source_url": "https://github.com/openai/codex/tree/2351d9e1b608e6f9d9a3699b71d7eb39ee41cfa4",
+  "comparison_with_extracted_main_differences": [],
+  "gate_revision": "pmrs.native-admission/1",
+  "patch_sha256": "d03b06c5ab8890c8f95b90dd20a130c46fdef00f0b65cf145180d145cedcd090",
+  "native_version": "upstream source development version 0.0.0, pinned commit",
+  "model_calls": 0
+}

@@ -13,7 +13,7 @@ class RepairSurfaceTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.w = Workspace(Path(self.tmp.name) / 'workspace')
-        self.created = self.w.action('example', {'kind':'TRW','title':'导航与重试','text':demo.ARITHMETIC.decode()}, 'create-repair-1234567890')
+        self.created = self.w.action('example', {'kind':'TRH','title':'导航与重试','text':demo.ARITHMETIC.decode()}, 'create-repair-1234567890')
         self.key = self.created['project']; self.iid = self.created['instance_id']
         self.store = self.w.project(self.key); self.e = self.w.engine
 
@@ -24,10 +24,10 @@ class RepairSurfaceTests(unittest.TestCase):
         restarted = Workspace(self.w.root)
         result = restarted.operation_status('create-repair-1234567890')
         self.assertEqual(result['state'],'COMPLETED'); self.assertEqual(result['result'],self.created)
-        replay = restarted.action('example',{'kind':'TRW','title':'导航与重试','text':demo.ARITHMETIC.decode()},'create-repair-1234567890')
+        replay = restarted.action('example',{'kind':'TRH','title':'导航与重试','text':demo.ARITHMETIC.decode()},'create-repair-1234567890')
         self.assertEqual(replay,self.created); self.assertEqual(len(restarted.list()['projects']),1)
         self.assertEqual(before,self.store.read_snapshot())
-        new = restarted.action('example',{'kind':'TRW','title':'导航与重试','text':demo.ARITHMETIC.decode()},'explicit-new-1234567890')
+        new = restarted.action('example',{'kind':'TRH','title':'导航与重试','text':demo.ARITHMETIC.decode()},'explicit-new-1234567890')
         self.assertNotEqual(new['project'],self.key); self.assertEqual(len(restarted.list()['projects']),2)
         with patch.object(restarted,'_action',side_effect=AssertionError('GET cannot dispatch')):
             self.assertEqual(restarted.operation_status('never-sent-1234567890')['state'],'NOT_FOUND')
@@ -36,7 +36,7 @@ class RepairSurfaceTests(unittest.TestCase):
 
     def test_progress_scopes_requests_and_keeps_project_coordinator_separate(self):
         target=self.store.read_snapshot()['instances'][self.iid]['target_ref']
-        other=self.e.new_workflow(self.store,'TRW',name='另一个活动实例',target_ref=target)['instance_id']
+        other=self.e.new_workflow(self.store,'TRH',name='另一个活动实例',target_ref=target)['instance_id']
         self.e.start_round(self.store,other,'Inspect exact target.',max_calls=2,policy=demo.policy())
         task=self.e.prepare(self.store,other)['prepared'][0]
         row=self.store.read_snapshot()['tasks'][task['task_id']]
@@ -63,10 +63,10 @@ class RepairSurfaceTests(unittest.TestCase):
 
     def test_complete_graph_and_nonmonotonic_native_activity(self):
         graph=activity.graph(); workflows={w['kind']:w for w in graph['workflows']}
-        self.assertEqual([n['stage_id'] for n in workflows['TRW']['nodes']],['P'+str(i) for i in range(15)])
-        self.assertEqual([n['stage_id'] for n in workflows['TFDW']['nodes']],['D'+str(i) for i in range(6)])
+        self.assertEqual([n['stage_id'] for n in workflows['TRH']['nodes']],['P'+str(i) for i in range(15)])
+        self.assertEqual([n['stage_id'] for n in workflows['FDH']['nodes']],['D'+str(i) for i in range(6)])
         self.assertEqual(len(graph['analysis_routes']),3); self.assertEqual(len(graph['handoffs']),2)
-        self.assertFalse(graph['automatic_next']); self.assertTrue(any(e['kind']=='return' for e in workflows['TRW']['edges']))
+        self.assertFalse(graph['automatic_next']); self.assertTrue(any(e['kind']=='return' for e in workflows['TRH']['edges']))
         initial=activity.project(self.store.read_snapshot(),self.iid)
         p0=next(row for row in initial['stages'] if row['stage_id']=='P0')
         self.assertEqual(p0['status'],'VISITED'); self.assertTrue(p0['control_event_ids'])
@@ -85,7 +85,7 @@ class RepairSurfaceTests(unittest.TestCase):
         self.assertEqual(p4['status'],'VISITED'); self.assertIn('禁止重发',p4['waiting_reasons'][0])
 
     def test_stage_products_are_readable_only_in_their_exact_producing_instance(self):
-        other=self.e.new_workflow(self.store,'TRW',name='另一个目标',target='For every real x, x * 1 = x.')['instance_id']
+        other=self.e.new_workflow(self.store,'TRH',name='另一个目标',target='For every real x, x * 1 = x.')['instance_id']
         s=deepcopy(self.store.read_snapshot()); ref=s['instances'][other]['target_ref']
         self.assertNotIn(ref,views.scope_refs(s,self.iid))
         s['tasks']['production-task']={'instance_id':self.iid}
@@ -94,7 +94,7 @@ class RepairSurfaceTests(unittest.TestCase):
         self.assertEqual(s['instances'][self.iid]['target_ref'],self.store.read_snapshot()['instances'][self.iid]['target_ref'])
 
     def test_scoped_discovery_sources_and_web_completion_preserve_original_bytes(self):
-        draft=self.w.action('new-workflow',{'project':self.key,'kind':'TFDW','name':'可补齐的发现','draft':True,'discovery_scope':{'phenomenon':'原现象\n中文。'}},'draft-scope-1234567890')
+        draft=self.w.action('new-workflow',{'project':self.key,'kind':'FDH','name':'可补齐的发现','draft':True,'discovery_scope':{'phenomenon':'原现象\n中文。'}},'draft-scope-1234567890')
         iid=draft['instance_id']; before=self.store.read_snapshot()['instances'][iid]['discovery_brief_ref']
         self.w.action('configure-discovery',{'project':self.key,'instance':iid,'discovery_scope':{'immutable_background':'固定实数背景。','allowed_axes':'只探索正定性假设。'}},'complete-scope-1234567890')
         s=self.store.read_snapshot(); scope=s['instances'][iid]['discovery_scope']

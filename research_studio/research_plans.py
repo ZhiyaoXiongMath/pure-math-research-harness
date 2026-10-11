@@ -51,6 +51,7 @@ def plan_work(store, instance_id, intent, items, *, mission_id=None, max_calls=8
     require(type(max_research_attempts) is int and 1<=max_research_attempts<=max(1,max_calls),
             'AUTHORIZATION_REQUIRED','Finite cumulative responsibility allowance required')
     instance=W.select_instance(s,instance_id)
+    require(instance['kind']=='SURVEY','MAIN_DECISION_REQUIRED','Harness stages are created only by the owning MAIN; submit a direction through the product entrypoint')
     require(instance['status']!='ENDED','AUTHORIZATION_REQUIRED','An ended instance requires a new authorized instance')
     discovery=W.validate_discovery_scope(s,instance)
     common_inputs=_refs(list(common_input_refs or []),s['records'],'Common inputs')

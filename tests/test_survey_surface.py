@@ -17,7 +17,7 @@ class LocaleHostTests(unittest.TestCase):
     def test_preference_survives_new_server_and_changed_port_without_research_write(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)/'workspace';w=Workspace(root)
-            made=w.action('create',{'kind':'TRW','title':'Locale isolation','text':'For every integer n, n + 0 = n.'},'locale-isolation-1234567890')
+            made=w.action('create',{'kind':'TRH','title':'Locale isolation','text':'For every integer n, n + 0 = n.'},'locale-isolation-1234567890')
             store=w.project(made['project']);before=store.read_snapshot();receipts=w.operations()
             ports=[]
             for iteration in range(2):
@@ -72,15 +72,15 @@ class SurveyWorkspaceTests(unittest.TestCase):
         base=self.ready();state=self.store.read_snapshot()
         target=next(ref for ref in self.evidence['selected_refs'] if state['records'][ref]['kind']=='Statement')
         calls=state['usage']['model_calls'];tasks=state['tasks']
-        for kind in ('TRW','TFDW'):
+        for kind in ('TRH','FDH'):
             payload={**base,'direction':'SURVEY_TO_'+kind,'target_ref':target,'name':'Paused '+kind,
                      'note':'Adopt this exact teaching statement with its source and context.'}
-            if kind=='TFDW':payload['discovery_scope']=demo.discovery_scope('Explore precise finite-sum variants.')
+            if kind=='FDH':payload['discovery_scope']=demo.discovery_scope('Explore precise finite-sum variants.')
             result=self.w.action('handoff',payload,'survey-handoff-'+kind.lower()+'-1234567890')
             s=self.store.read_snapshot();adopted=s['instances'][result['instance_id']]
             self.assertEqual((adopted['kind'],adopted['status']),(kind,'PAUSED'))
             self.assertEqual(adopted['mission_ids'],[]);self.assertFalse(s['qualifications'])
-            if kind=='TRW':self.assertEqual(adopted['target_ref'],target)
+            if kind=='TRH':self.assertEqual(adopted['target_ref'],target)
             self.assertEqual(s['usage']['model_calls'],calls);self.assertEqual(s['tasks'],tasks)
         self.assertTrue(self.store.audit()['valid'])
 

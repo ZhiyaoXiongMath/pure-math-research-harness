@@ -9,7 +9,7 @@
           "assertion_id": "R04.a1",
           "test_ids": [
             "tests.test_final_reports.FinalReportTests.test_native_early_decision_missing_failed_and_explicit_report_first",
-            "tests.test_final_reports.FinalReportTests.test_tfdw_zero_candidate_report_and_failure_decision_variants",
+            "tests.test_final_reports.FinalReportTests.test_fdh_zero_candidate_report_and_failure_decision_variants",
             "tests.test_final_reports.FinalReportTests.test_real_pdf_png_native_pair_exact_sequence_and_repeat_zero_calls"
           ]
         }
@@ -247,7 +247,7 @@
       "reason": "Human knowledge decisions normally use exact knowledge/authorization; an explicit report-first instruction alone requires completed actual report.",
       "test_ids": [
         "tests.test_final_reports.FinalReportTests.test_native_early_decision_missing_failed_and_explicit_report_first",
-        "tests.test_final_reports.FinalReportTests.test_tfdw_zero_candidate_report_and_failure_decision_variants"
+        "tests.test_final_reports.FinalReportTests.test_fdh_zero_candidate_report_and_failure_decision_variants"
       ]
     }
   ]

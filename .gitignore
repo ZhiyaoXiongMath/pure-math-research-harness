@@ -6,4 +6,27 @@ dist/
 *.egg-info/
 .env
 .env.*
+!.env.example
 .runtime/
+# Native executables are locally built/provided; provenance and licenses stay tracked.
+/research_studio/native/codex-app-server
+/research_studio/native/codex-code-mode-host
+# Local workspaces, authentication, logs, reports and build caches are private.
+/workspace/
+/pmrs-workspace/
+/pmrs-native-build/
+/pmrs-packages/
+/pmrs-unpacked/
+/pmrs-install/
+/pmrs-bin/
+/pmrs-applications/
+*.log
+.pytest_cache/
+.coverage
+htmlcov/
+test-results/
+playwright-report/
+*.swp
+*.swo
+*~
+.DS_Store

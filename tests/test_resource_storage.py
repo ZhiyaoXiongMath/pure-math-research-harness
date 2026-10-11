@@ -71,7 +71,7 @@ class ResourceStorage(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             e=Engine();store=e.create(Path(tmp)/'p',demo.ARITHMETIC,synthetic=True)
             target=next(iter(store.read_snapshot()['records']))
-            iid=e.new_workflow(store,'TRW',target_ref=target)['instance_id']
+            iid=e.new_workflow(store,'TRH',target_ref=target)['instance_id']
             e.start_round(store,iid,'Investigate the exact synthetic statement.',max_calls=2,policy=demo.policy())
             tid=e.prepare(store,iid)['prepared'][0]['task_id']
             executor=FakeExecutor(demo.response,fault_at='AFTER_CAPTURE_RECEIPT_BEFORE_ADMISSION')

@@ -1,0 +1,126 @@
+--- a/codex-rs/core/src/session/turn_input.rs
++++ b/codex-rs/core/src/session/turn_input.rs
+@@ -59,6 +59,58 @@
+ #[path = "turn_input_tests.rs"]
+ mod tests;
+ 
++// PMRS 4.2.2: pre-sampling admission applies ONLY to the product root thread.
++// Native subagents (all models, depth, number, and duration) bypass this gate.
++// Missing host, rejected admission, malformed reply or I/O failure is closed.
++#[cfg(unix)]
++async fn pmrs_root_turn_admission(
++    session: &Arc<Session>,
++    request: &mut TurnInputRequest,
++    turn_id: &str,
++) -> CodexResult<()> {
++    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
++    use tokio::net::UnixStream;
++    let Some(socket_path) = std::env::var_os("PMRS_NATIVE_MAIN_GATE") else { return Ok(()); };
++    if matches!(session.state.lock().await.session_configuration.session_source,
++        SessionSource::SubAgent(_)) || session.active_turn.lock().await.is_some() {
++        return Ok(());
++    }
++    let exchange = async {
++        let mut stream = UnixStream::connect(socket_path).await.map_err(|e| e.to_string())?;
++        let body = serde_json::json!({"schema":"pmrs.native-turn-admission/1",
++            "thread_id":session.thread_id.to_string(),"turn_id":turn_id,
++            "turn_trigger":request.start.turn_trigger,
++            "gate_revision":"pmrs.native-admission/1"});
++        stream.write_all(format!("{}\n", body).as_bytes()).await.map_err(|e| e.to_string())?;
++        let mut reader = BufReader::new(stream);
++        let mut line = String::new();
++        reader.read_line(&mut line).await.map_err(|e| e.to_string())?;
++        if line.len() > 4 * 1024 * 1024 { return Err("oversized gate response".to_string()); }
++        let reply: serde_json::Value = serde_json::from_str(&line).map_err(|e| e.to_string())?;
++        if reply.get("allow").and_then(|v| v.as_bool()) != Some(true) {
++            return Err(format!("PMRS admission denied: {}", reply.get("reason").unwrap_or(&serde_json::Value::Null)));
++        }
++        let request_id = reply.get("request_id").and_then(|v| v.as_str()).ok_or("missing PMRS request identity")?;
++        let context = reply.get("additional_context").and_then(|v| v.as_str()).ok_or("missing PMRS input")?;
++        request.additional_context.insert(format!("pmrs_request_{}", request_id), AdditionalContextEntry {
++            value: context.to_string(), kind: codex_protocol::protocol::AdditionalContextKind::Application,
++        });
++        request.responsesapi_client_metadata.get_or_insert_with(HashMap::new)
++            .insert("pmrs_request_id".to_string(), request_id.to_string());
++        Ok::<(),String>(())
++    };
++    tokio::time::timeout(std::time::Duration::from_secs(30), exchange).await
++        .map_err(|_| CodexErr::InvalidRequest("PMRS native admission unavailable (timeout)".to_string()))?
++        .map_err(|e| CodexErr::InvalidRequest(format!("PMRS native admission unavailable: {e}")))
++}
++#[cfg(not(unix))]
++async fn pmrs_root_turn_admission(_session: &Arc<Session>, _request: &mut TurnInputRequest, _turn_id: &str) -> CodexResult<()> {
++    if std::env::var_os("PMRS_NATIVE_MAIN_GATE").is_some() {
++        return Err(CodexErr::InvalidRequest("PMRS native admission requires Unix sockets".to_string()));
++    }
++    Ok(())
++}
++
+ /// Why input is starting a turn; shared by admission and input delivery.
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+ enum TurnStartKind {
+@@ -232,7 +284,8 @@
+     mode: TurnInputMode,
+     submission_id: String,
+ ) -> CodexResult<TurnInputSubmission> {
+-    let request = request.into();
++    let mut request = request.into();
++    pmrs_root_turn_admission(session, &mut request.request, &submission_id).await?;
+     let result = match mode {
+         TurnInputMode::StartOrSteer => start_or_steer(session, request, submission_id).await,
+         TurnInputMode::StartIfIdle => {
+@@ -300,9 +353,10 @@
+         request: thread_settings,
+         turn_extension_init,
+     } = thread_settings.into();
+-    let request = TurnInputRequest::user_input(Vec::new())
++    let mut request = TurnInputRequest::user_input(Vec::new())
+         .with_thread_settings(thread_settings)
+         .on_start(start_options);
++    pmrs_root_turn_admission(session, &mut request, &submission_id).await?;
+     let result = start_if_idle(
+         session,
+         WithTurnExtensionData {
+--- a/codex-rs/app-server/src/main.rs
++++ b/codex-rs/app-server/src/main.rs
+@@ -35,6 +35,14 @@
+ 
+     #[command(flatten)]
+     code_mode_host: AppServerCodeModeHostArgs,
++
++    /// Ignore user configuration for an isolated PMRS runtime.
++    #[arg(long)]
++    ignore_user_config: bool,
++
++    /// Ignore user and project exec rules without modifying them.
++    #[arg(long)]
++    ignore_rules: bool,
+ 
+     /// Transport endpoint URL. Supported values: `stdio://` (default),
+     /// `unix://`, `unix://PATH`, `ws://IP:PORT`, `off`.
+@@ -81,6 +89,8 @@
+     arg0_dispatch_or_else(move |arg0_paths: Arg0DispatchPaths| async move {
+         let AppServerArgs {
+             config_overrides,
++            ignore_user_config,
++            ignore_rules,
+             code_mode_host,
+             listen,
+             session_source,
+@@ -91,13 +101,15 @@
+             remote_control,
+             managed_daemon,
+         } = AppServerArgs::parse();
+-        let loader_overrides = if disable_managed_config_from_debug_env() {
++        let mut loader_overrides = if disable_managed_config_from_debug_env() {
+             LoaderOverrides::without_managed_config_for_tests()
+         } else {
+             managed_config_path_from_debug_env()
+                 .map(LoaderOverrides::with_managed_config_path_for_tests)
+                 .unwrap_or_default()
+         };
++        loader_overrides.ignore_user_config = ignore_user_config;
++        loader_overrides.ignore_user_and_project_exec_policy_rules = ignore_rules;
+         let transport = listen;
+         let auth = auth.try_into_settings()?;
+         let mut runtime_options = AppServerRuntimeOptions {

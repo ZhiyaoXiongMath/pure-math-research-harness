@@ -368,7 +368,7 @@
             "tests.test_final_kernel.AssuranceContextTests.test_refutation_integration_defect_policy_and_formal_boundaries",
             "tests.test_final_workflows.Workflows.test_explicit_verify_only",
             "tests.test_final_workflows.RuntimeBoundaries.test_cancel_unknown_and_capture_identity_do_not_close_duty",
-            "tests.test_final_workflows.RuntimeStories.test_trw_original_target_dual_and_open_decision"
+            "tests.test_final_workflows.RuntimeStories.test_trh_original_target_dual_and_open_decision"
           ]
         },
         {
@@ -386,7 +386,7 @@
             "tests.test_final_kernel.AssuranceContextTests.test_refutation_integration_defect_policy_and_formal_boundaries",
             "tests.test_final_kernel.AssuranceContextTests.test_author_self_check_and_scope_extension_do_not_qualify",
             "tests.test_final_kernel.AssuranceContextTests.test_human_adoption_is_not_scoped_mathematical_attestation",
-            "tests.test_final_workflows.RuntimeStories.test_trw_original_target_dual_and_open_decision"
+            "tests.test_final_workflows.RuntimeStories.test_trh_original_target_dual_and_open_decision"
           ]
         },
         {
@@ -517,7 +517,7 @@
     {
       "port_id": "P065",
       "disposition": "REPLACE",
-      "reason": "Statement revisions can be candidates, but TRW target is an immutable instance binding.",
+      "reason": "Statement revisions can be candidates, but TRH target is an immutable instance binding.",
       "test_ids": [
         "tests.test_final_kernel.PersistedKernelTests.test_two_workflows_shared_content_unrelated_commits_and_recovery",
         "tests.test_final_kernel.FinalIdentityAdmissionTests.test_statement_revision_keeps_fixed_target_and_rejects_late_current_capture"

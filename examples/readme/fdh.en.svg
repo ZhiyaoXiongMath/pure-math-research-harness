@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="864" viewBox="0 0 960 864" role="img" aria-labelledby="figure-title" lang="en">
-  <title id="figure-title">TFDW workflow responsibilities and main paths</title>
+  <title id="figure-title">FDH workflow responsibilities and main paths</title>
   <defs>
     <marker id="arrow-main" viewBox="0 0 10 10" refX="8.2" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 1 1 L 9 5 L 1 9 Z" fill="#355f9f" />
@@ -14,7 +14,7 @@
   </defs>
   <rect x="0" y="0" width="960" height="864" rx="20" fill="#f4f7fb" />
   <rect x="0.75" y="0.75" width="958.5" height="862.5" rx="20" fill="none" stroke="#dae3ed" stroke-width="1.5" />
-  <text x="44" y="57" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="32" font-weight="700" fill="#152a43" text-anchor="start">TFDW · Formulation discovery</text>
+  <text x="44" y="57" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="32" font-weight="700" fill="#152a43" text-anchor="start">FDH · Formulation discovery</text>
   <text x="44" y="94" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="20" font-weight="400" fill="#4b6179" text-anchor="start">Start from a phenomenon and its boundaries; formulate, compare and select candidates</text>
   <rect x="45" y="133" width="270" height="195" rx="15" fill="#ffffff" stroke="#d8e1eb" stroke-width="1.5" />
   <rect x="64" y="152" width="5" height="27" rx="2.5" fill="#355f9f" />
@@ -71,7 +71,7 @@
   <text x="202" y="646" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="700" fill="#986316" text-anchor="start">exact candidate</text>
   <rect x="45" y="669" width="540" height="95" rx="15" fill="#ffffff" stroke="#d8e1eb" stroke-width="1.5" />
   <rect x="64" y="688" width="5" height="27" rx="2.5" fill="#986316" />
-  <text x="82" y="707" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="24" font-weight="700" fill="#152a43" text-anchor="start">New paused TRW</text>
+  <text x="82" y="707" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="24" font-weight="700" fill="#152a43" text-anchor="start">New paused TRH</text>
   <text x="65" y="744" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="19" font-weight="400" fill="#4b6179" text-anchor="start">Target: the selected exact candidate revision</text>
   <text x="615" y="699" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="17" font-weight="400" fill="#4b6179" text-anchor="start">Adoption is not proof.</text>
   <text x="615" y="726" font-family="Noto Sans, Noto Sans CJK SC, DejaVu Sans, sans-serif" font-size="17" font-weight="400" fill="#4b6179" text-anchor="start">No automatic execution.</text>

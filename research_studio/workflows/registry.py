@@ -5,8 +5,8 @@ already identified obligation; they never mint generic stage work.
 """
 from copy import deepcopy
 from ..util import identity, require
-from .trw import STAGES as TRW
-from .tfdw import STAGES as TFDW
+from .trh import STAGES as TRH
+from .fdh import STAGES as FDH
 from .survey import STAGES as SURVEY
 
 REQUIRED = {'workflow_kind', 'stage_id', 'version', 'purpose', 'allowed_obligation_types',
@@ -18,8 +18,26 @@ ROUTES = {'SOURCE_APPLICATION': ('LEARN',), 'DIRECT_ANALYSIS': ('DIRECT',),
 INDEPENDENT = {'PROOF', 'COUNTEREXAMPLE', 'INDEPENDENT', 'SPECIALIST',
                'FORMULATION_REVIEW', 'ADVERSARIAL_REVIEW', 'REPORT_SEMANTIC', 'REPORT_VISUAL', 'READINESS_REVIEW', 'COVERAGE_REVIEW'}
 
+def _main_capabilities():
+    """Control capabilities, not an automatically selected scientific stage."""
+    result=[]
+    for kind,stages,account in [('TRH',TRH,'P11'),('FDH',FDH,'D5')]:
+        row=deepcopy(next(s for s in stages if s['stage_id']==account))
+        row.update(stage_id='MAIN_'+kind,version='pmrs.harness-main/4.2.2',
+            purpose='Continuing '+kind+' MAIN: decide, research, communicate and account within the fixed scope',
+            allowed_obligation_types=['ACCOUNT','CONTROL'],
+            roles=[{'role':'MAIN_DECIDE','required_when':'WHEN_ASSIGNED_BY_OBLIGATION','independent':False,
+                    'forbidden_context_classes':[],'payload_kinds':['KNOWLEDGE_CHANGE']}],
+            allowed_scientific_kinds=['Context','Statement','Argument','Example','SourceEvidence','Assessment'],
+            ui_labels={'zh-CN':kind+' MAIN 研究决策','en':kind+' MAIN research decision'})
+        row['exit_rules']={'forward':[],'return':[],'early_delivery':None,
+            'required':['NO_AUTHORITY_PROMOTION','UNPERFORMED_DUTIES_PERSIST'],'automatic_next':False}
+        row['forbidden_effects']=['NO_TARGET_REWRITE','NO_UNAUTHORIZED_BUDGET','NO_AUTHORITY_PROMOTION']
+        result.append(row)
+    return result
+
 def compile_registry(rows=None):
-    rows = deepcopy(TRW + TFDW + SURVEY if rows is None else rows)
+    rows = deepcopy(TRH + FDH + SURVEY + _main_capabilities() if rows is None else rows)
     compiled = {}
     for row in rows:
         require(REQUIRED <= row.keys(), 'STAGE_SPEC_INVALID', 'Missing activity contract fields')

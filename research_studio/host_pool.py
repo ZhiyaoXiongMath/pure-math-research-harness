@@ -1,64 +1,48 @@
-"""Small user-local, nonpreemptive PMRS model pool shared by every entry point.
+"""One atomic user-wide 20-stage pool with independent 8-stage instance caps.
 
-This is an admission ledger, not a claim that an UNKNOWN remote job is running.
-Uncertain sends remain reserved until their original native evidence resolves them.
+MAIN and its native delegates are excluded. Native UNKNOWN requests retain slots.
 """
 from contextlib import contextmanager
 from pathlib import Path
-import fcntl,json,os,time
+import fcntl,json,os
 from .util import PMRSError,atomic,canonical,read,require,safe_path,sha
-
-HOST_LIMIT=10
+HOST_LIMIT=20
 PROJECT_LIMIT=8
-
-def runnable_request(snapshot,request):
-    if request.get('purpose')=='PROJECT_ASSISTANT':return True
-    task=snapshot.get('tasks',{}).get(request.get('task_id'),{})
+INFLIGHT={'RESERVED','SENT','UNKNOWN'}
+def is_stage(s,r):return s.get('tasks',{}).get(r.get('task_id'),{}).get('actor_kind')!='MAIN'
+def instance_limit(s,iid):return 1 if s['instances'][iid]['kind']=='SURVEY' else 8
+def runnable_request(s,r):
+    task=s.get('tasks',{}).get(r.get('task_id'),{})
     if task.get('report_context'):
         from .reports import dispatch_authorized
-        if dispatch_authorized(snapshot,task):return True
-    instance=snapshot.get('instances',{}).get(request.get('instance_id'),{})
-    return instance.get('status')=='ACTIVE' and (request.get('execution_state')!='PREPARED' or task.get('report_context') or instance.get('current_mission_id')==request.get('mission_id'))
-
+        if dispatch_authorized(s,task):return True
+    i=s.get('instances',{}).get(r.get('instance_id'),{})
+    return i.get('status')=='ACTIVE' and (r.get('execution_state')!='PREPARED' or task.get('report_context') or i.get('current_mission_id')==r.get('mission_id'))
 def runtime_root():
-    override=os.environ.get('PMRS_HOST_POOL_ROOT')
-    base=Path(override) if override else Path(os.environ.get('XDG_STATE_HOME',str(Path.home()/'.local/state')))/'pmrs/host-runtime-v1'
-    base=safe_path(base);base.mkdir(parents=True,exist_ok=True,mode=0o700)
-    require(base.stat().st_uid==os.geteuid(),'RESOURCE_FILE_INVALID','Shared runtime must belong to this user.')
-    return base
-
+    # No project/working-directory override can split this one global pool.
+    base=safe_path(Path.home()/'.local/state/pmrs/host-runtime-4.2.2');base.mkdir(parents=True,exist_ok=True,mode=0o700)
+    require(base.stat().st_uid==os.geteuid(),'RESOURCE_FILE_INVALID','Shared runtime must belong to this user.');return base
 def process_start(pid):
     try:return Path('/proc/'+str(pid)+'/stat').read_text().rsplit(')',1)[1].split()[19]
     except (OSError,IndexError):return None
-
-def alive(row):
-    return bool(row.get('start')) and process_start(row.get('pid'))==row['start']
-
+def alive(row):return bool(row.get('start')) and process_start(row.get('pid'))==row['start']
 @contextmanager
 def ledger(name):
-    root=runtime_root();path=root/(name+'.json')
-    fd=os.open(root/(name+'.lock'),os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600)
+    root=runtime_root();path=root/(name+'.json');fd=os.open(root/(name+'.lock'),os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600)
     try:
-        fcntl.flock(fd,fcntl.LOCK_EX)
-        original=read(path,4*1024**2) if path.exists() else None
-        data=json.loads(original) if original else {}
+        fcntl.flock(fd,fcntl.LOCK_EX);original=read(path,4*1024**2) if path.exists() else None;data=json.loads(original) if original else {}
         try:yield data
         finally:
             encoded=canonical(data)
-            # Read-only polls and unchanged demand do not grow runtime history.
             if encoded!=original:atomic(path,encoded)
     finally:os.close(fd)
+def project_key(store):return sha(str(Path(store.root).resolve()).encode())
+def instance_key(project,iid):return project+':'+iid
 
-def project_key(store):
-    return sha(str(Path(store.root).resolve()).encode())
-
-def allocations(demands, *, limit=HOST_LIMIT, cursor=0):
-    """Progressive water filling, with a rotating indivisible remainder."""
-    keys=sorted(k for k,v in demands.items() if v>0)
-    out={k:0 for k in demands}
+def allocations(demands,*,limit=HOST_LIMIT,cursor=0):
+    keys=sorted(k for k,v in demands.items() if v>0);out={k:0 for k in demands}
     if not keys:return out
-    offset=cursor%len(keys);keys=keys[offset:]+keys[:offset]
-    left=limit
+    offset=cursor%len(keys);keys=keys[offset:]+keys[:offset];left=limit
     while left:
         progress=False
         for key in keys:
@@ -68,102 +52,83 @@ def allocations(demands, *, limit=HOST_LIMIT, cursor=0):
         if not progress:break
     return out
 
-def _clean(data, snapshots=None, roots=None):
-    demands=data.setdefault('demands',{});slots=data.setdefault('slots',{})
-    for key,row in list(demands.items()):
-        if not alive(row):demands.pop(key)
-    # Native state is authoritative. Reading it does not acquire its writer lock.
-    states=dict(snapshots or {})
-    for key,snapshot in states.items():
-        for rid,request in snapshot.get('requests',{}).items():
-            if request.get('execution_kind')=='MODEL' and request['execution_state'] in {'RESERVED','SENT','UNKNOWN'} and request.get('unknown_disposition')!='ABANDON_UNKNOWN':
-                token=key+':'+rid
-                if token not in slots:
-                    root=(roots or {}).get(key) or demands.get(key,{}).get('root')
-                    if root:slots[token]={'project':key,'root':root,'request_id':rid,'pid':0,'start':None,'state':'UNKNOWN'}
-    for token,row in list(slots.items()):
-        key=row['project']
-        if key not in states:
+def _clean(data,snapshots=None,roots=None):
+    demands=data.setdefault('demands',{});slots=data.setdefault('slots',{});registry=data.setdefault('projects',{});registry.update(roots or {});states=dict(snapshots or {})
+    for project,root in registry.items():
+        if project not in states:
             try:
                 from .store import Store
-                states[key]=Store(Path(row['root'])).read_snapshot()
-            except (PMRSError,OSError,ValueError):states[key]=None
-        snapshot=states[key];request=(snapshot or {}).get('requests',{}).get(row['request_id'])
-        if request:
-            state=request['execution_state']
-            if state in {'CAPTURED','SETTLED','CANCELLED_BEFORE_SEND'} or request.get('unknown_disposition')=='ABANDON_UNKNOWN':
+                states[project]=Store(Path(root)).read_snapshot()
+            except (PMRSError,OSError,ValueError):states[project]=None
+    for key,row in list(demands.items()):
+        if not alive(row):demands.pop(key)
+    for project,s in states.items():
+        if not s:continue
+        for rid,r in s.get('requests',{}).items():
+            if is_stage(s,r) and r.get('execution_kind') in {'MODEL','SYNTHETIC_TEST_ONLY'} and r['execution_state'] in INFLIGHT:
+                slots.setdefault(project+':'+rid,{'project':project,'instance_id':r['instance_id'],'instance':instance_key(project,r['instance_id']),
+                    'root':registry[project],'request_id':rid,'pid':0,'start':None,'state':'UNKNOWN'})
+    for token,row in list(slots.items()):
+        s=states.get(row['project']);r=(s or {}).get('requests',{}).get(row['request_id'])
+        if r:
+            state=r['execution_state']
+            if not is_stage(s,r) or state in {'CAPTURED','SETTLED','CANCELLED_BEFORE_SEND'}:
                 slots.pop(token);data['cursor']=data.get('cursor',0)+1;continue
-            if state in {'RESERVED','SENT','UNKNOWN'}:row['state']=state
+            if state in INFLIGHT:row['state']=state
             elif state=='PREPARED' and not alive(row):slots.pop(token)
-        # Missing native evidence cannot prove that an uncertain send ended.
         elif not alive(row) and row['state']=='ACQUIRED':slots.pop(token)
     for key,row in list(demands.items()):
-        if not row.get('auto'):continue
-        if not any(slot['project']==key for slot in slots.values()):demands.pop(key);continue
-        snapshot=states.get(key)
-        if snapshot:
-            pending=sum(r['execution_state'] in {'PREPARED','RESERVED','SENT','UNKNOWN'} and r.get('unknown_disposition')!='ABANDON_UNKNOWN'
-                        and not r.get('fenced') and runnable_request(snapshot,r) for r in snapshot.get('requests',{}).values())
+        s=states.get(row['project'])
+        if row.get('auto') and s:
+            pending=sum(is_stage(s,r) and r['instance_id']==row['instance_id'] and r['execution_state'] in {'PREPARED',*INFLIGHT} and not r.get('fenced') and runnable_request(s,r) for r in s.get('requests',{}).values())
             row['demand']=min(row['limit'],pending)
 
 def _view(data):
-    occupied={}
-    for row in data['slots'].values():occupied[row['project']]=occupied.get(row['project'],0)+1
-    demand={key:max(row['demand'],occupied.get(key,0)) for key,row in data['demands'].items()}
-    for key,count in occupied.items():demand[key]=max(demand.get(key,0),count)
-    shares=allocations(demand,cursor=data.get('cursor',0))
-    return {'limit':HOST_LIMIT,'occupied':occupied,'demand':demand,'shares':shares,'active':len(data['slots'])}
+    occupied={};by_instance={}
+    for r in data['slots'].values():
+        occupied[r['project']]=occupied.get(r['project'],0)+1;by_instance[r['instance']]=by_instance.get(r['instance'],0)+1
+    demand={k:max(r['demand'],by_instance.get(k,0)) for k,r in data['demands'].items()}
+    for k,count in by_instance.items():demand[k]=max(demand.get(k,0),count)
+    return {'limit':HOST_LIMIT,'instance_limit':8,'survey_instance_limit':1,'occupied':occupied,'instance_occupied':by_instance,'demand':demand,
+        'shares':allocations(demand,cursor=data.get('cursor',0)),'active':len(data['slots']),'main_excluded':True,'internal_delegation_excluded':True}
 
-def update_demand(store,demand,project_limit=None):
-    snapshot=store.read_snapshot();key=project_key(store)
-    cap=project_limit if project_limit is not None else snapshot.get('max_workers',1)
-    require(type(cap) is int and 1<=cap<=PROJECT_LIMIT,'WORKERS_INVALID','Project model limit must be 1–8.')
-    require(type(demand) is int and demand>=0,'RESOURCE_LIMIT','Demand must be a nonnegative ready responsibility count.')
-    # The research coordinator reports its own ready duties. Independent
-    # assistant replies already frozen in this same project add real demand.
-    demand+=sum(r.get('purpose')=='PROJECT_ASSISTANT' and r['execution_state'] in {'PREPARED','RESERVED','SENT','UNKNOWN'}
-                and not r.get('fenced') for r in snapshot.get('requests',{}).values())
+def update_demand(store,demand,project_limit=None,*,demands=None):
+    s=store.read_snapshot();project=project_key(store);require(type(demand) is int and demand>=0,'RESOURCE_LIMIT','Nonnegative ready demand required.')
     with ledger('model-pool') as data:
-        data.setdefault('demands',{})[key]={'root':str(store.root),'pid':os.getpid(),'start':process_start(os.getpid()),'demand':min(cap,demand),'limit':cap,'auto':False}
-        _clean(data,{key:snapshot},{key:str(store.root)})
+        _clean(data,{project:s},{project:str(store.root)})
+        for iid in s['instances']:
+            cap=instance_limit(s,iid);pending=sum(is_stage(s,r) and r['instance_id']==iid and r['execution_state'] in {'PREPARED',*INFLIGHT} and not r.get('fenced') and runnable_request(s,r) for r in s.get('requests',{}).values())
+            data['demands'][instance_key(project,iid)]={'project':project,'instance_id':iid,'root':str(store.root),'pid':os.getpid(),'start':process_start(os.getpid()),'demand':min(cap,max(pending,(demands or {}).get(iid,pending))),'limit':cap,'auto':False}
         return _view(data)
-
 def clear_demand(store):
     with ledger('model-pool') as data:
-        _clean(data);data['demands'].pop(project_key(store),None)
-
+        _clean(data)
+        for key,row in list(data['demands'].items()):
+            if row['project']==project_key(store):data['demands'].pop(key)
 def acquire(store,request_id):
-    snapshot=store.read_snapshot();key=project_key(store);token=key+':'+request_id
-    cap=min(PROJECT_LIMIT,snapshot.get('max_workers',1))
+    s=store.read_snapshot();r=s['requests'][request_id]
+    if not is_stage(s,r):return {'request_id':request_id,'exempt':'MAIN_TOP_LEVEL'}
+    project=project_key(store);iid=r['instance_id'];key=instance_key(project,iid);token=project+':'+request_id;cap=instance_limit(s,iid)
     with ledger('model-pool') as data:
-        _clean(data,{key:snapshot},{key:str(store.root)})
-        require(token not in data['slots'],'EXISTING_REQUEST','The original request already owns a host slot.')
-        if key not in data['demands']:
-            active=sum(r['execution_state'] in {'PREPARED','RESERVED','SENT','UNKNOWN'} and not r.get('fenced')
-                       and runnable_request(snapshot,r) for r in snapshot.get('requests',{}).values())
-            data['demands'][key]={'root':str(store.root),'pid':os.getpid(),'start':process_start(os.getpid()),'demand':min(cap,max(1,active)),'limit':cap,'auto':True}
-        view=_view(data);count=view['occupied'].get(key,0)
+        _clean(data,{project:s},{project:str(store.root)});require(token not in data['slots'],'EXISTING_REQUEST','Original request already owns a global stage slot.')
+        if key not in data['demands'] or data['demands'][key]['demand']==0:
+            data['demands'][key]={'project':project,'instance_id':iid,'root':str(store.root),'pid':os.getpid(),'start':process_start(os.getpid()),'demand':cap,'limit':cap,'auto':True}
+        view=_view(data);count=view['instance_occupied'].get(key,0)
         if not (view['active']<HOST_LIMIT and count<cap and count<view['shares'].get(key,0)):
-            exc=PMRSError('RESOURCE_WAIT','Waiting for this project’s fair share of the shared PMRS model pool; the original request is unchanged.')
-            exc.resource='MODEL_SLOT';raise exc
-        data['slots'][token]={'project':key,'root':str(store.root),'request_id':request_id,'pid':os.getpid(),
-                             'start':process_start(os.getpid()),'state':'ACQUIRED'}
-        return {'token':token,'project':key,'request_id':request_id}
-
+            exc=PMRSError('RESOURCE_WAIT','Waiting for instance stage capacity or its fair share of the shared 20-stage pool; original request preserved.');exc.resource='MODEL_SLOT';raise exc
+        data['slots'][token]={'project':project,'instance':key,'instance_id':iid,'root':str(store.root),'request_id':request_id,'pid':os.getpid(),'start':process_start(os.getpid()),'state':'ACQUIRED'}
+        return {'token':token,'project':project,'instance_id':iid,'request_id':request_id}
 def mark(store,request_id,state):
     with ledger('model-pool') as data:
         token=project_key(store)+':'+request_id
         if token in data.setdefault('slots',{}):data['slots'][token]['state']=state
-
 def release(store,request_id,*,before_send=False):
-    snapshot=store.read_snapshot();request=snapshot.get('requests',{}).get(request_id,{})
-    state=request.get('execution_state')
-    safe=state in {'CAPTURED','SETTLED','CANCELLED_BEFORE_SEND'} or request.get('unknown_disposition')=='ABANDON_UNKNOWN'
-    require(safe or (before_send and state=='PREPARED'),'EXISTING_REQUEST','Uncertain sends retain their original host reservation.')
+    s=store.read_snapshot();r=s.get('requests',{}).get(request_id,{})
+    if not is_stage(s,r):return
+    safe=r.get('execution_state') in {'CAPTURED','SETTLED','CANCELLED_BEFORE_SEND'}
+    require(safe or (before_send and r.get('execution_state')=='PREPARED'),'EXISTING_REQUEST','Uncertain sends retain original stage reservation.')
     with ledger('model-pool') as data:
-        token=project_key(store)+':'+request_id
-        if data.setdefault('slots',{}).pop(token,None) is not None:data['cursor']=data.get('cursor',0)+1
-
+        if data.setdefault('slots',{}).pop(project_key(store)+':'+request_id,None) is not None:data['cursor']=data.get('cursor',0)+1
 def status():
     with ledger('model-pool') as data:
         _clean(data);return {**_view(data),'slots':list(data['slots'].values())}

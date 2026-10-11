@@ -64,7 +64,7 @@ class AssistantSurface(unittest.TestCase):
         self.assertFalse(self.w.live_jobs());store.audit()
 
     def test_a2_a5_question_idempotency_operation_query_and_backend_restart(self):
-        made=self.create('TRW');project=made['project'];store=self.w.project(project)
+        made=self.create('TRH');project=made['project'];store=self.w.project(project)
         self.w.engine.pause(store,made['instance_id'],'Assistant diagnosis must not restart research.')
         before=store.read_snapshot()
         session=self.action('assistant-open',{'project':project,'instance':made['instance_id']});sid=session['session_id']

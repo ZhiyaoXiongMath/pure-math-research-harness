@@ -85,6 +85,7 @@ def premise_closure(roots,snapshot,*,include_method_sources=False):
             targets.update(record['context_refs']);d=record['data']
             if record['kind']=='Context':targets.update(d['parent_context_refs'])
             if record['kind']=='Statement' and d['source_binding']:targets.add(d['source_binding']['source_ref'])
+            if record['kind']=='SourceEvidence':targets.update(d['source_occurrence_refs'])
             if record['kind']=='Argument':
                 targets.add(d['conclusion_ref']);targets.update(p['premise_ref'] for p in d['premise_bindings'])
                 if d['mode']=='REDUCTION':targets.update(d['mode_payload']['inference_spec']['alternative_argument_refs'])

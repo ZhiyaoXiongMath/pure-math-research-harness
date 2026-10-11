@@ -11,7 +11,7 @@ from research_studio.engine import Engine
 from research_studio.util import PMRSError
 
 
-def override(stage,role,effort,kind='TRW',purpose='DEFAULT'):
+def override(stage,role,effort,kind='TRH',purpose='DEFAULT'):
     return {'explicit':True,'scope':{'workflow_kind':kind,'stage_id':stage,'role':role,'purpose':purpose},
             'model':'gpt-6-astra','reasoning_effort':effort,'service_tier':'default'}
 
@@ -22,8 +22,8 @@ class Repairs(unittest.TestCase):
         self.e=Engine();self.store=self.e.create(Path(self.tmp.name)/'project',demo.ARITHMETIC,synthetic=True)
         self.target=next(iter(self.store.read_snapshot()['records']))
 
-    def trw(self,name='原目标'):
-        return self.e.new_workflow(self.store,'TRW',name=name,target_ref=self.target)['instance_id']
+    def trh(self,name='原目标'):
+        return self.e.new_workflow(self.store,'TRH',name=name,target_ref=self.target)['instance_id']
 
     def assertCode(self,code,fn):
         with self.assertRaises(PMRSError) as error:fn()
@@ -39,7 +39,7 @@ class Repairs(unittest.TestCase):
         return row['request_id']
 
     def test_r04_merge_reset_and_first_frozen_task(self):
-        iid=self.trw();p4=override('P4','RESEARCH','high');p9=override('P9','PROOF','xhigh')
+        iid=self.trh();p4=override('P4','RESEARCH','high');p9=override('P9','PROOF','xhigh')
         self.e.start_round(self.store,iid,'Apply the explicitly selected first-call policy.',max_calls=4,policy=demo.policy(),model_overrides=[p4])
         frozen=self.e.prepare(self.store,iid)['prepared'][0]
         fake=demo.executor();fake.execute(self.store,frozen['task_id']);self.assertEqual(fake.calls,1)
@@ -53,19 +53,19 @@ class Repairs(unittest.TestCase):
         after=self.store.read_snapshot();self.assertEqual(self.e.policy(self.store,iid)['model_overrides'],[p9])
         self.assertEqual(after['tasks'][task['task_id']],task)
         for key in ('requests','retry_grants','attempt_groups','project_budget','obligations'):self.assertEqual(after[key],before[key],key)
-        self.assertEqual(model_policy.resolve('TRW','P4','RESEARCH',require_capability=False)['reasoning_effort'],'max')
-        for kind,stage in [('TRW','P10'),('TFDW','D2')]:self.assertEqual(model_policy.resolve(kind,stage,'SYNTHESIS',require_capability=False)['reasoning_effort'],'max')
+        self.assertEqual(model_policy.resolve('TRH','P4','RESEARCH',require_capability=False)['reasoning_effort'],'max')
+        for kind,stage in [('TRH','P10'),('FDH','D2')]:self.assertEqual(model_policy.resolve(kind,stage,'SYNTHESIS',require_capability=False)['reasoning_effort'],'max')
         self.assertCode('MODEL_CONFIGURATION_UNSUPPORTED',lambda:self.e.update_configuration(self.store,iid,[override('P4','RESEARCH','ultra')]))
 
     def test_r04_complete_scope_distinguishes_purpose_and_role(self):
-        ordinary=override('D1','LEARN','high','TFDW');special=override('D1','LEARN','max','TFDW','NEW_CONSTRUCTION')
-        merged=model_policy.merge_overrides([ordinary],[special],workflow_kind='TFDW',capabilities=demo.policy()['model_capabilities'])
+        ordinary=override('D1','LEARN','high','FDH');special=override('D1','LEARN','max','FDH','NEW_CONSTRUCTION')
+        merged=model_policy.merge_overrides([ordinary],[special],workflow_kind='FDH',capabilities=demo.policy()['model_capabilities'])
         self.assertEqual(len(merged),2)
-        reset=model_policy.merge_overrides(merged,[],reset_scopes=[ordinary['scope']],workflow_kind='TFDW',capabilities=demo.policy()['model_capabilities'])
+        reset=model_policy.merge_overrides(merged,[],reset_scopes=[ordinary['scope']],workflow_kind='FDH',capabilities=demo.policy()['model_capabilities'])
         self.assertEqual(reset,[special])
 
     def test_r02_incomplete_draft_does_not_authorize_and_exact_text_enters_packet(self):
-        iid=self.e.new_workflow(self.store,'TFDW',name='中文发现草稿',brief='现象原文\n保持换行。')['instance_id']
+        iid=self.e.new_workflow(self.store,'FDH',name='中文发现草稿',brief='现象原文\n保持换行。')['instance_id']
         before=self.store.read_snapshot()
         self.assertCode('DISCOVERY_SCOPE_REQUIRED',lambda:self.e.start_round(self.store,iid,'Explore.',policy=demo.policy()))
         self.assertEqual(self.store.read_snapshot(),before)
@@ -82,9 +82,9 @@ class Repairs(unittest.TestCase):
         self.assertCode('DISCOVERY_SCOPE_IMMUTABLE',lambda:self.e.configure_discovery(self.store,iid,{'allowed_axes':'Alter every assumption.'}))
 
     def test_r03_two_named_instances_of_each_kind_preserve_old_targets(self):
-        first=self.trw('固定原目标');second=self.e.new_workflow(self.store,'TRW',name='另一目标',target=b'For every real x, x * 1 = x.')['instance_id']
-        d1=self.e.new_workflow(self.store,'TFDW',name='矩阵发现一',discovery_scope=demo.discovery_scope())['instance_id']
-        d2=self.e.new_workflow(self.store,'TFDW',name='矩阵发现二',discovery_scope=demo.discovery_scope('Compare another exact matrix observation.'))['instance_id']
+        first=self.trh('固定原目标');second=self.e.new_workflow(self.store,'TRH',name='另一目标',target=b'For every real x, x * 1 = x.')['instance_id']
+        d1=self.e.new_workflow(self.store,'FDH',name='矩阵发现一',discovery_scope=demo.discovery_scope())['instance_id']
+        d2=self.e.new_workflow(self.store,'FDH',name='矩阵发现二',discovery_scope=demo.discovery_scope('Compare another exact matrix observation.'))['instance_id']
         s=self.store.read_snapshot();self.assertEqual(len(s['instances']),4)
         self.assertEqual([s['instances'][i]['name'] for i in (first,second,d1,d2)],['固定原目标','另一目标','矩阵发现一','矩阵发现二'])
         self.assertEqual(s['instances'][first]['target_ref'],self.target)
@@ -94,7 +94,7 @@ class Repairs(unittest.TestCase):
 
     def test_r02_partial_native_draft_requires_explicit_scope_completion(self):
         source=self.store.commit(changes.prepare_source_input(self.store.read_snapshot(),b'Original user phenomenon.',purpose='PHENOMENON',blob_get=self.store.read_blob))['source_ref']
-        state=self.store.read_snapshot();row=W.new_instance(state,'TFDW',discovery_brief_ref=source,discovery_scope={'phenomenon_ref':source})
+        state=self.store.read_snapshot();row=W.new_instance(state,'FDH',discovery_brief_ref=source,discovery_scope={'phenomenon_ref':source})
         self.store.commit_control(W.event(state,'CREATE_INSTANCE',{'instance':row}));iid=row['instance_id']
         self.assertEqual(self.store.read_snapshot()['instances'][iid]['discovery_brief_ref'],source)
         self.assertCode('DISCOVERY_SCOPE_REQUIRED',lambda:self.e.start_round(self.store,iid,'Investigate.',policy=demo.policy()))
@@ -105,8 +105,8 @@ class Repairs(unittest.TestCase):
         self.assertEqual(len(self.e.prepare(self.store,iid)['prepared']),1)
 
     def test_r02_handoff_binds_scope_without_replacing_fixed_target(self):
-        iid=self.trw();scope=self.e.prepare_discovery_scope(self.store,demo.discovery_scope())
-        prepared=self.e.prepare_handoff(self.store,iid,'TRW_TO_TFDW',{'discovery_scope':scope})
+        iid=self.trh();scope=self.e.prepare_discovery_scope(self.store,demo.discovery_scope())
+        prepared=self.e.prepare_handoff(self.store,iid,'TRH_TO_FDH',{'discovery_scope':scope})
         decision=self.e.decide(self.store,iid,'ADOPT_HANDOFF','Explore a separate formulation scope.',snapshot_commit=self.store.read_snapshot()['knowledge_commit'])
         decision.update(discovery_scope=scope,name='交接发现')
         adopted=self.e.adopt_handoff(self.store,prepared['handoff_id'],decision)['instance_id'];s=self.store.read_snapshot()
@@ -115,7 +115,7 @@ class Repairs(unittest.TestCase):
         self.assertEqual(s['instances'][iid]['target_ref'],self.target);self.assertFalse(s['requests'])
 
     def test_r08_abandon_retains_budget_and_prevents_resend_without_blocking_other_work(self):
-        iid=self.trw();rid=self.uncertain(iid);before=self.store.read_snapshot();remaining=scheduler.project_remaining(before)
+        iid=self.trh();rid=self.uncertain(iid);before=self.store.read_snapshot();remaining=scheduler.project_remaining(before)
         self.e.reconcile_unknown(self.store,iid,rid,'ABANDON_UNKNOWN','Stop waiting; sending remains unknown.')
         after=self.store.read_snapshot();request=after['requests'][rid]
         self.assertEqual(request['execution_state'],'UNKNOWN');self.assertTrue(request['fenced'])
@@ -124,14 +124,14 @@ class Repairs(unittest.TestCase):
         self.assertFalse(self.e.schedule(self.store,iid)['selected'])
         head=after['knowledge_commit'];self.assertEqual(self.e.reconcile_unknown(self.store,iid,rid,'ABANDON_UNKNOWN','Stop waiting; sending remains unknown.')['outcome'],'EXACT_DUPLICATE')
         self.assertEqual(self.store.read_snapshot()['knowledge_commit'],head)
-        second=self.trw('另一独立工作');self.e.start_round(self.store,second,'Investigate independently.',max_calls=1,policy=demo.policy())
+        second=self.trh('另一独立工作');self.e.start_round(self.store,second,'Investigate independently.',max_calls=1,policy=demo.policy())
         row=self.e.prepare(self.store,second)['prepared'][0];s=self.store.read_snapshot();task=s['tasks'][row['task_id']]
         self.store.commit_execution(execution.event('RESERVE',{'request_id':row['request_id'],'executor_contract':task['executor_contract'],
                 'model_policy':task['model_policy'],'execution_kind':'SYNTHETIC_TEST_ONLY'}))
         self.assertEqual(self.store.read_snapshot()['requests'][rid],request)
 
     def test_r08_confirmed_not_sent_needs_original_evidence_and_cli_same_service(self):
-        iid=self.trw();rid=self.uncertain(iid);before=self.store.read_snapshot();remaining=scheduler.project_remaining(before)
+        iid=self.trh();rid=self.uncertain(iid);before=self.store.read_snapshot();remaining=scheduler.project_remaining(before)
         self.assertCode('UNKNOWN_REQUIRES_EVIDENCE',lambda:self.e.reconcile_unknown(self.store,iid,rid,'CONFIRMED_NOT_SENT','A note alone is not evidence.'))
         self.assertEqual(self.store.read_snapshot(),before)
         receipt=self.store.commit(changes.prepare_material_input(before,b'Instrumented transport log: this synthetic original request did not cross the send boundary.',title='actual test transport log',media_type='text/plain',blob_get=self.store.read_blob))

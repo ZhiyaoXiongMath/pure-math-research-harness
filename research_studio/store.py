@@ -28,14 +28,17 @@ SCIENCE_MAPS = frozenset(('records', 'objects', 'sources',
 CONTROL_MAPS = frozenset(('instances', 'missions', 'visits', 'candidates', 'capabilities',
     'scope_versions', 'control_events', 'human_decisions', 'handoffs', 'obligations',
     'consumers', 'obligation_bindings', 'budget_grants', 'fences', 'active_reports', 'requests',
-    'corrections', 'retry_grants', 'retired_consumers', 'selected_reports', 'project_budget', 'handoff_adoptions', 'max_workers'))
+    'corrections', 'retry_grants', 'retired_consumers', 'selected_reports', 'project_budget', 'handoff_adoptions', 'max_workers',
+    'main_decisions','communication_links','communication_link_revisions','delegation_observations','consumer_controls','live_main_dispatches'))
 EXECUTION_MAPS = frozenset(('tasks', 'requests', 'attempt_groups', 'budget_grants', 'leases',
     'execution_events', 'usage', 'obligations', 'consumers', 'obligation_bindings',
     'captures', 'responses', 'missions', 'visits', 'instances', 'fences', 'dispatch_plans',
-    'round_deliveries', 'scheduler_state', 'review_executions', 'retry_grants','coverage_plans'))
-REPORT_MAPS = frozenset(('reports', 'report_events', 'active_reports', 'report_receipts','budget_grants'))
+    'round_deliveries', 'scheduler_state', 'review_executions', 'retry_grants','coverage_plans',
+    'strategies','human_directions','main_decisions'))
+REPORT_MAPS = frozenset(('reports', 'report_events', 'active_reports', 'report_receipts','budget_grants','report_authorizations'))
 from .survey import MAPS as SURVEY_MAPS
 from .assistant import MAPS as ASSISTANT_MAPS
+from .native_main import MAPS as NATIVE_MAIN_MAPS
 EPHEMERAL = frozenset(('knowledge_commit', '_head', '_snapshot_sequence'))
 
 
@@ -53,13 +56,17 @@ def _native_only(state):
 
 
 def initial_state(title, language=None, *, synthetic=False):
+    from .strategy import MAPS as STRATEGY_MAPS
+    from .communication import MAPS as COMMUNICATION_MAPS
+    from .usage_ledger import MAPS as USAGE_MAPS
     maps = (SCIENCE_MAPS | CONTROL_MAPS | EXECUTION_MAPS | REPORT_MAPS | SURVEY_MAPS | ASSISTANT_MAPS) - {'relations'}
+    maps |= STRATEGY_MAPS | COMMUNICATION_MAPS | USAGE_MAPS | NATIVE_MAIN_MAPS
     state = {name: {} for name in sorted(maps)}
     state.update(schema=SCHEMA_VERSION, project_id='P34F-'+secrets.token_hex(12),
         title=title, versions=dict(VERSIONS), language_policy=policy(language),
         relations=[], knowledge_changes=[], synthetic_test_only=bool(synthetic),
         usage={'model_calls': 0, 'input_tokens': 0, 'output_tokens': 0},
-        project_budget={'max_calls': 0}, max_workers=1,
+        project_budget={'max_calls': 0}, max_workers=8,
         capabilities={'CAP-HUMAN': {'actor': 'human', 'actions': ['*'], 'instance_ids': ['*']},
                       'CAP-HOST': {'actor': 'host', 'actions': ['*'], 'instance_ids': ['*']}},
         scope_versions={'project': 0})
@@ -295,13 +302,23 @@ class Store:
         finally:
             os.close(fd)
 
-    def commit(self, validated, expected_relevant_guards=None):
+    def commit(self, validated, expected_relevant_guards=None, *, admission_recheck=None):
         """Revalidate the same frozen response on the live state under one lock."""
         from . import changes
         with self._locked():
             state, head = self.read()
+            if admission_recheck is not None:
+                from .execution import validate_recheck_context
+                validate_recheck_context(state,admission_recheck,self.read_blob)
+                require(getattr(validated,'_task',{}).get('request_id')==admission_recheck['request_id']
+                        and sha(getattr(validated,'_raw',b''))==admission_recheck['capture_ref'],
+                        'ORIGINAL_BYTES_MISMATCH','Maintenance admission must validate exactly the original response.')
             frozen=getattr(validated,'_task',None)
             if isinstance(frozen,dict):
+                original=state.get('requests',{}).get(frozen.get('request_id'),{})
+                require(not (original.get('execution_state')=='SETTLED' and original.get('acceptance_state') in {'REJECTED_CONTRACT','REJECTED_STALE'})
+                        or admission_recheck is not None,'ADMISSION_RECHECK_REQUIRED',
+                        'A settled rejection requires explicit maintenance recheck of its original capture; ordinary scientific commit cannot erase rejection history.')
                 for item in frozen.get('read_set',[]):
                     ref=item['record_ref']
                     require(self.read_record(ref)==state['records'].get(ref),'RECORD_CHANGED',ref)
@@ -313,6 +330,12 @@ class Store:
             for digest, data in proposal.get('blobs', {}).items():
                 require(self.put_blob(data) == digest, 'BLOB_CHANGED', 'Candidate blob hash differs')
             after = changes.apply_validated(state, proposal)
+            if admission_recheck is not None:
+                from . import execution
+                recheck_event=execution.event('ADMISSION_RECHECKED',{**deepcopy(admission_recheck),'outcome':'ACCEPTED',
+                    'receipt_ref':proposal.get('receipt',{}).get('receipt_id'),'diagnostic':None})
+                after=execution.apply_event(after,recheck_event,self.read_blob)
+                proposal.setdefault('events',[]).append(recheck_event)
             self._fault('after_blobs')
             result = self._publish(head, state, after, actor=proposal.get('actor', 'MODEL_CAPTURE'),
                 events=proposal.get('events', []), base=proposal.get('base_knowledge_commit'),
@@ -350,11 +373,17 @@ class Store:
 
     def commit_control(self, event):
         from .workflow_instances import apply_control
-        return self._typed_commit(event, apply_control, CONTROL_MAPS, 'Control')
+        from .research_audit import MAPS as AUDIT_MAPS
+        result=self._typed_commit(event, apply_control, CONTROL_MAPS | AUDIT_MAPS, 'Control')
+        if event.get('event_type')=='HUMAN_DECISION' and event.get('payload',{}).get('action') in {'END','END_WITHOUT_ADOPTION'}:
+            from .rounds import record
+            record(self,event['instance_id'])
+        return result
 
     def commit_execution(self, event):
         from .execution import apply_event
-        return self._typed_commit(event, apply_event, EXECUTION_MAPS, 'Execution')
+        from .research_audit import MAPS as AUDIT_MAPS
+        return self._typed_commit(event, lambda state,e:apply_event(state,e,self.read_blob), EXECUTION_MAPS | AUDIT_MAPS, 'Execution')
 
     def commit_survey(self, event):
         from .survey import apply_event
@@ -366,7 +395,34 @@ class Store:
 
     def commit_assistant(self, event):
         from .assistant import apply_event
+        require(event.get('event_type') not in {'OPEN_SESSION','AUTHORIZE','USER_MESSAGE','REPORT_ALLOWANCE','PREPARE_TURN','PREPARE'},
+                'PROJECT_ASSISTANT_REMOVED','New assistant work is unavailable; use the native main researcher.')
         return self._typed_commit(event,lambda state,e:apply_event(state,e,self.read_blob),ASSISTANT_MAPS,'Assistant')
+
+    def _commit_extension(self, module, event):
+        return self._typed_commit(event, lambda state,e:module.apply_event(state,e,self.read_blob),
+                                  module.MAPS, module.__name__)
+
+    def commit_strategy(self, event):
+        from . import strategy
+        return self._commit_extension(strategy,event)
+
+    def commit_communication(self, event):
+        from . import communication
+        return self._commit_extension(communication,event)
+
+    def commit_usage(self, event):
+        from . import usage_ledger
+        return self._commit_extension(usage_ledger,event)
+
+    def commit_native_main(self, event):
+        from . import native_main
+        from .research_audit import MAPS as AUDIT_MAPS
+        return self._typed_commit(event, native_main.apply_event, NATIVE_MAIN_MAPS | EXECUTION_MAPS | AUDIT_MAPS, 'NativeMain')
+
+    def commit_incident(self, event):
+        from . import incidents
+        return self._commit_extension(incidents,event)
 
     def put_blob(self, data):
         require(isinstance(data, bytes), 'BLOB_BYTES_REQUIRED', 'Content must be exact bytes')

@@ -55,8 +55,8 @@ class NativeVersionBoundaries(unittest.TestCase):
     def test_native_history_is_commit_pinned_paginated_read_only_and_instance_scoped(self):
         e=Engine();store=e.create(self.root/'history',demo.ARITHMETIC,synthetic=True)
         target=next(iter(store.read_snapshot()['records']))
-        first=e.new_workflow(store,'TRW',target_ref=target,name='First exact target')['instance_id']
-        second=e.new_workflow(store,'TRW',target_ref=target,name='Second exact target')['instance_id']
+        first=e.new_workflow(store,'TRH',target_ref=target,name='First exact target')['instance_id']
+        second=e.new_workflow(store,'TRH',target_ref=target,name='Second exact target')['instance_id']
         report1=reports.create(store,first);old=store.read_snapshot();report2=reports.create(store,second)
         store.commit_control(W.event(store.read_snapshot(),'PAUSE',{'reason':'Second workflow pause'},instance_id=second))
         current=store.read_snapshot();before={p.relative_to(store.root):p.read_bytes() for p in store.root.rglob('*') if p.is_file()}
@@ -100,14 +100,14 @@ class NativeVersionBoundaries(unittest.TestCase):
         self.assertTrue(all(row['name']=='upload-archive' for row in operations))
 
     def test_handoff_history_keeps_source_visits_private_and_adoption_visible_to_both_instances(self):
-        e=Engine();store=e.create(self.root/'handoff-history',demo.scenario('TFDW').encode(),phenomenon=True,synthetic=True)
-        source=e.new_workflow(store,'TFDW',discovery_scope=demo.discovery_scope('Discover exact candidates within this user scope.'))['instance_id']
+        e=Engine();store=e.create(self.root/'handoff-history',demo.scenario('FDH').encode(),phenomenon=True,synthetic=True)
+        source=e.new_workflow(store,'FDH',discovery_scope=demo.discovery_scope('Discover exact candidates within this user scope.'))['instance_id']
         e.start_round(store,source,'Keep the background fixed.',max_calls=5,policy=demo.policy())
         fake=demo.executor();e.run_round(store,source,executor=fake)
         initial=store.read_snapshot();self.assertEqual(fake.calls,2)
         self.assertEqual(fake.network_calls+fake.spawn_calls,0)
         candidate=next(iter(initial['candidates'].values()))['statement_ref']
-        prepared=e.prepare_handoff(store,source,'TFDW_TO_TRW',{'candidate_refs':[candidate]})
+        prepared=e.prepare_handoff(store,source,'FDH_TO_TRH',{'candidate_refs':[candidate]})
         decision=e.decide(store,source,'ADOPT','Study this exact candidate in a separate workflow.',snapshot_commit=store.read_snapshot()['knowledge_commit'],candidate_ref=candidate)
         before_adoption=store.read_snapshot()
         target=e.adopt_handoff(store,prepared['handoff_id'],decision)['instance_id']

@@ -102,12 +102,15 @@ def validate_record(record, body, *, records=None, sources=None, blob_get=None, 
     elif kind=='Argument':
         _ref(d['conclusion_ref'],records,{'Statement'},'conclusion')
         C.enum(d['mode'],'PROOF REFUTATION REDUCTION APPLICABILITY COMPATIBILITY COMPARISON DERIVATION'.split(),'Argument.mode')
-        for p in C.sequence(d['premise_bindings'],'premise_bindings'):
+        for premise_index,p in enumerate(C.sequence(d['premise_bindings'],'premise_bindings')):
             C.fields(p,C.PREMISE_FIELDS,'PremiseBinding')
-            C.enum(p['kind'],'CONTEXT_ASSUMPTION SUPPORTED_STATEMENT DERIVATION_COMPONENT DEFINITION CONDITIONAL_CANDIDATE'.split(),'PremiseBinding.kind')
+            C.enum(p['kind'],C.PREMISE_ENDPOINTS,'PremiseBinding.kind')
             C.enum(p['binding_mode'],('PINNED','CURRENT'),'PremiseBinding.binding_mode')
-            expected={'DEFINITION':{'Context'},'CONTEXT_ASSUMPTION':{'Context','Statement'},'SUPPORTED_STATEMENT':{'Statement'},'CONDITIONAL_CANDIDATE':{'Statement'},'DERIVATION_COMPONENT':{'Argument'}}[p['kind']]
-            _ref(p['premise_ref'],records,expected,'premise')
+            expected=C.PREMISE_ENDPOINTS[p['kind']]
+            try:_ref(p['premise_ref'],records,expected,'premise')
+            except C.PMRSError as exc:
+                exc.diagnostic={'code':exc.code,'category':'SCIENTIFIC_SEMANTICS','pointer':'/data/premise_bindings/'+str(premise_index)+'/premise_ref','expected':{'record_kinds':sorted(expected),'premise_kind':p['kind']},'actual':{'ref':p['premise_ref'],'record_kind':(records or {}).get(p['premise_ref'],{}).get('kind')},'frozen_binding':p['premise_ref'],'format_repair_eligible':False,'reason':'Changing the premise kind or endpoint changes its scientific use.'}
+                raise
             if p['context_ref'] is not None:_ref(p['context_ref'],records,{'Context'},'premise context')
             if p['scope_locator'] is not None:validate_locator(p['scope_locator'],lookup)
             if p['kind']=='SUPPORTED_STATEMENT':require(isinstance(p['support_ref'],str) and p['support_ref'],'RESPONSE_SCHEMA_INVALID','Supported premise needs exact support')
@@ -152,6 +155,9 @@ def validate_record(record, body, *, records=None, sources=None, blob_get=None, 
         C.refs(d['source_occurrence_refs'],'source_occurrence_refs',nonempty=True)
         if sources is not None:require(all(r in sources for r in d['source_occurrence_refs']),'INCOMPLETE_CONTEXT','Source must be host registered')
         _locs(d['locators'],lookup,'SourceEvidence.locators')
+        if sources is not None:
+            allowed={h for ref in d['source_occurrence_refs'] for h in [sources[ref]['blob_hash'],*sources[ref].get('extraction_blob_hashes',[])]}
+            require(all(loc['blob_hash'] in allowed for loc in d['locators']),'ORIGINAL_BYTES_MISMATCH','SourceEvidence locator does not belong to its exact source occurrences')
         C.enum(d['evidence_type'],'ORIGINAL_TEXT THEOREM_STATEMENT EXCERPT COMPUTATION OBSERVATION'.split(),'evidence_type')
         C.enum(d['coverage'],('FULL_DOCUMENT','DECLARED_RANGE','METADATA_ONLY'),'coverage')
         C.refs(d['reproducibility_refs'],'reproducibility_refs')
@@ -163,11 +169,19 @@ def validate_record(record, body, *, records=None, sources=None, blob_get=None, 
             if ref.startswith('IB-'):require(inferences is None or ref in inferences,'INCOMPLETE_CONTEXT','Unknown inference binding')
             else:_ref(ref,records)
         for row in C.sequence(d['checked'],'checked'):
-            C.fields(row,{'ref','locators','aspect'},'checked');require(row['ref'] in d['target_refs'],'RESPONSE_SCHEMA_INVALID','Unbound checked target')
+            C.optional_fields(row,{'ref','locators','aspect'},{'scope_version','extent','target_body_sha256','whole_locator'},'checked');
+            if 'scope_version' in row:
+                from .assurance import validate_scope
+                validate_scope([{'target_ref':row['ref'],'aspects':[row['aspect']],**{k:v for k,v in row.items() if k not in {'ref','aspect'}}}])
+                validate_locator(row['whole_locator'],lookup)
+            require(row['ref'] in d['target_refs'],'RESPONSE_SCHEMA_INVALID','Unbound checked target')
             require(isinstance(row['aspect'],str) and row['aspect'],'RESPONSE_SCHEMA_INVALID','Checked aspect required');_locs(row['locators'],lookup,'checked locators')
             target_ref=row['ref']
             if target_ref.startswith('IB-') and inferences is not None:target_ref=inferences[target_ref]['argument_ref']
             if records is not None and target_ref in records:
+                if row.get('scope_version'):
+                    target_body=lookup(records[target_ref]['body_sha256'])
+                    require(row['whole_locator']==locator(target_body,unit=row['whole_locator']['unit']) and row['target_body_sha256']==records[target_ref]['body_sha256'],'ORIGINAL_BYTES_MISMATCH','Whole review scope must be the complete exact target body')
                 require(all(loc['blob_hash']==records[target_ref]['body_sha256'] for loc in row['locators']),
                     'RESPONSE_SCHEMA_INVALID','Checked locators must point to the exact target body')
         for row in C.sequence(d['unchecked'],'unchecked'):

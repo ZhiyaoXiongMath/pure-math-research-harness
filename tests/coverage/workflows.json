@@ -32,7 +32,7 @@
         {
           "assertion_id": "W03.a1",
           "test_ids": [
-            "tests.test_final_workflows.RuntimeStories.test_trw_original_target_dual_and_open_decision",
+            "tests.test_final_workflows.RuntimeStories.test_trh_original_target_dual_and_open_decision",
             "tests.test_final_workflows.Workflows.test_explicit_verify_only"
           ]
         }
@@ -102,7 +102,7 @@
         {
           "assertion_id": "W11.a1",
           "test_ids": [
-            "tests.test_final_workflows.RuntimeStories.test_tfdw_candidate_formulation_and_exact_paused_handoff"
+            "tests.test_final_workflows.RuntimeStories.test_fdh_candidate_formulation_and_exact_paused_handoff"
           ]
         }
       ]
@@ -279,16 +279,16 @@
           "assertion_id": "N44.a1",
           "test_ids": [
             "tests.test_final_workflows.DiscoveryFlow.test_n44_four_discovery_variants_feedback_unknown_and_formal_reports",
-            "tests.test_final_workflows.RuntimeStories.test_tfdw_candidate_formulation_and_exact_paused_handoff",
-            "tests.test_final_reports.FinalReportTests.test_tfdw_zero_candidate_report_and_failure_decision_variants"
+            "tests.test_final_workflows.RuntimeStories.test_fdh_candidate_formulation_and_exact_paused_handoff",
+            "tests.test_final_reports.FinalReportTests.test_fdh_zero_candidate_report_and_failure_decision_variants"
           ]
         },
         {
           "assertion_id": "N44.a2",
           "test_ids": [
             "tests.test_final_workflows.DiscoveryFlow.test_n44_four_discovery_variants_feedback_unknown_and_formal_reports",
-            "tests.test_final_workflows.RuntimeStories.test_tfdw_candidate_formulation_and_exact_paused_handoff",
-            "tests.test_final_reports.FinalReportTests.test_tfdw_zero_candidate_report_and_failure_decision_variants"
+            "tests.test_final_workflows.RuntimeStories.test_fdh_candidate_formulation_and_exact_paused_handoff",
+            "tests.test_final_reports.FinalReportTests.test_fdh_zero_candidate_report_and_failure_decision_variants"
           ]
         }
       ]
@@ -372,7 +372,7 @@
         {
           "assertion_id": "S02.a1",
           "test_ids": [
-            "tests.test_final_workflows.RuntimeStories.test_tfdw_candidate_formulation_and_exact_paused_handoff",
+            "tests.test_final_workflows.RuntimeStories.test_fdh_candidate_formulation_and_exact_paused_handoff",
             "tests.test_final_workflows.Workflows.test_handoff_shared_ref_paused_and_idempotent"
           ]
         }
@@ -459,7 +459,7 @@
       "disposition": "RETAIN",
       "reason": "Formal target dual duties keep distinct purpose keys on identical scientific material.",
       "test_ids": [
-        "tests.test_final_workflows.RuntimeStories.test_trw_original_target_dual_and_open_decision",
+        "tests.test_final_workflows.RuntimeStories.test_trh_original_target_dual_and_open_decision",
         "tests.test_final_workflows.Workflows.test_explicit_verify_only"
       ]
     },
@@ -528,7 +528,7 @@
       "disposition": "REPLACE",
       "reason": "Final specification removes generic per-task checking; accepted work dispositions remain distinct from support qualification and original-target dual review.",
       "test_ids": [
-        "tests.test_final_workflows.RuntimeStories.test_trw_original_target_dual_and_open_decision",
+        "tests.test_final_workflows.RuntimeStories.test_trh_original_target_dual_and_open_decision",
         "tests.test_final_workflows.Workflows.test_explicit_verify_only"
       ]
     },

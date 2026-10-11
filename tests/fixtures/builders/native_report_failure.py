@@ -7,7 +7,7 @@ from research_studio.util import canonical
 
 def build(root,*,report_first=False):
     e=Engine();store=e.create(root,demo.ARITHMETIC,synthetic=True);target=next(iter(store.read_snapshot()['records']))
-    iid=e.new_workflow(store,'TRW',target_ref=target)['instance_id']
+    iid=e.new_workflow(store,'TRH',target_ref=target)['instance_id']
     e.authorize(store,iid,{'intent':'Prepare an honest report and preserve a newly identified research gap.',
         'authorized_scope':{'target_refs':[target],'reports':True,'allow_derived_work':True},'obligations':[],
         'report_first_actions':['CONTINUE','END','ADOPT','ADOPT_HANDOFF'] if report_first else []},

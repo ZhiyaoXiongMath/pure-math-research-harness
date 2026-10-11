@@ -16,7 +16,7 @@ from . import __version__
 
 
 def default_workspace():
-    return Path(os.environ.get('XDG_DATA_HOME',str(Path.home()/'.local/share')))/'pure-math-research-studio/4.0/workspace'
+    return Path(os.environ.get('XDG_DATA_HOME',str(Path.home()/'.local/share')))/'pure-math-research-studio/4.2.2/workspace'
 
 
 def service(root,port=0):
@@ -31,8 +31,10 @@ def service(root,port=0):
         server=ThreadingHTTPServer(('127.0.0.1',port),app_handler(workspace,token));server.daemon_threads=True
         record={'url':f'http://127.0.0.1:{server.server_port}','token':token,'pid':os.getpid()}
         atomic(runtime/'service.json',canonical(record));os.chmod(runtime/'service.json',0o600)
+        workspace.start_maintenance()
         try:server.serve_forever(poll_interval=.2)
-        finally:server.server_close();(runtime/'service.json').unlink(missing_ok=True)
+        finally:
+            workspace.stop_maintenance();server.server_close();(runtime/'service.json').unlink(missing_ok=True)
     return 0
 
 

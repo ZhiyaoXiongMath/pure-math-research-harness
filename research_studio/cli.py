@@ -21,7 +21,7 @@ def parser():
     wf=sub.add_parser('workflow');ws=wf.add_subparsers(dest='operation',required=True)
     for name in ('new','list','configure-discovery'):
         q=ws.add_parser(name);q.add_argument('project',type=Path)
-        if name=='new':q.add_argument('--kind',choices=['TRW','TFDW','SURVEY'],required=True);q.add_argument('--name');q.add_argument('--target');q.add_argument('--target-text',type=Path);q.add_argument('--survey-scope',type=Path)
+        if name=='new':q.add_argument('--kind',choices=['TRH','FDH','SURVEY'],required=True);q.add_argument('--name');q.add_argument('--target');q.add_argument('--target-text',type=Path);q.add_argument('--survey-scope',type=Path)
         if name=='configure-discovery':q.add_argument('--instance',required=True)
         if name!='list':q.add_argument('--brief',type=Path);q.add_argument('--immutable-background',type=Path);q.add_argument('--allowed-axes',type=Path)
     kn=sub.add_parser('knowledge');ks=kn.add_subparsers(dest='operation',required=True)
@@ -36,7 +36,7 @@ def parser():
         q=ss.add_parser(name);q.add_argument('project',type=Path);q.add_argument('--instance',required=True)
         if name=='activity':
             q.add_argument('--stage',choices=['S1','S2','S3','S4','S5'],required=True);q.add_argument('--intent',required=True)
-            q.add_argument('--max-calls',type=int,required=True);q.add_argument('--max-workers',type=int,choices=range(1,9),default=None,help='Project model slots (1–8); omitted keeps the saved limit; shared host pool is 10');q.add_argument('--model-overrides',type=Path)
+            q.add_argument('--max-calls',type=int,required=True);q.add_argument('--max-workers',type=int,choices=range(1,9),default=None,help='Harness stages: 8 per instance, 20 globally; MAIN excluded; Survey serial');q.add_argument('--model-overrides',type=Path)
             q.add_argument('--allow-reports',action='store_true',default=None)
             q.add_argument('--selected-refs',type=Path);q.add_argument('--source-refs',type=Path);q.add_argument('--role')
         if name=='retrieve':q.add_argument('--plan-ref',required=True)
@@ -58,13 +58,17 @@ def parser():
     hf=sub.add_parser('handoff');hs=hf.add_subparsers(dest='operation',required=True)
     for name in ('prepare','adopt'):
         q=hs.add_parser(name);q.add_argument('project',type=Path);q.add_argument('--instance',required=True)
-        if name=='prepare':q.add_argument('--direction',choices=['TRW_TO_TFDW','TFDW_TO_TRW','SURVEY_TO_TRW','SURVEY_TO_TFDW'],required=True);q.add_argument('--scope',type=Path,required=True)
+        if name=='prepare':q.add_argument('--direction',choices=['TRH_TO_FDH','FDH_TO_TRH','SURVEY_TO_TRH','SURVEY_TO_FDH'],required=True);q.add_argument('--scope',type=Path,required=True)
         else:q.add_argument('--handoff',required=True);q.add_argument('--decision',type=Path,required=True)
-    for name in ('status','audit','rebuild-index','orphans','schedule','prepare','run','pause','decide','resume','report','source','preflight','recover','cancel','reconcile','authorize','start','configure','ui'):
+    for name in ('status','audit','rebuild-index','orphans','schedule','prepare','run','pause','decide','resume','report','source','preflight','recover','cancel','reconcile','authorize','start','configure','ui','p14-control'):
         q=sub.add_parser(name);q.add_argument('project',type=Path)
         if name not in {'audit','rebuild-index','orphans','source','preflight','recover','ui'}:q.add_argument('--instance',required=name not in {'status'})
         if name=='authorize':q.add_argument('--mission',type=Path,required=True);q.add_argument('--budget',type=Path,required=True)
-        if name=='start':q.add_argument('--intent',required=True);q.add_argument('--max-calls',type=int,required=True);q.add_argument('--max-workers',type=int,choices=range(1,9),default=None,help='Project model slots (1–8); omitted keeps the saved limit; shared host pool is 10');q.add_argument('--model-overrides',type=Path)
+        if name=='start':q.add_argument('--intent',required=True);q.add_argument('--max-calls',type=int,required=True);q.add_argument('--max-workers',type=int,choices=range(1,9),default=None,help='Harness stages: 8 per instance, 20 globally; MAIN excluded; Survey serial');q.add_argument('--model-overrides',type=Path)
+        if name=='start':q.add_argument('--p14-mode',choices=['AUTO_P14','HUMAN_P14'],default='AUTO_P14')
+        if name=='p14-control':
+            q.add_argument('--mode',choices=['AUTO_P14','HUMAN_P14'])
+            stops=q.add_mutually_exclusive_group();stops.add_argument('--stop-next',action='store_true');stops.add_argument('--cancel-stop',action='store_true')
         if name=='configure':q.add_argument('--model-overrides',type=Path);q.add_argument('--reset-scopes',type=Path);q.add_argument('--reason',default='Explicit future task configuration')
         if name=='pause':q.add_argument('--reason',required=True)
         if name=='decide':
@@ -75,7 +79,10 @@ def parser():
         if name=='source':q.add_argument('--file',type=Path,required=True);q.add_argument('--media-type',default='application/octet-stream')
         if name=='preflight':q.add_argument('--task',required=True);q.add_argument('--response',type=Path,required=True)
         if name in {'recover','cancel','reconcile'}:q.add_argument('--request',required=True)
-        if name=='recover':q.add_argument('--check-only',action='store_true')
+        if name=='recover':
+            q.add_argument('--check-only',action='store_true')
+            q.add_argument('--recheck',action='store_true',help='Revalidate the same rejected capture after a documented software repair; never resends a model request.')
+            q.add_argument('--reason',help='Exact software-repair reason for explicit admission recheck.')
         if name in {'cancel','reconcile'}:q.add_argument('--reason',required=True)
         if name=='reconcile':q.add_argument('--disposition',required=True,choices=['CONFIRMED_NOT_SENT','ABANDON_UNKNOWN']);q.add_argument('--not-sent-evidence',help='已保存的实际传输证据 source_ref；不能用说明文字代替。')
         if name=='ui':q.add_argument('--port',type=int,default=8765)
@@ -160,8 +167,11 @@ def execute(a):
     if cmd=='start':
         from .codex_client import policy
         e.start_round(store,a.instance,a.intent,max_calls=a.max_calls,max_workers=a.max_workers,policy=policy(),
-                model_overrides=loads(read(a.model_overrides)) if a.model_overrides else None)
+                model_overrides=loads(read(a.model_overrides)) if a.model_overrides else None,p14_mode=a.p14_mode)
         return e.run_round(store,a.instance)
+    if cmd=='p14-control':
+        from .workflow_instances import configure_p14
+        return configure_p14(store,a.instance,mode=a.mode,stop_next=True if a.stop_next else False if a.cancel_stop else None)
     if cmd=='configure':return e.update_configuration(store,a.instance,loads(read(a.model_overrides)) if a.model_overrides else [],a.reason,
             reset_scopes=loads(read(a.reset_scopes)) if a.reset_scopes else [])
     if cmd in {'schedule','prepare'}:return getattr(e,cmd)(store,a.instance)
@@ -173,7 +183,7 @@ def execute(a):
         from .changes import prepare_material_input
         return store.commit(prepare_material_input(store.read_snapshot(),read(a.file),title=a.file.name,media_type=a.media_type,blob_get=store.read_blob))
     if cmd=='preflight':return e.preflight(store,a.task,read(a.response))
-    if cmd=='recover':return e.recover(store,a.request,check_only=a.check_only)
+    if cmd=='recover':return e.recover(store,a.request,check_only=a.check_only,recheck=a.recheck,reason=a.reason)
     if cmd in {'cancel','reconcile'}:
         if cmd=='reconcile':return e.reconcile_unknown(store,a.instance,a.request,a.disposition,a.reason,not_sent_evidence_ref=a.not_sent_evidence)
         from .workflow_instances import event

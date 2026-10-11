@@ -157,9 +157,17 @@ class ResourceInputs(unittest.TestCase):
         def fail_command(path,data):
             if Path(path).name=='command.json':raise PMRSError('RESOURCE_DISK_LOW','Controlled publication failure.')
             return immutable(path,data)
+        from research_studio import task_tools
+        popen=runner.subprocess.Popen
+        allowed_probe=task_tools.server_command(store.root/'execution'/'tool-capabilities'/(made['request_id']+'.json'))
+        def only_local_probe(command,*args,**kwargs):
+            # Request-scoped MCP initialization is local and unbilled. The
+            # model command must remain forbidden until publication succeeds.
+            self.assertEqual(command,allowed_probe,'No model transport may start')
+            return popen(command,*args,**kwargs)
         with patch('research_studio.runner.doctor',return_value={'ready':True,'binary':'/bin/true'}), \
              patch('research_studio.runner.immutable',side_effect=fail_command), \
-             patch('research_studio.runner.subprocess.Popen',side_effect=AssertionError('No transport may start')):
+             patch('research_studio.runner.subprocess.Popen',side_effect=only_local_probe):
             result=runner.CodexExecutor('/bin/true').execute(store,made['task_id'])
             self.assertEqual((result['state'],result['code']),('RESOURCE_WAIT','RESOURCE_DISK_LOW'))
         self.assertEqual(store.read_snapshot()['requests'][made['request_id']]['execution_state'],'PREPARED')

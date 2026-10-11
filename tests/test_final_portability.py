@@ -73,7 +73,7 @@ class NativePortabilityTests(unittest.TestCase):
         from research_studio import demo
         e=Engine();store=e.create(self.root/'native-roundtrip',demo.ARITHMETIC,synthetic=True)
         target=next(r for r,v in store.read_snapshot()['records'].items() if v['kind']=='Statement')
-        e.new_workflow(store,'TRW',target_ref=target)
+        e.new_workflow(store,'TRH',target_ref=target)
         before=store.read_snapshot();archive=self.root/'current.zip';export_project(store,archive)
         restore(archive,self.root/'restored');after=Store(self.root/'restored').read_snapshot()
         for field in ('records','sources','supports','qualifications','requests','budget_grants'):

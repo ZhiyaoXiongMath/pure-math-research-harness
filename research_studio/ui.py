@@ -6,9 +6,11 @@ import hmac
 import json
 import secrets
 import threading
+import os
+import stat
 from http.cookies import SimpleCookie
 from . import views
-from .util import require, read, safe_path, PMRSError
+from .util import require, read, safe_path, canonical, PMRSError
 
 STATIC=Path(__file__).with_name('static')
 MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8',
@@ -117,6 +119,23 @@ def app_handler(workspace,bootstrap_token):
             if cookie:self.send_header('Set-Cookie',cookie)
             if filename:self.send_header('Content-Disposition','attachment; filename="'+filename+'"')
             self.end_headers();self.wfile.write(body)
+        def reply_native_stream(self,path):
+            # The exact saved extent at open is streamed without a size cap or
+            # text conversion. Later appends belong to a subsequent download.
+            fd=os.open(safe_path(path),os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+            with os.fdopen(fd,'rb') as source:
+                info=os.fstat(source.fileno());require(stat.S_ISREG(info.st_mode),'FILE_INVALID','Native evidence must be a regular file.')
+                self.send_response(200);self.send_header('Content-Type','application/octet-stream')
+                self.send_header('Content-Length',str(info.st_size));self.send_header('Cache-Control','no-store')
+                self.send_header('X-Content-Type-Options','nosniff');self.send_header('Referrer-Policy','no-referrer')
+                self.send_header('Content-Disposition','attachment; filename="instance-shared-'+path.name+'"')
+                self.send_header('X-PMRS-Evidence-Scope','INSTANCE_SHARED_NATIVE_MAIN_STREAM')
+                self.send_header('X-PMRS-Bytes-at-Open',str(info.st_size));self.end_headers()
+                remaining=info.st_size
+                while remaining:
+                    chunk=source.read(min(1024*1024,remaining))
+                    if not chunk:raise ConnectionError('Native evidence changed while streaming')
+                    self.wfile.write(chunk);remaining-=len(chunk)
         def route(self):
             require(len(self.path)<=8192,'PATH_INVALID','请求地址过长。')
             require(self.headers.get('Host')==f'127.0.0.1:{self.server.server_port}','UNAUTHORIZED','无效的本机服务地址。')
@@ -154,14 +173,30 @@ def app_handler(workspace,bootstrap_token):
                 require(path in {'/api/session','/api/preferences','/api/survey','/api/workspace','/api/operations','/api/operation','/api/workflow-graph',
                     '/api/progress','/api/workflow-inputs','/api/settings','/api/capabilities','/api/download','/api/status',
                     '/api/current','/api/frontier','/api/sources','/api/history','/api/source-file','/api/diff',
-                    '/api/body','/api/reports','/api/report-file','/api/assistant','/api/assistant-evidence'},'ROUTE_NOT_FOUND','未找到页面。')
+                    '/api/body','/api/reports','/api/report-file','/api/round-file','/api/task-detail','/api/task-artifact','/api/research-memory','/api/research-memory-file',
+                    '/api/native-main-files','/api/native-main-file','/api/main','/api/incidents','/api/knowledge','/api/knowledge-get','/api/knowledge-dependencies','/api/knowledge-history','/api/report-revision-target'},'ROUTE_NOT_FOUND','未找到页面。')
                 if path=='/api/session':result={'csrf':session['csrf'],'workspace_id':workspace.workspace_id,**workspace.preferences()}
                 elif path=='/api/preferences':result=workspace.preferences()
                 elif path=='/api/workspace':result=workspace.list()
                 elif path=='/api/operations':result=workspace.operations(int(q.get('offset',0)),int(q.get('limit',50)))
                 elif path=='/api/operation':result=workspace.operation_status(q.get('key'),operation_id=q.get('id'))
-                elif path=='/api/assistant':result=workspace.assistant_status(q.get('project'),q.get('session_id'),int(q.get('offset',0)),int(q.get('limit',30)))
-                elif path=='/api/assistant-evidence':result=workspace.assistant_evidence(q.get('project'),q.get('session_id'))
+                elif path=='/api/main':
+                    from .main_session import view
+                    require(workspace.project(q['project']).read_snapshot()['instances'][q['instance']]['kind']!='SURVEY',
+                            'WORKFLOW_KIND_INVALID','SURVEY uses a sequential controller and has no MAIN session.')
+                    result=view(workspace.project(q['project']),q['instance'],cursor=int(q.get('cursor',0)))
+                elif path=='/api/incidents':
+                    state=workspace.project(q['project']).read_snapshot()
+                    from .incidents import project as incident_projection
+                    result={'incidents':[incident_projection(state,row) for row in state.get('incidents',{}).values() if not q.get('instance') or row['instance_id']==q['instance']],
+                            'as_of_commit':state['knowledge_commit'],'model_calls':0}
+                elif path=='/api/report-revision-target':
+                    from .reports import revision_target
+                    result=revision_target(workspace.project(q['project']),q['instance'],q['report'],q['profile'])
+                elif path.startswith('/api/knowledge'):
+                    from . import knowledge_access
+                    method={'/api/knowledge':'search','/api/knowledge-get':'get','/api/knowledge-dependencies':'dependencies','/api/knowledge-history':'history'}[path]
+                    result=knowledge_access.web_tool(workspace.project(q['project']),method,q)
                 elif path=='/api/workflow-graph':
                     from .activity import graph
                     from .model_policy import describe
@@ -180,6 +215,38 @@ def app_handler(workspace,bootstrap_token):
                 else:
                     store=workspace.project(q.get('project'));iid=q.get('instance') or None;s=store.read_snapshot(q.get('commit') or None)
                     if path=='/api/status':result=workspace.info(q['project'],iid,q.get('commit'))
+                    elif path=='/api/native-main-files':result=views.native_main_files(s,store,iid)
+                    elif path=='/api/native-main-file':
+                        self.reply_native_stream(views.native_main_file_path(s,store,iid,q.get('file')));return
+                    elif path=='/api/research-memory':
+                        result=views.research_memory(s,store,q['kind'],q['id'],instance_id=iid,
+                            offset=int(q.get('offset',0)),limit=int(q.get('limit',24000)))
+                    elif path=='/api/research-memory-file':
+                        form=q.get('format','body')
+                        raw,mime=views.research_memory_bytes(s,store,q['kind'],q['id'],instance_id=iid,format=form)
+                        name=q['kind']+'-'+q['id']+('-'+form+'.json' if form!='body' else '.md')
+                        self.reply(200,raw,mime,filename=name);return
+                    elif path=='/api/task-detail':result=views.task_detail(s,store,q['task'],instance_id=iid)
+                    elif path=='/api/task-artifact':
+                        artifacts=views.task_artifacts(s,store,q['task'],instance_id=iid)
+                        require(q.get('artifact') in artifacts,'UNAUTHORIZED','The selected file does not belong to this task.')
+                        row=artifacts[q['artifact']];raw=views.task_artifact_bytes(row,store)
+                        if q.get('download')=='1':
+                            filename=Path(row['name']).name
+                            self.reply(200,raw,'application/octet-stream',filename=filename);return
+                        offset=int(q.get('offset',0));limit=int(q.get('limit',24000))
+                        require(offset>=0 and 1<=limit<=64000,'PAGE_INVALID','Choose a bounded text page.')
+                        body=raw.decode('utf-8');require('\0' not in body,'BINARY_ARTIFACT','Download binary original files.')
+                        result={'body':body[offset:offset+limit],'offset':offset,'next_offset':offset+limit if offset+limit<len(body) else None,
+                            'total_chars':len(body),'commit':s['knowledge_commit'],'live':row['section']=='logs'}
+                    elif path=='/api/round-file':
+                        delivery=s.get('round_deliveries',{}).get(q.get('delivery'))
+                        require(delivery is not None and (iid is None or delivery.get('instance_id',delivery.get('summary',{}).get('instance_id'))==iid),
+                                'UNAUTHORIZED','The selected round report is outside this instance.')
+                        summary=delivery.get('summary',delivery);body=delivery.get('report_body') or summary.get('report_body')
+                        ref=delivery.get('report_body_ref') or summary.get('report_body_ref')
+                        raw=store.read_blob(ref) if ref else body.encode() if isinstance(body,str) else canonical(delivery)
+                        self.reply(200,raw,'text/plain; charset=utf-8',filename=q['delivery']+'.md');return
                     elif path=='/api/survey':
                         from . import survey
                         result=survey.status(s,iid)

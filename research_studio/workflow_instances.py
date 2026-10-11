@@ -1,12 +1,13 @@
 """Independent workflow controls; human decisions never assert mathematical truth."""
 from copy import deepcopy
-from .util import identity, require, canonical
+from .util import identity, require, canonical, now
 from .workflows.registry import REGISTRY, spec, validate_exit
 
 EVENT_FIELDS={'event_id','actor','capability_ref','project_id','instance_id','mission_id',
-              'event_type','expected_scope_version','payload','related_change_ref'}
+              'event_type','expected_scope_version','payload','related_change_ref','issued_at'}
 EVENT_TYPES={'CREATE_INSTANCE','AUTHORIZE_MISSION','EXTEND_MISSION_BUDGET','PAUSE','RESUME','CANCEL_REQUEST','RETIRE_CONSUMER',
-             'REQUEST_CORRECTION','HANDOFF_PREPARED','HANDOFF_ADOPTED','REPORT_SELECTED','HUMAN_DECISION','RECONCILE_UNKNOWN','DISCOVERY_SCOPE_DEFINED'}
+             'REQUEST_CORRECTION','HANDOFF_PREPARED','HANDOFF_ADOPTED','REPORT_SELECTED','HUMAN_DECISION','RECONCILE_UNKNOWN','DISCOVERY_SCOPE_DEFINED',
+             'SET_P14_MODE','REQUEST_STOP_AT_P14','CANCEL_STOP_AT_P14','SET_RESEARCH_AUDIT_POLICY'}
 
 def validate_report_first_actions(actions):
     require(type(actions) is list and all(type(action) is str and action in {'CONTINUE','END','ADOPT','ADOPT_HANDOFF'} for action in actions)
@@ -18,7 +19,7 @@ def event(snapshot,event_type,payload,*,instance_id=None,mission_id=None,actor='
     row={'actor':actor,'capability_ref':capability_ref,'project_id':snapshot['project_id'],
          'instance_id':instance_id,'mission_id':mission_id,'event_type':event_type,
          'expected_scope_version':snapshot.get('scope_versions',{}).get(instance_id or 'project',0),
-         'payload':deepcopy(payload),'related_change_ref':None}
+         'payload':deepcopy(payload),'related_change_ref':None,'issued_at':now()}
     row['event_id']=event_id or identity(row,'CONTROL-');return row
 
 def select_instance(snapshot,instance_id):
@@ -29,7 +30,7 @@ def select_instance(snapshot,instance_id):
 DISCOVERY_FIELDS={'phenomenon_ref':'现象','immutable_background_ref':'不可改变的背景','allowed_axes_ref':'允许探索的范围'}
 
 def validate_discovery_scope(snapshot,instance,*,required=True):
-    if instance['kind']!='TFDW':return {}
+    if instance['kind']!='FDH':return {}
     scope=instance.get('discovery_scope') or {}
     require(isinstance(scope,dict) and not set(scope)-set(DISCOVERY_FIELDS),'DISCOVERY_SCOPE_INVALID','Unknown discovery scope field')
     for key,label in DISCOVERY_FIELDS.items():
@@ -44,12 +45,12 @@ def validate_discovery_scope(snapshot,instance,*,required=True):
     return deepcopy(scope)
 
 def new_instance(snapshot,kind,*,target_ref=None,discovery_brief_ref=None,created_by_decision=None,instance_id=None,name=None,discovery_scope=None,survey_scope=None):
-    require(kind in {'TRW','TFDW','SURVEY'},'WORKFLOW_KIND_INVALID',str(kind))
-    if kind=='TRW':
+    require(kind in {'TRH','FDH','SURVEY'},'WORKFLOW_KIND_INVALID',str(kind))
+    if kind=='TRH':
         require(target_ref in snapshot.get('records',{}) and snapshot['records'][target_ref]['kind']=='Statement'
-                and discovery_brief_ref is None,'TARGET_REQUIRED','TRW requires an exact Statement revision')
-    elif kind=='TFDW':
-        require(target_ref is None and (discovery_brief_ref is not None or discovery_scope is not None),'DISCOVERY_BRIEF_REQUIRED','TFDW has a discovery brief or an explicit incomplete draft and no fixed target')
+                and discovery_brief_ref is None,'TARGET_REQUIRED','TRH requires an exact Statement revision')
+    elif kind=='FDH':
+        require(target_ref is None and (discovery_brief_ref is not None or discovery_scope is not None),'DISCOVERY_BRIEF_REQUIRED','FDH has a discovery brief or an explicit incomplete draft and no fixed target')
     else:
         from .survey import normalize_scope
         require(target_ref is None and discovery_brief_ref is None,'SURVEY_SCOPE_INVALID','Survey has its own scope and no fabricated research target')
@@ -57,14 +58,18 @@ def new_instance(snapshot,kind,*,target_ref=None,discovery_brief_ref=None,create
     iid=instance_id or identity({'kind':kind,'target':target_ref,'brief':discovery_brief_ref,
         'decision':created_by_decision,'ordinal':len(snapshot.get('instances',{}))+1},'INSTANCE-')
     if name is not None:require(isinstance(name,str) and 0<len(name.strip())<=200,'INSTANCE_NAME_INVALID','研究流程名称须为 1–200 字符。')
-    row={'instance_id':iid,'kind':kind,'definition_version':{'TRW':'pmrs.trw/1','TFDW':'pmrs.tfdw/1','SURVEY':'pmrs.survey/1'}[kind],
+    row={'instance_id':iid,'kind':kind,'definition_version':{'TRH':'pmrs.trh/1','FDH':'pmrs.fdh/1','SURVEY':'pmrs.survey/1'}[kind],
             'definition_digest':REGISTRY['digest'],'created_by_decision':created_by_decision,'status':'PAUSED',
             'target_ref':target_ref,'discovery_brief_ref':discovery_brief_ref,'mission_ids':[],
             'current_mission_id':None,'input_knowledge_commit':snapshot.get('knowledge_commit'),'policy_refs':[]}
     if survey_scope is not None:row['survey_scope']=deepcopy(survey_scope)
+    if kind in {'TRH','FDH'}:
+        row['run_control']={'mode':'AUTO_P14' if kind=='TRH' else 'HUMAN_D5','round_number':1,'state':'PAUSED',
+                            'stop_request':None,'control_version':0,'last_delivery_ref':None,
+                            'automatic_authorization_ref':None}
     if name is not None:row['name']=name
     if discovery_scope is not None:
-        require(kind=='TFDW','DISCOVERY_SCOPE_INVALID','Only TFDW has discovery scope')
+        require(kind=='FDH','DISCOVERY_SCOPE_INVALID','Only FDH has discovery scope')
         row['discovery_scope']=deepcopy(discovery_scope);validate_discovery_scope(snapshot,row,required=False)
     return row
 
@@ -153,6 +158,33 @@ def apply_control(snapshot,e):
                                               name=row.get('name'),discovery_scope=row.get('discovery_scope'),survey_scope=row.get('survey_scope'))
         require(row==expected and row['instance_id'] not in s.get('instances',{}),'CONTROL_EVENT_INVALID','Invalid or existing workflow instance')
         s.setdefault('instances',{})[row['instance_id']]=deepcopy(row)
+    elif kind=='SET_RESEARCH_AUDIT_POLICY':
+        instance=select_instance(s,iid)
+        require(instance['kind'] in {'TRH','FDH'} and set(p)=={'light_check_seconds','full_audit_seconds'}
+                and all(type(v) is int and v>0 for v in p.values()),
+                'AUDIT_POLICY_INVALID','Specify positive light-check and full-audit intervals in seconds')
+        instance['research_audit_policy']=deepcopy(p)
+        instance['run_control'].update(control_version=instance['run_control']['control_version']+1,
+            last_instruction_ref=e['event_id'],last_instruction_at=e['issued_at'])
+    elif kind in {'SET_P14_MODE','REQUEST_STOP_AT_P14','CANCEL_STOP_AT_P14'}:
+        instance=select_instance(s,iid)
+        require(instance['kind']=='TRH','CONTROL_EVENT_INVALID','P14 controls apply to TRH only')
+        control=instance['run_control']
+        require(instance['status'] not in {'ENDED','COMPLETE'},'CONTROL_EVENT_INVALID','This research has ended')
+        if kind=='SET_P14_MODE':
+            require(set(p)=={'mode'} and p['mode'] in {'AUTO_P14','HUMAN_P14'},'CONTROL_EVENT_INVALID','Choose AUTO_P14 or HUMAN_P14')
+            control['mode']=p['mode'];control['automatic_authorization_ref']=e['event_id'] if p['mode']=='AUTO_P14' else None
+        elif kind=='REQUEST_STOP_AT_P14':
+            require(set(p)=={'requested_at'} and isinstance(p['requested_at'],str),'CONTROL_EVENT_INVALID','Persist the actual stop request time')
+            old=control.get('stop_request')
+            if not old or old['status'] not in {'PENDING','REACHED'}:
+                control['stop_request']={'requested_at':p['requested_at'],'requested_round':control['round_number'],
+                                        'status':'REACHED' if control['state']=='WAITING_HUMAN_AT_P14' else 'PENDING','event_ref':e['event_id']}
+        else:
+            require(not p,'CONTROL_EVENT_INVALID','Cancellation takes no replacement policy')
+            if control.get('stop_request'):control['stop_request']={**control['stop_request'],'status':'CANCELLED','cancel_event_ref':e['event_id']}
+        control['control_version']+=1
+        control.update(last_instruction_ref=e['event_id'],last_instruction_at=e['issued_at'])
     elif kind=='AUTHORIZE_MISSION' and set(p)=={'future_configuration'}:
         from . import model_policy
         config=p['future_configuration'];instance=select_instance(s,iid)
@@ -247,15 +279,33 @@ def apply_control(snapshot,e):
             require(old is None or old==grant,'AUTHORIZATION_REQUIRED','Existing grants are immutable; an explicit allowance amendment is required')
             s['retry_grants'][grant['grant_id']]=grant
         s.setdefault('missions',{})[m['mission_id']]=m;instance['mission_ids'].append(m['mission_id']);instance['current_mission_id']=m['mission_id'];instance['status']='ACTIVE'
+        if instance['kind'] in {'TRH','FDH'}:
+            control=instance['run_control']
+            control['automatic_authorization_ref']=e['event_id'] if control['mode']=='AUTO_P14' else None
+            control.update(state='RUNNING',control_version=control['control_version']+1,
+                           last_instruction_ref=e['event_id'],last_instruction_at=e['issued_at'])
     elif kind in {'PAUSE','RESUME'}:
         instance=select_instance(s,iid)
         require(p.get('reason') or p.get('decision_ref'),'AUTHORIZATION_REQUIRED','Control reason or recorded decision required')
         if kind=='RESUME':
-            decision=s.get('control_events',{}).get(p.get('decision_ref'),{})
+            ref=p.get('decision_ref');decision=s.get('control_events',{}).get(ref,{})
             require(decision.get('event_type')=='HUMAN_DECISION' and decision.get('instance_id')==iid
-                    and decision['payload']['action'] in {'CONTINUE','CONTINUE_DISCOVERY'},'AUTHORIZATION_REQUIRED','Resume requires the exact knowledge-based human decision')
+                    and decision.get('mission_id')==instance.get('current_mission_id')
+                    and decision['payload']['action']==('CONTINUE_DISCOVERY' if instance['kind']=='FDH' else 'CONTINUE'),
+                    'AUTHORIZATION_REQUIRED','Resume requires the exact current mission continuation decision')
             require(instance['current_mission_id'] in s.get('missions',{}),'AUTHORIZATION_REQUIRED','No authorized mission')
+            if instance['kind'] in {'TRH','FDH'}:
+                control=instance['run_control']
+                require(control.get('human_continue_ref')==ref and control.get('last_instruction_ref')==ref,
+                        'STALE_CONTROL_INSTRUCTION','A prior continuation cannot override a later pause, end or control instruction')
         instance['status']='PAUSED' if kind=='PAUSE' else 'ACTIVE'
+        if instance['kind'] in {'TRH','FDH'}:
+            control=instance['run_control']
+            if kind=='RESUME':control['state']='RUNNING'
+            elif control['state'] not in {'WAITING_HUMAN_AT_P14','WAITING_HUMAN_AT_D5'}:
+                control['state']='PAUSED'
+            control.update(control_version=control['control_version']+1,last_instruction_ref=e['event_id'],
+                           last_instruction_at=e['issued_at'],pause_reason=p.get('reason') if kind=='PAUSE' else None)
     elif kind=='HUMAN_DECISION':
         instance=select_instance(s,iid);basis=p.get('decision_basis',{});action=p.get('action')
         require(action in {'CONTINUE','CONTINUE_DISCOVERY','ADOPT','PAUSE','END','END_WITHOUT_ADOPTION','PREPARE_HANDOFF','ADOPT_HANDOFF','REVISE_REPORT'},'CONTROL_EVENT_INVALID','Unknown human decision')
@@ -272,10 +322,28 @@ def apply_control(snapshot,e):
             report=s.get('reports',{}).get(basis['report_ref'],{})
             require(report.get('status')=='COMPLETE','REPORT_BLOCKED','The researcher explicitly required a completed report first')
         if action in {'CONTINUE','CONTINUE_DISCOVERY'}:
+            require((action=='CONTINUE_DISCOVERY')==(instance['kind']=='FDH'),
+                    'CONTROL_EVENT_INVALID','FDH uses explicit CONTINUE_DISCOVERY; TRH and SURVEY use CONTINUE')
             require(mission.get('status')=='ACTIVE' and mission.get('budget_grant_id') in s.get('budget_grants',{}),'AUTHORIZATION_REQUIRED','Continuation does not create scope or budget')
             instance['status']='ACTIVE'
-        elif action=='PAUSE':instance['status']='PAUSED'
-        elif action in {'END','END_WITHOUT_ADOPTION'}:instance['status']='ENDED'
+            if instance['kind'] in {'TRH','FDH'}:
+                control=instance['run_control']
+                if control['state'] in {'WAITING_HUMAN_AT_P14','WAITING_HUMAN_AT_D5'}:control['round_number']+=1
+                control['state']='RUNNING';control['stop_request']=None;control['control_version']+=1
+                control['human_continue_ref']=e['event_id']
+                control['pause_reason']=None
+        elif action=='PAUSE':
+            instance['status']='PAUSED'
+            if instance['kind'] in {'TRH','FDH'}:
+                control=instance['run_control']
+                if control['state'] not in {'WAITING_HUMAN_AT_P14','WAITING_HUMAN_AT_D5'}:control['state']='PAUSED'
+                control['control_version']+=1;control['pause_reason']=p['note']
+        elif action in {'END','END_WITHOUT_ADOPTION'}:
+            instance['status']='ENDED'
+            if instance['kind'] in {'TRH','FDH'}:
+                instance['run_control'].update(state='OPEN_ENDED',control_version=instance['run_control']['control_version']+1)
+        if instance['kind'] in {'TRH','FDH'}:
+            instance['run_control'].update(last_instruction_ref=e['event_id'],last_instruction_at=e['issued_at'])
     elif kind=='CANCEL_REQUEST':
         r=s.get('requests',{}).get(p.get('request_id'))
         require(r and r['instance_id']==iid,'TASK_FENCED','Exact workflow request required')
@@ -284,7 +352,7 @@ def apply_control(snapshot,e):
         if r['execution_state']=='PREPARED':r['execution_state']='CANCELLED_BEFORE_SEND'
     elif kind=='DISCOVERY_SCOPE_DEFINED':
         instance=select_instance(s,iid)
-        require(instance['kind']=='TFDW' and set(p)=={'discovery_scope'},'DISCOVERY_SCOPE_INVALID','Exact discovery scope update required')
+        require(instance['kind']=='FDH' and set(p)=={'discovery_scope'},'DISCOVERY_SCOPE_INVALID','Exact discovery scope update required')
         require(not instance.get('mission_ids') and not any(t['instance_id']==iid for t in s['tasks'].values()),
                 'DISCOVERY_SCOPE_IMMUTABLE','Only an unassigned discovery draft can be completed')
         old=instance.get('discovery_scope') or {};new=deepcopy(p['discovery_scope'])
@@ -325,4 +393,143 @@ def apply_control(snapshot,e):
         select_instance(s,iid);s.setdefault('selected_reports',{})[iid]=p.get('report_ref')
     s.setdefault('control_events',{})[e['event_id']]=deepcopy(e)
     scope=iid or 'project';s.setdefault('scope_versions',{})[scope]=e['expected_scope_version']+1
+    if iid and iid in s.get('instances',{}) and s['instances'][iid]['kind'] in {'TRH','FDH'}:
+        from .research_audit import transition
+        transition(s,iid,at=e['issued_at'])
     return s
+
+
+def configure_p14(store, instance_id, *, mode=None, stop_next=None):
+    """Persist user controls through the same lock/version used by MAIN decisions."""
+    require(mode is not None or stop_next is not None,'CONTROL_EVENT_INVALID','Specify a P14 control')
+    if mode is not None:
+        mode={'AUTO':'AUTO_P14','MANUAL':'HUMAN_P14'}.get(mode,mode)
+        s=store.read_snapshot()
+        store.commit_control(event(s,'SET_P14_MODE',{'mode':mode},instance_id=instance_id))
+    if stop_next is not None:
+        require(type(stop_next) is bool,'CONTROL_EVENT_INVALID','Stop request must be boolean')
+        s=store.read_snapshot()
+        store.commit_control(event(s,'REQUEST_STOP_AT_P14' if stop_next else 'CANCEL_STOP_AT_P14',
+                                   {'requested_at':now()} if stop_next else {},instance_id=instance_id))
+    return {'instance_id':instance_id,'run_control':deepcopy(store.read_snapshot()['instances'][instance_id]['run_control']),'model_calls':0}
+
+
+def completion_evidence(snapshot, instance_id, refs):
+    """Exact original-target dual checks and global integration, never MAIN confidence."""
+    from . import assurance
+    target=snapshot['instances'][instance_id]['target_ref'];qualified=[]
+    for sid,support in snapshot.get('supports',{}).items():
+        argument=support.get('argument_ref')
+        if support.get('statement_ref')!=target or argument not in refs:continue
+        scope=[]
+        for ref,aspect in ((target,'original_target'),(argument,'full_argument')):
+            match=None
+            for record in snapshot.get('records',{}).values():
+                if record.get('kind')!='Assessment':continue
+                for row in assurance.checked_scope(record):
+                    if (row['target_ref']==ref and aspect in row['aspects'] and row.get('extent')=='WHOLE_TARGET'
+                        and row.get('target_body_sha256')==snapshot['records'][ref]['body_sha256']):
+                        match={**deepcopy(row),'aspects':[aspect]};break
+                if match:break
+            if match:scope.append(match)
+        if len(scope)!=2:continue
+        mode=snapshot['records'][argument]['data'].get('mode')
+        req=assurance.requirement('REFUTATION_SUPPORT' if mode=='REFUTATION' else 'PROOF_SUPPORT',scope,
+            review_mode='TARGET_DUAL',assumption_policy=assurance.declared_assumption_policy(snapshot,target,argument))
+        evaluation=assurance.evaluate_requirement(snapshot,sid,req)
+        if evaluation['result']!='QUALIFIED' or evaluation.get('open_conditions'):continue
+        # A newly integrated global argument retains its extra integration duty.
+        integration_needed=any(v.get('argument_ref')==argument and v.get('kind') in {'AND_INTEGRATION','GLOBAL_ASSEMBLY'}
+                               for v in snapshot.get('inferences',{}).values())
+        if integration_needed:
+            integrated=assurance.evaluate_requirement(snapshot,sid,assurance.requirement('INTEGRATION',scope))
+            if integrated['result']!='QUALIFIED':continue
+        qualified.append({'support_id':sid,'argument_ref':argument,'target_ref':target,'assurance':evaluation})
+    return qualified
+
+
+def preserve_main_report(snapshot, task, request, proposal, proposal_id, *, report_body=None):
+    """Freeze actual MAIN prose in its acceptance transaction, without a new call.
+
+    An explicit P13 account may accompany continued work in the same round. It
+    changes neither the round nor its P14 stop state; only apply_p14_decision
+    below has that responsibility.
+    """
+    iid=task['instance_id'];instance=snapshot['instances'][iid]
+    require(task.get('actor_kind')=='MAIN' and instance['kind'] in {'TRH','FDH'},
+            'AUTHORIZATION_REQUIRED','Only the owning product MAIN may account a harness round')
+    require(task['request_id']==request['request_id'] and request.get('capture_ref'),
+            'MAIN_DECISION_REQUIRED','A captured native MAIN decision is required')
+    decision=proposal.get('p14_decision') or {}
+    account=deepcopy(proposal['progress_account'])
+    report=report_body if report_body is not None else decision.get('report_body') or account.get('summary')
+    require(isinstance(report,str) and report.strip(),'ROUND_REPORT_REQUIRED','Save an actual readable MAIN progress account')
+    control=instance.get('run_control',{})
+    round_number=control.get('round_number',1)
+    did=identity([iid,task['request_id'],proposal_id,round_number],'DELIVERY-')
+    summary={'schema':'pmrs.round-account/4.2.2','instance_id':iid,'mission_id':task['mission_id'],
+        'stage_id':'P13' if instance['kind']=='TRH' else 'D5','workflow_kind':instance['kind'],
+        'delivery_kind':'PROGRESS_ACCOUNT',
+        'round_number':round_number,'target_ref':instance.get('target_ref'),
+        'scientific_completion':False,'state':'OPEN','progress_account':account,
+        'report_body':report,'main_request_id':request['request_id'],'main_capture_ref':request['capture_ref'],
+        'proposal_id':proposal_id,'model_calls':0}
+    delivery={'delivery_id':did,'instance_id':iid,'mission_id':task['mission_id'],
+        'basis_commit':snapshot.get('knowledge_commit'),'summary':summary,'report_body':report,
+        'round_number':round_number,'at':now(),'timestamp_basis':'DELIVERY_ACCEPTANCE',
+        'target_ref':instance.get('target_ref')}
+    snapshot.setdefault('round_deliveries',{})[did]=delivery
+    snapshot['missions'][task['mission_id']]['delivery_ref']=did
+    return delivery
+
+
+def apply_p14_decision(snapshot, task, request, proposal, proposal_id):
+    """Apply captured MAIN P14 choice after freezing the round report atomically.
+
+    The current user stop state wins over a previously frozen MAIN proposal.
+    Neither this reducer nor a P14 transition grants budget or changes the goal.
+    """
+    delivery=preserve_main_report(snapshot,task,request,proposal,proposal_id)
+    iid=task['instance_id'];instance=snapshot['instances'][iid]
+    did=delivery['delivery_id'];summary=delivery['summary'];round_number=delivery['round_number']
+    decision=proposal.get('p14_decision') or {};control=instance.get('run_control',{})
+    if instance['kind']=='FDH':
+        instance['status']='PAUSED'
+        control.update(state='WAITING_HUMAN_AT_D5',last_delivery_ref=did,
+                       control_version=control['control_version']+1,
+                       pause_reason='Formal D5 delivery awaits the researcher’s explicit choice.')
+        summary.update(state='WAITING_HUMAN_AT_D5',next_decision='HUMAN',delivery_kind='FORMAL_D5')
+        return {'allow_dispatch':False,'delivery_id':did,'state':'WAITING_HUMAN_AT_D5'}
+    control['last_delivery_ref']=did
+    summary['delivery_kind']='P13_P14'
+    stop=control.get('stop_request')
+    if control['mode']=='HUMAN_P14' or stop and stop['status'] in {'PENDING','REACHED'}:
+        if stop and stop['status']=='PENDING':control['stop_request']={**stop,'status':'REACHED','reached_round':round_number,'delivery_ref':did}
+        control['state']='WAITING_HUMAN_AT_P14';instance['status']='PAUSED';control['control_version']+=1
+        summary.update(state='WAITING_HUMAN_AT_P14',next_decision='HUMAN')
+        return {'allow_dispatch':False,'delivery_id':did,'state':control['state']}
+    action=decision.get('action')
+    require(action in {'CONTINUE','COMPLETE','WAIT'},'MAIN_DECISION_REQUIRED','Automatic P14 needs an explicit MAIN decision')
+    require(decision.get('rationale'),'MAIN_DECISION_REQUIRED','MAIN must explain the P14 decision')
+    require(control.get('automatic_authorization_ref'),'AUTHORIZATION_REQUIRED','Automatic mode must reference the actual user authorization')
+    qualified=completion_evidence(snapshot,iid,decision.get('completion_evidence',[])) if action=='COMPLETE' else []
+    require(action!='COMPLETE' or qualified,'SCIENTIFIC_COMPLETION_UNQUALIFIED',
+            'Original-target completion requires exact independent positive/adversarial scope and unconditional support')
+    event_id=identity([proposal_id,control['control_version'],did],'MAIN-P14-')
+    row={'event_id':event_id,'event_type':'MAIN_P14_DECISION','actor':'MAIN','instance_id':iid,
+         'mission_id':task['mission_id'],'request_id':request['request_id'],'capture_ref':request['capture_ref'],
+         'proposal_id':proposal_id,'automatic_authorization_ref':control['automatic_authorization_ref'],
+         'control_version':control['control_version'],'round_number':round_number,'delivery_ref':did,
+         'action':action,'rationale':decision['rationale'],'qualified_evidence':qualified}
+    snapshot.setdefault('main_decisions',{})[event_id]=row
+    control['last_decision_ref']=event_id;control['control_version']+=1
+    if action=='COMPLETE':
+        instance['status']='COMPLETE';control['state']='COMPLETE'
+        summary.update(state='COMPLETE',scientific_completion=True,next_decision='NONE')
+    elif action=='CONTINUE':
+        control['round_number']+=1;control['state']='RUNNING'
+        summary.update(state='OPEN_CONTINUING',next_decision='MAIN',next_round=control['round_number'])
+    else:
+        require(proposal.get('waiting_condition') or proposal.get('wait_condition'),'WAIT_CONDITION_REQUIRED','WAIT must name an observable condition')
+        control['state']='WAITING_CONDITION';summary.update(state='WAITING_CONDITION',next_decision='MAIN_ON_EVENT')
+    return {'allow_dispatch':action=='CONTINUE','delivery_id':did,'state':control['state'],'decision_ref':event_id}

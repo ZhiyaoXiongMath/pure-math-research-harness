@@ -9,7 +9,9 @@ from .util import canonical, identity, sha, loads, read, immutable, require, PMR
 from .language import REPORT_LABELS, authored_english
 from .restricted_tex import validate_tex, tex_semantic_identity
 from . import report_catalog as catalog_service
-from .report_revisions import sections, normalize_scope, assemble
+from .report_revisions import (sections, normalize_scope, assemble, compact_authorization,
+    validate_authorization, validate_authorization_snapshot, authorization_allowance, instruction_ref,
+    accumulated_requirements, validate_human_authorization, AUTHORIZATION_SCHEMA)
 
 SCHEMA=catalog_service.SCHEMA
 PROFILES=('lecture','minimal')
@@ -69,8 +71,7 @@ def dispatch_authorized(snapshot, task_or_ctx):
     if request.get('profile_revisions',{}).get(ctx.get('profile'))!=ctx.get('revision'):return False
     if ctx.get('budget_grant_id')!=request.get('budget_grant_id'):return False
     try:
-        from . import assistant
-        assistant.validate_revision_authorization_snapshot(snapshot,request['authorization'])
+        validate_authorization_snapshot(snapshot,request['authorization'])
         dispatch_current(snapshot,ctx)
     except PMRSError:return False
     return True
@@ -129,15 +130,14 @@ def _author_metadata(snapshot, entry, profile, value):
 def bound_revision(store, instance_id, report_id, profile, revision, body_hash, *, instruction,
                    message_refs, constraints, scope, authorization, report_calls=None, operation_id=None):
     """Bind one explicit user request to immutable old bytes and a finite grant."""
-    from . import assistant
     from .scheduler import budget_remaining,project_remaining
-    authorization=assistant.validate_revision_authorization(store,authorization)
-    compact_authorization={k:deepcopy(v) for k,v in authorization.items() if k not in {'instruction','constraints','report_calls','report_allowance'}}
+    authorization=validate_authorization(store,authorization)
+    compact=compact_authorization(authorization)
     snapshot=store.read_snapshot();entry=snapshot.get('reports',{}).get(report_id,{})
-    operation_id=operation_id or identity({'authorization':compact_authorization,'report':report_id},'REPORT-REVISION-')
+    operation_id=operation_id or identity({'authorization':compact,'report':report_id},'REPORT-REVISION-')
     existing=entry.get('revision_requests',{}).get(operation_id)
     if existing:
-        require(existing['authorization']==compact_authorization,'REPORT_OPERATION_CONFLICT','This operation is already bound to another user request.')
+        require(existing['authorization']==compact,'REPORT_OPERATION_CONFLICT','This operation is already bound to another user request.')
         return _revision_receipt(entry,existing)
     p=entry.get('profiles',{}).get(profile,{})
     require(p.get('revision')==revision and p.get('raw_body_sha256')==body_hash,'REPORT_CONTENT_STALE','The originally selected manuscript version changed.')
@@ -148,7 +148,7 @@ def bound_revision(store, instance_id, report_id, profile, revision, body_hash, 
         and authorization['expected_body_sha256']==body_hash and authorization['expected_snapshot_ref']==entry['snapshot_ref'],
         'REPORT_AUTHORIZATION_MISMATCH','The user message authorized a different report version.')
     require(snapshot['instances'][instance_id]['status'] in {'ACTIVE','PAUSED'},'REPORT_INSTANCE_ENDED','An ended instance cannot restart through report revision.')
-    require(isinstance(instruction,str) and instruction.strip() and message_refs==authorization['requirement_message_ids']
+    require(isinstance(instruction,str) and instruction.strip() and message_refs==authorization.get('requirement_message_ids',[])
         and constraints==authorization['requirement_refs'],'REPORT_AUTHORIZATION_MISMATCH','Use the original user instruction and accumulated requirement references.')
     require(instruction==authorization['instruction'],'REPORT_AUTHORIZATION_MISMATCH','Instruction differs from the authorized original message.')
     raw=store.read_blob(body_hash);selected=normalize_scope(raw,scope)
@@ -166,7 +166,7 @@ def bound_revision(store, instance_id, report_id, profile, revision, body_hash, 
     grant=None;gid=None
     if report_calls is not None:
         require(type(report_calls) is int and 1<=report_calls<=1000,'REPORT_BUDGET_REQUIRED','An explicit finite report call allowance is required.')
-        allowance=assistant.report_allowance(snapshot,authorization['turn_id'])
+        allowance=authorization_allowance(snapshot,authorization)
         require(allowance['calls']==report_calls,'REPORT_BUDGET_REQUIRED','The report allowance must match an actual human authorization event.')
         gid=identity({'report':report_id,'operation':operation_id},'BUDGET-REPORT-')
         grant={'budget_grant_id':gid,'purpose':'REPORT','budget_domain':'REPORT','instance_id':instance_id,
@@ -182,7 +182,7 @@ def bound_revision(store, instance_id, report_id, profile, revision, body_hash, 
         require(gid is not None,'REPORT_BUDGET_REQUIRED','Authorize a finite report allowance for authoring and independent semantic/visual checks; research remains paused.')
     instruction_ref=store.blob(instruction.encode())
     for digest in constraints:store.read_blob(digest)
-    spec={'schema':'pmrs.report-revision/1','operation_id':operation_id,'authorization':compact_authorization,
+    spec={'schema':'pmrs.report-revision/1','operation_id':operation_id,'authorization':compact,
         'profile':profile,'base_revision':revision,'base_raw_body_sha256':body_hash,'base_body_sha256':p['body_sha256'],
         'base_content_key':content_key(p),'base_metadata':_author_metadata(snapshot,entry,profile,p),
         'scope':selected,'instruction_ref':instruction_ref,'message_refs':deepcopy(message_refs),'requirement_refs':deepcopy(constraints),
@@ -204,6 +204,51 @@ def _revision_receipt(entry,spec):
         'new_revision':spec['profile_revisions'][spec['profile']],'revision':spec['profile_revisions'][spec['profile']],
         'synchronized_profiles':list(spec['profile_revisions']),'operation_id':spec['operation_id'],
         'budget_grant_id':spec['budget_grant_id'],'model_calls':0}
+
+
+def revise_direct(store,instance_id,report_id,profile,revision,instruction,scope,report_calls=None,operation_id=None,*,body_hash=None):
+    """Normal explicit report-edit form; no assistant or main call is required.
+
+    The human instruction, selected original version/range and finite report
+    grant become immutable native evidence. A failed later step is recoverable
+    using the same operation identity; prior authorization is never fabricated.
+    """
+    require(isinstance(instruction,str) and instruction.strip() and len(instruction.encode('utf-8'))<=256*1024,
+        'REPORT_INSTRUCTION_REQUIRED','Provide the exact bounded report-edit instruction.')
+    require(report_calls is None or type(report_calls) is int and 1<=report_calls<=1000,'REPORT_BUDGET_REQUIRED','Choose an explicit finite report call allowance.')
+    require(operation_id is None or isinstance(operation_id,str) and 0<len(operation_id)<=256,'REPORT_OPERATION_CONFLICT','A bounded operation identity is required.')
+    snapshot=store.read_snapshot();entry=snapshot.get('reports',{}).get(report_id,{})
+    operation_id=operation_id or identity({'report_id':report_id,'profile':profile,'revision':revision,'body_hash':body_hash,
+        'instruction':instruction,'scope':scope,'report_calls':report_calls},'REPORT-REVISION-')
+    aid=identity({'report_id':report_id,'operation_id':operation_id},'REPORT-AUTH-')
+    existing=snapshot.get('report_authorizations',{}).get(aid)
+    if existing:
+        expected_body=body_hash or existing['expected_body_sha256']
+        normalized=normalize_scope(store.read_blob(expected_body),scope)
+        selected={k:v for k,v in normalized.items() if k!='ranges'}
+        require(existing['instance_id']==instance_id and existing['report_id']==report_id and existing['profile']==profile
+            and existing['expected_revision']==revision and existing['expected_body_sha256']==expected_body
+            and existing['instruction_ref']==sha(instruction.encode()) and existing['scope']==selected
+            and existing['report_calls']==report_calls,'REPORT_OPERATION_CONFLICT','This operation already names a different original user request.')
+        authorization=existing
+    else:
+        target=revision_target(store,instance_id,report_id,profile)
+        expected_body=body_hash or target['raw_body_sha256']
+        require(target['revision']==revision and target['raw_body_sha256']==expected_body,'REPORT_CONTENT_STALE','The selected manuscript changed; choose its current exact version.')
+        normalized=normalize_scope(store.read_blob(expected_body),scope);selected={k:v for k,v in normalized.items() if k!='ranges'}
+        instruction_hash=store.blob(instruction.encode('utf-8'))
+        authorization={'schema':AUTHORIZATION_SCHEMA,'authorization_id':aid,'operation_id':operation_id,'origin':'HUMAN_UI',
+            'instance_id':instance_id,'report_id':report_id,'profile':profile,'expected_revision':revision,
+            'expected_body_sha256':expected_body,'expected_snapshot_ref':entry['snapshot_ref'],
+            'instruction_ref':instruction_hash,'scope':selected,
+            'requirement_refs':list(dict.fromkeys(accumulated_requirements(entry,profile)+[instruction_hash])),
+            'report_calls':report_calls}
+        store.commit_report(_event('REPORT_HUMAN_AUTHORIZED',report_id,{'authorization':authorization},profile))
+        authorization=store.read_snapshot()['report_authorizations'][aid]
+    authorization=validate_authorization(store,authorization)
+    return bound_revision(store,instance_id,report_id,profile,revision,authorization['expected_body_sha256'],
+        instruction=authorization['instruction'],message_refs=[],constraints=authorization['requirement_refs'],
+        scope=authorization['scope'],authorization=authorization,report_calls=report_calls,operation_id=operation_id)
 
 
 def revise_from_assistant(store,authorization,*,report_calls=None,operation_id=None):
@@ -527,7 +572,11 @@ def apply_event(snapshot,event):
             require_current_survey(state,entry)
             require(entry['scope_fingerprint']==catalog_service.fingerprint(state,entry['scope']),'REPORT_SNAPSHOT_STALE','Relevant research inputs changed')
         p=entry['profiles'].get(profile) if profile else None
-        if kind=='REPORT_RESPONSE':
+        if kind=='REPORT_HUMAN_AUTHORIZED':
+            authorization=validate_human_authorization(state,event)
+            state.setdefault('report_authorizations',{})[authorization['authorization_id']]=authorization
+            entry['blobs']=sorted(set(entry.get('blobs',[])+authorization['requirement_refs']))
+        elif kind=='REPORT_RESPONSE':
             result=payload['result'];ctx=payload['context'];role=payload['role']
             task=state.get('tasks',{}).get(payload['task_id'],{});request=state.get('requests',{}).get(payload['request_id'],{})
             require(task.get('request_id')==payload['request_id'] and task.get('role')==role and request.get('capture_ref'),
@@ -627,9 +676,8 @@ def apply_event(snapshot,event):
                 spec.update(budget_grant_id=gid,budget_domain='REPORT')
             entry.setdefault('budget_extensions',{})[payload['operation_id']]=deepcopy(payload)
         elif kind=='REPORT_REVISION_REQUESTED':
-            from . import assistant
             spec=payload['spec'];grant=payload['grant'];iid=entry['scope']['instance_ids'][0]
-            assistant.validate_revision_authorization_snapshot(state,spec['authorization'])
+            validate_authorization_snapshot(state,spec['authorization'])
             require(state['instances'][iid]['status'] in {'ACTIVE','PAUSED'},'REPORT_INSTANCE_ENDED','Report revision cannot restart an ended instance.')
             require(spec['profile']==profile and spec['base_revision']==p['revision']
                 and spec['base_raw_body_sha256']==p['raw_body_sha256'] and spec['base_content_key']==content_key(p),
@@ -639,11 +687,11 @@ def apply_event(snapshot,event):
                 and spec['authorization']['expected_body_sha256']==p['raw_body_sha256']
                 and spec['authorization']['expected_snapshot_ref']==entry['snapshot_ref'],
                 'REPORT_AUTHORIZATION_MISMATCH','Native user authorization must bind the exact report manuscript.')
-            require(spec['message_refs']==spec['authorization']['requirement_message_ids']
+            require(spec['message_refs']==spec['authorization'].get('requirement_message_ids',[])
                 and spec['requirement_refs']==spec['authorization']['requirement_refs']
                 and spec.get('discussion_refs',[])==spec['authorization'].get('discussion_refs',[])
                 and spec.get('discussion_message_ids',[])==spec['authorization'].get('discussion_message_ids',[])
-                and spec['instruction_ref']==spec['authorization']['message_body_ref']
+                and spec['instruction_ref']==instruction_ref(spec['authorization'])
                 and {k:v for k,v in spec['scope'].items() if k!='ranges'}==spec['authorization']['scope'],
                 'REPORT_AUTHORIZATION_MISMATCH','Revision requirements and range identities must come from the native user message.')
             require(spec['operation_id'] not in entry.get('revision_requests',{}),'REPORT_OPERATION_CONFLICT','Revision operation already exists.')
@@ -664,7 +712,7 @@ def apply_event(snapshot,event):
                     and request['execution_state'] in {'PREPARED','RESERVED','SENT','UNKNOWN','CAPTURED'}),
                     'REPORT_EXISTING_REQUEST','Original pending request must retain its exact revision.')
             if grant:
-                allowance=assistant.report_allowance(state,spec['authorization']['turn_id'])
+                allowance=authorization_allowance(state,spec['authorization'])
                 require(grant.get('purpose')==grant.get('budget_domain')=='REPORT' and grant.get('report_id')==rid
                     and grant.get('instance_id')==iid and grant.get('authorization_ref')==spec['operation_id']
                     and grant.get('budget_grant_id')==spec['budget_grant_id'] and grant.get('explicit_unlimited') is False
@@ -722,7 +770,7 @@ def create(store,instance_id,mission_id=None,*,limits=None,profiles=None,plan_re
         require(len(names)==1 and names[0] in SURVEY_PROFILES,'REPORT_PROFILE_REQUIRED','Select one explicit Survey output plan.')
         require(profiles is None or tuple(profiles)==names,'REPORT_PROFILE_MISMATCH','Requested profile must match the frozen output plan.')
     else:
-        require(profiles is None or tuple(profiles)==PROFILES,'REPORT_PROFILE_MISMATCH','TRW and TFDW retain the lecture/minimal pair.')
+        require(profiles is None or tuple(profiles)==PROFILES,'REPORT_PROFILE_MISMATCH','TRH and FDH retain the lecture/minimal pair.')
         require(plan_ref is None,'REPORT_SCOPE_INVALID','Survey output plans belong to Survey instances.')
         names=PROFILES
     active=snapshot.get('active_reports',{}).get(iid)
@@ -921,7 +969,7 @@ def _assign_role(store,instance_id,prepared):
     oid='O-REPORT-'+key;bid='B-REPORT-'+key;gid='G-REPORT-'+key;method='REPORT-METHOD-'+key
     if oid in snapshot['obligations']:return oid
     kind=snapshot['instances'][instance_id]['kind']
-    stage={'TRW':'P13','TFDW':'D5'}.get(kind)
+    stage={'TRH':'P13','FDH':'D5'}.get(kind)
     if kind=='SURVEY':stage='S6' if ctx['role']=='REPORT_AUTHOR' else 'S7'
     require(stage is not None,'WORKFLOW_KIND_INVALID','Report workflow is not registered')
     criterion=store.blob(('Produce the exact '+ctx['role']+' disposition for '+ctx['profile']+' under frozen report scope '+key+'.').encode())

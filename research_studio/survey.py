@@ -428,7 +428,7 @@ def start_activity(store,iid,stage=None,intent=None,*,max_calls=8,max_workers=No
                    model_overrides=None,max_research_attempts=1,report_first_actions=None,items=None):
     from . import obligations as O,workflow_instances as W,changes
     require(isinstance(intent,str) and intent.strip(),'AUTHORIZATION_REQUIRED','State the exact bounded Survey activity')
-    initial=store.read_snapshot();max_workers=initial.get('max_workers',1) if max_workers is None else max_workers
+    initial=store.read_snapshot();max_workers=1
     if items is not None:
         from .research_plans import plan_work
         return plan_work(store,iid,intent,items,max_calls=max_calls,max_workers=max_workers,policy=policy,

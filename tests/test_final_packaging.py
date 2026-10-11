@@ -201,7 +201,7 @@ class ReleaseInstallationTests(unittest.TestCase):
             self.assertEqual(initial['native_usage']['model_calls'],0)
             knowledge = cli('knowledge','current',project)
             target_ref = next(r['ref'] for r in knowledge['records'] if r['kind']=='Statement')
-            instance = cli('workflow','new',project,'--kind','TRW','--target',target_ref)
+            instance = cli('workflow','new',project,'--kind','TRH','--target',target_ref)
             self.assertEqual(instance['status'],'PAUSED')
             self.assertEqual(len(cli('workflow','list',project)['instances']),1)
             prepared = cli('report',project,'--instance',instance['instance_id'],'--prepare-only')
@@ -223,7 +223,7 @@ from research_studio import demo,execution
 from research_studio.engine import Engine
 e=Engine();store=e.create(Path(PROJECT),demo.ARITHMETIC,synthetic=True)
 target=next(r for r,v in store.read_snapshot()['records'].items() if v['kind']=='Statement')
-i=e.new_workflow(store,'TRW',target_ref=target)['instance_id']
+i=e.new_workflow(store,'TRH',target_ref=target)['instance_id']
 e.start_round(store,i,'Installed synthetic admission probe',max_calls=4,max_workers=1,policy=demo.policy())
 fake=demo.executor();e.run_round(store,i,executor=fake)
 s=store.read_snapshot()

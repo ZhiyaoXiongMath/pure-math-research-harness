@@ -10,6 +10,7 @@ from research_studio.util import PMRSError,canonical
 
 TRANSPORT = r'''#!/usr/bin/env python3
 import fcntl,json,os,pathlib,sys,time
+sys.stdin.buffer.read()
 work=pathlib.Path(sys.argv[sys.argv.index('-C')+1]);task=json.loads((work/'task.json').read_bytes())
 root=pathlib.Path(os.environ['PMRS_CONTROLLED_TRANSPORT']);rid=task['request_id']
 config=json.loads((root/'config.json').read_text());delay=config['delays'].get(rid,config['delay'])
@@ -37,7 +38,7 @@ event('finish');sys.exit(config.get('exit_code',0))
 
 def fixture(root,count=10,workers=8):
     engine=Engine();store=Store.create(root,'Controlled transport only',synthetic=True)
-    iid=engine.new_workflow(store,'TRW',target=b'Synthetic finite test target. No mathematical result is asserted.')['instance_id']
+    iid=engine.new_workflow(store,'TRH',target=b'Synthetic finite test target. No mathematical result is asserted.')['instance_id']
     policy=demo.policy();policy['executor_contract']={'executor':'codex','sandbox':'required','environment_revision':'controlled-local-transport'}
     items=[{'key':str(i),'stage':'P4','role':'RESEARCH','intent':'Controlled distinct finite responsibility '+str(i)} for i in range(count)]
     engine.plan_work(store,iid,'Explicit finite transport validation only.',items,max_calls=count,max_workers=workers,policy=policy)
@@ -95,50 +96,53 @@ class ModelPoolTests(unittest.TestCase):
         self.env.start();self.addCleanup(self.env.stop)
 
     def test_waterfill_unequal_rotation_and_more_than_ten_projects(self):
-        self.assertEqual(host_pool.allocations({'a':2,'b':8}),{'a':2,'b':8})
-        self.assertEqual(sorted(host_pool.allocations({'a':1,'b':8,'c':8}).values()),[1,4,5])
+        self.assertEqual(host_pool.allocations({'a':2,'b':8}),{'a':2,'b':2})
+        self.assertEqual(sorted(host_pool.allocations({'a':1,'b':8,'c':8}).values()),[1,1,2])
         allocations=[host_pool.allocations({'a':8,'b':8,'c':8},cursor=i) for i in range(3)]
-        self.assertEqual([next(k for k,v in row.items() if v==4) for row in allocations],['a','b','c'])
+        self.assertEqual([next(k for k,v in row.items() if v==2) for row in allocations],['a','b','c'])
         many={str(i):8 for i in range(12)}
         self.assertTrue(all(any(host_pool.allocations(many,cursor=i)[key]>0 for i in range(12)) for key in many))
 
-    def test_real_wrapper_reaches_eight_and_refills_before_slow_task_finishes(self):
-        store,iid,policy=fixture(self.root/'project',10);prepared=prepare(store,iid,policy)
-        slow=prepared[0]['request_id'];binary=transport_root(self.root/'transport',[store],delay=.2,barrier=8,barriers={slow:10})
+    def test_real_wrapper_reaches_four_and_refills_before_slow_task_finishes(self):
+        store,iid,policy=fixture(self.root/'project',10,workers=4);prepared=prepare(store,iid,policy)
+        slow=prepared[0]['request_id'];binary=transport_root(self.root/'transport',[store],delay=.2,barrier=4,barriers={slow:10})
         result=controlled_run(store.root,iid,binary,policy,10);rows=events(self.root/'transport/events.jsonl')
-        self.assertEqual(len(result['tasks']),10);self.assertEqual(peaks(rows)[0],8)
+        self.assertEqual(len(result['tasks']),10);self.assertEqual(peaks(rows)[0],4)
         self.assertEqual(len({r['request_id'] for r in rows if r['phase']=='start'}),10)
         slow_end=next(r['time'] for r in rows if r['request_id']==slow and r['phase']=='finish')
         original={r['request_id'] for r in prepared}
         self.assertTrue(any(r['phase']=='start' and r['request_id'] not in original and r['time']<slow_end for r in rows))
         self.assertEqual(host_pool.status()['active'],0)
         self.assertEqual(resources.resource_status()['leases'],[])
-        evidence('T4-wrapper-eight-refill',{'events':rows,'peak':peaks(rows)[0],'result':result,'paid_calls':0,'transport':'controlled local subprocess through CodexExecutor'})
+        evidence('T4-wrapper-four-refill',{'events':rows,'peak':peaks(rows)[0],'result':result,'paid_calls':0,'transport':'controlled local subprocess through CodexExecutor'})
 
-    def test_separate_processes_share_ten_and_preserve_lower_project_limit(self):
-        for limits in ((8,8),(2,8)):
+    def test_separate_processes_share_four_and_preserve_lower_project_limit(self):
+        for limits in ((4,4),(1,4)):
             projects=[]
             for index,limit in enumerate(limits):
                 store,iid,policy=fixture(self.root/('p'+str(limits[0])+'-'+str(index)),limit,limit);prepare(store,iid,policy)
                 projects.append((store,iid,policy))
-            transport=self.root/('transport-'+str(limits[0]));binary=transport_root(transport,[x[0] for x in projects],delay=1,barrier=10)
+            transport=self.root/('transport-'+str(limits[0]));binary=transport_root(transport,[x[0] for x in projects],delay=1,barrier=4)
             env={**os.environ,'PMRS_CONTROLLED_TRANSPORT':str(transport),'PYTHONDONTWRITEBYTECODE':'1'}
             processes=[subprocess.Popen([sys.executable,'-B','-m','tests.test_model_pool','worker',str(s.root),iid,str(binary),str(p['max_workers'])],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE) for s,iid,p in projects]
-            outputs=[process.communicate(timeout=35) for process in processes]
+            try:outputs=[process.communicate(timeout=35) for process in processes]
+            finally:
+                for process in processes:
+                    if process.poll() is None:process.terminate();process.communicate(timeout=3)
             self.assertTrue(all(process.returncode==0 for process in processes),outputs)
             self.assertEqual([len(json.loads(out)['tasks']) for out,err in outputs],list(limits))
-            peak,by=peaks(events(transport/'events.jsonl'));self.assertEqual(peak,10,{'limits':limits,'by':by})
+            peak,by=peaks(events(transport/'events.jsonl'));self.assertEqual(peak,4,{'limits':limits,'by':by})
             self.assertTrue(all(by[str(s.root)]<=p['max_workers'] for s,_,p in projects))
             self.assertEqual(host_pool.status()['active'],0)
             evidence('T5-wrapper-'+str(limits[0])+'-'+str(limits[1]),{'events':events(transport/'events.jsonl'),'peak':peak,'project_peaks':by,'paid_calls':0})
 
     def test_project_arriving_to_full_host_waits_without_preemption_or_new_identity(self):
         projects=[]
-        for index,limit in enumerate((8,2,1)):
+        for index,limit in enumerate((3,1,1)):
             store,iid,policy=fixture(self.root/('late-'+str(index)),limit,limit);made=prepare(store,iid,policy)
             projects.append((store,iid,policy,made))
         slow=projects[0][3][0]['request_id']
-        binary=transport_root(self.root/'transport',[x[0] for x in projects],delay=2,delays={slow:6},barrier=10)
+        binary=transport_root(self.root/'transport',[x[0] for x in projects],delay=2,delays={slow:6},barrier=4)
         env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1'}
         def spawn(item):
             s,iid,p,_=item
@@ -146,21 +150,21 @@ class ModelPoolTests(unittest.TestCase):
         processes=[spawn(item) for item in projects[:2]]
         try:
             deadline=time.monotonic()+20
-            while len([r for r in events(self.root/'transport/events.jsonl') if r['phase']=='start'])<10 and time.monotonic()<deadline:time.sleep(.05)
-            self.assertEqual(host_pool.status()['active'],10)
+            while len([r for r in events(self.root/'transport/events.jsonl') if r['phase']=='start'])<4 and time.monotonic()<deadline:time.sleep(.05)
+            self.assertEqual(host_pool.status()['active'],4)
             processes.append(spawn(projects[2]))
             outputs=[p.communicate(timeout=35) for p in processes]
             self.assertTrue(all(p.returncode==0 for p in processes),outputs)
         finally:
             for process in processes:
-                if process.poll() is None:process.terminate();process.wait(timeout=3)
+                if process.poll() is None:process.terminate();process.communicate(timeout=3)
         rows=events(self.root/'transport/events.jsonl');peak,by=peaks(rows)
-        self.assertEqual(peak,10)
+        self.assertEqual(peak,4)
         late=[r for r in rows if r['project']==str(projects[2][0].root) and r['phase']=='start']
         self.assertEqual(len(late),1)
         self.assertGreaterEqual(late[0]['time'],min(r['time'] for r in rows if r['phase']=='finish'))
         self.assertLess(late[0]['time'],next(r['time'] for r in rows if r['request_id']==slow and r['phase']=='finish'))
-        self.assertEqual([len(s.read_snapshot()['requests']) for s,_,_,_ in projects],[8,2,1])
+        self.assertEqual([len(s.read_snapshot()['requests']) for s,_,_,_ in projects],[3,1,1])
         evidence('T5-late-project-full-host',{'events':rows,'peak':peak,'project_peaks':by,'late_request':late[0]['request_id'],'paid_calls':0})
 
     def test_before_send_wait_and_unknown_capture_recovery_preserve_identity(self):

@@ -21,7 +21,7 @@ def _source_tainted(ref,snapshot,seen=None):
     return any(_source_tainted(r,snapshot,seen) for r in parents)
 
 
-def build_packet(snapshot,roots,blob_get,*,independent=False,required_source_refs=(),sibling_tasks=(),max_bytes=MAX_CONTEXT_BYTES,include_method_sources=False,selection_modes=None,blob_size=None,budget_blob_hashes=()):
+def build_packet(snapshot,roots,blob_get,*,independent=False,required_source_refs=(),sibling_tasks=(),max_bytes=MAX_CONTEXT_BYTES,include_method_sources=False,selection_modes=None,blob_size=None,budget_blob_hashes=(),source_selections=None):
     selected=relations.premise_closure(roots,snapshot,include_method_sources=include_method_sources)|set(required_source_refs)
     # Relevant reverse evidence is part of judging an exact target. The rest
     # of the available source library is not implicitly a task input.
@@ -30,6 +30,61 @@ def build_packet(snapshot,roots,blob_get,*,independent=False,required_source_ref
     selected |= relations.premise_closure(opposing,snapshot,include_method_sources=include_method_sources)
     record_map={};bodies={};sources={};source_bodies={};read_set=[];input_manifest=[]
     allrecords=snapshot.get('records',{});all_sources=snapshot.get('sources',{})
+    source_selections=source_selections or {}
+    require(set(source_selections)<=selected,'INPUT_PLAN_INVALID','Source selections must belong to the exact packet')
+    excerpts={};excerpt_bodies={};omitted_source_hashes=set();original_cache={}
+    def original(digest):
+        if digest not in original_cache:
+            raw=blob_get(digest)
+            require(isinstance(raw,bytes) and sha(raw)==digest,'ORIGINAL_BYTES_MISMATCH','Source excerpt backing bytes differ')
+            original_cache[digest]=raw
+        return original_cache[digest]
+    def gather_locators(value):
+        if isinstance(value,dict):
+            if set(value)==C.LOCATOR_FIELDS:yield value
+            else:
+                for child in value.values():yield from gather_locators(child)
+        elif isinstance(value,list):
+            for child in value:yield from gather_locators(child)
+    for ref,selection in source_selections.items():
+        require(ref in all_sources,'INPUT_PLAN_INVALID','Source selection must reference a native occurrence')
+        coverage=selection.get('coverage')
+        require(coverage in {'FULL_DOCUMENT','DECLARED_RANGE','METADATA_ONLY'},'INPUT_PLAN_INVALID','Unknown source coverage')
+        if coverage=='FULL_DOCUMENT':continue
+        source=all_sources[ref];allowed={source['blob_hash'],*source.get('extraction_blob_hashes',[])}
+        # Shared backing bytes cannot be omitted if another selected occurrence
+        # explicitly promises its complete content.
+        for digest in allowed:
+            if not any(other!=ref and other in all_sources and
+                       digest==all_sources[other]['blob_hash'] and
+                       source_selections.get(other,{}).get('coverage','FULL_DOCUMENT')=='FULL_DOCUMENT'
+                       for other in selected):omitted_source_hashes.add(digest)
+        segments=[]
+        for loc in selection.get('locators',[]):
+            require(loc['blob_hash'] in allowed,'ORIGINAL_BYTES_MISMATCH','Source excerpt locator belongs to a different version')
+            piece=validate_locator(loc,original)
+            segments.append({'locator':deepcopy(loc),'material_sha256':sha(piece),'bytes':len(piece)})
+            excerpt_bodies[sha(piece)]=piece
+        require((coverage=='DECLARED_RANGE' and segments) or (coverage=='METADATA_ONLY' and not segments),
+                'INPUT_PLAN_INVALID','Source excerpt must deliver exact nonempty segments')
+        # Every declared source premise remains actually supplied. A source
+        # navigation entry alone cannot remove a needed proof or full reading.
+        required=[]
+        for rid in selected & set(allrecords):
+            record=allrecords[rid]
+            if record['kind']=='SourceEvidence' and ref in record['data'].get('source_occurrence_refs',[]):
+                require(record['data'].get('coverage')!='FULL_DOCUMENT','INCOMPLETE_CONTEXT','A full-reading premise requires the full original source')
+            required.extend(loc for loc in gather_locators(record['data']) if loc['blob_hash'] in allowed)
+        for edge in relations.edges(snapshot):
+            if edge.get('source_ref') in selected and edge.get('target_ref')==ref and edge.get('assertion_state')!='WITHDRAWN':
+                required.extend(gather_locators(edge.get('evidence_bindings',[])))
+        for loc in required:
+            validate_locator(loc,original)
+            require(any(_locator_contains(segment['locator'],loc,original) for segment in segments),
+                    'INCOMPLETE_CONTEXT','Source excerpt omits an exact premise or cited proof region')
+        excerpts[ref]={'source_ref':ref,'source_revision':C.digest(source),'source_blob_hash':source['blob_hash'],
+            'original_bytes':source.get('bytes'),'coverage':coverage,'segments':segments,
+            'unprovided_scope':'Every original location outside the supplied segments is unprovided; this is not a full-document reading.'}
     kept=[r for r in relations.edges(snapshot) if r['source_ref'] in selected and r['target_ref'] in selected
           and (relations.is_premise(r) or r['type']=='COUNTEREXAMPLE_TO' and r['assertion_state']!='WITHDRAWN')]
     metadata={'records':{r:allrecords[r] for r in selected if r in allrecords},
@@ -46,7 +101,8 @@ def build_packet(snapshot,roots,blob_get,*,independent=False,required_source_ref
     for ref in selected:
         if ref in allrecords:
             hashes.add(allrecords[ref]['body_sha256']);locator_hashes(allrecords[ref]['data'])
-        elif ref in all_sources:hashes.add(all_sources[ref]['blob_hash'])
+        elif ref in all_sources and ref not in excerpts:hashes.add(all_sources[ref]['blob_hash'])
+    hashes-=omitted_source_hashes-{allrecords[r]['body_sha256'] for r in selected if r in allrecords}
     hashes.update(budget_blob_hashes)
     owner=getattr(blob_get,'__self__',None)
     if blob_size is None and owner is not None and hasattr(owner,'root'):
@@ -58,7 +114,8 @@ def build_packet(snapshot,roots,blob_get,*,independent=False,required_source_ref
             require(type(length) is int and length>=0,'CONTEXT_LIMIT','Invalid local input size')
             unique_bytes+=length;sizes[digest]=length
             require(unique_bytes+metadata_bytes<=max_bytes,'CONTEXT_LIMIT','Complete input exceeds the supported storage budget before body reads; select an explicit smaller coverage scope.')
-    cache={};actual_bytes=0
+    cache={};actual_bytes=sum(len(raw) for raw in excerpt_bodies.values())
+    require(actual_bytes+metadata_bytes<=max_bytes,'CONTEXT_LIMIT','Actual source excerpts exceed the frozen storage budget')
     def get(digest):
         nonlocal actual_bytes
         if digest not in cache:
@@ -101,7 +158,8 @@ def build_packet(snapshot,roots,blob_get,*,independent=False,required_source_ref
             def locators(value):
                 if isinstance(value,dict):
                     if set(value)==C.LOCATOR_FIELDS:
-                        validate_locator(value,get);bodies[value['blob_hash']]=get(value['blob_hash'])
+                        validate_locator(value,original if value['blob_hash'] in omitted_source_hashes else get)
+                        if value['blob_hash'] not in omitted_source_hashes:bodies[value['blob_hash']]=get(value['blob_hash'])
                     else:
                         for v in value.values():locators(v)
                 elif isinstance(value,list):
@@ -110,18 +168,37 @@ def build_packet(snapshot,roots,blob_get,*,independent=False,required_source_ref
         elif ref in all_sources:
             source=all_sources[ref]
             if independent:require(not _source_tainted(ref,snapshot),'FORBIDDEN_REVIEW_DERIVATIVE','Source is review/preparation material or a derivative')
-            h=source['blob_hash'];raw=get(h)
-            require(sha(raw)==h,'ORIGINAL_BYTES_MISMATCH',ref)
-            sources[ref]=deepcopy(source);source_bodies[h]=raw
-            input_manifest.append({'kind':'source','ref':ref,'sha256':h})
+            h=source['blob_hash'];sources[ref]=deepcopy(source)
+            status=snapshot.get('survey_source_status',{}).get(ref,{})
+            require(not status.get('withdrawn') and not status.get('version_conflict'),'INPUT_SOURCE_STALE','Selected source is withdrawn or version-conflicted')
+            if ref in excerpts:
+                input_manifest.append({'kind':'source','ref':ref,'sha256':h,'body_coverage':deepcopy(excerpts[ref])})
+            else:
+                raw=get(h);require(sha(raw)==h,'ORIGINAL_BYTES_MISMATCH',ref);source_bodies[h]=raw
+                input_manifest.append({'kind':'source','ref':ref,'sha256':h})
         elif ref in snapshot.get('inferences',{}):continue
         else:raise C.PMRSError('INCOMPLETE_CONTEXT','Required exact material missing: '+str(ref))
     byte_count=actual_bytes+metadata_bytes
     require(byte_count<=max_bytes,'CONTEXT_LIMIT','Required full material exceeds frozen storage budget; create an explicit CoveragePlan')
     kept=deepcopy(kept)
-    return {'records':record_map,'bodies':bodies,'sources':sources,'source_bodies':source_bodies,'roots':list(roots),
+    result={'records':record_map,'bodies':bodies,'sources':sources,'source_bodies':source_bodies,'roots':list(roots),
         'relations':kept,'read_set':read_set,'input_manifest':input_manifest,'input_manifest_hash':C.digest(input_manifest),
         'independent':independent,'excluded_verdicts':independent,'complete':True,'bytes':byte_count}
+    if excerpts:
+        result.update(source_excerpts=excerpts,source_excerpt_bodies=excerpt_bodies,complete=False,complete_for_declared_source_scope=True)
+    return result
+
+
+def _locator_contains(outer,inner,blob_get):
+    """Compare exact half-open UTF-8 ranges across both accepted locator units."""
+    if outer['blob_hash']!=inner['blob_hash']:return False
+    raw=blob_get(outer['blob_hash'])
+    def bounds(loc):
+        if loc['unit']=='UTF8_BYTE':return loc['start'],loc['end']
+        text=raw.decode('utf-8')
+        return len(text[:loc['start']].encode('utf-8')),len(text[:loc['end']].encode('utf-8'))
+    a,b=bounds(outer);c,d=bounds(inner)
+    return a<=c and d<=b
 
 def token_preflight(serialized_request,capacity,*,reserved_output_tokens,prompt_overhead_tokens=0,safety_margin_tokens=0,token_counter=None,additional_input_bytes=0):
     require(isinstance(serialized_request,bytes),'CONTEXT_LIMIT','Count the actual serialized request bytes')

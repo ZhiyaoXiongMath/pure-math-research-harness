@@ -11,7 +11,7 @@ def build(root, *, store=None, target_ref=None, argument_bodies=None):
     target=target_ref or next(iter(store.read_snapshot()['records']))
     original='可去性与光滑正则性。原文仅提供方法启发，不提供本项目结论的证明。'.encode()
     source=store.commit(changes.prepare_material_input(store.read_snapshot(),original,title='中文方法原件.txt',media_type='text/plain'))['source_ref']
-    iid=e.new_workflow(store,'TRW',target_ref=target)['instance_id'];mid='M-reader'
+    iid=e.new_workflow(store,'TRH',target_ref=target)['instance_id'];mid='M-reader'
     e.authorize(store,iid,{'mission_id':mid,'intent':'Read exact records, alternative paths and partial review boundaries.',
       'authorized_scope':{'target_refs':[target],'allow_derived_work':True,'reports':True},'obligations':[]},
       {'max_calls':12,'max_workers':2,'execution_policy':demo.policy()})

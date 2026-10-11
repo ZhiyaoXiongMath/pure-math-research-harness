@@ -8,6 +8,9 @@ from .util import identity,require
 from .workflows.registry import spec,role_contract
 
 VERSION='pmrs.model-policy/1'
+MAIN_POLICY_VERSION='pmrs.main-model-policy/1'
+MAIN_ROLES={('MAIN_TRH','MAIN_DECIDE'),('MAIN_FDH','MAIN_DECIDE')}
+MAIN_PURPOSES={'MAIN_STRATEGY','MAIN_PROGRESS','MAIN_DISCUSSION','MAIN_FAULT_DIAGNOSIS'}
 DEFAULT_MODEL='gpt-6-astra'
 DEFAULT_TIER='default'
 NO_CALL_ROLES={'HOST','HUMAN'}
@@ -46,8 +49,13 @@ def describe():
     from .workflows.registry import definition
     for stage,row in definition()['stages'].items():
         for role in row['roles']:
-            rules.append(resolve(row['workflow_kind'],stage,role['role'],require_capability=False))
+            rules.append(resolve(row['workflow_kind'],stage,role['role'],purpose='MAIN_STRATEGY' if stage.startswith('MAIN_') else 'DEFAULT',actor_kind='MAIN' if stage.startswith('MAIN_') else None,require_capability=False))
     return {'schema':VERSION,'default_model':DEFAULT_MODEL,'rules':rules,
+            'main_policy':{'version':MAIN_POLICY_VERSION,'actor_kind':'MAIN','model':'gpt-6-astra',
+                           'reasoning_effort':'ultra','client_mode':'ultra','internal_delegation':True,
+                           'internal_delegation_limits':None,'online_verification':'REAL_REQUEST_EVIDENCE_ONLY',
+                           'registered_roles':[{'stage_id':s,'role':r} for s,r in sorted(MAIN_ROLES)],
+                           'purposes':sorted(MAIN_PURPOSES)},
             'purpose_exceptions':[{'stage_id':s,'role':r,'purpose':p,'reasoning_effort':e} for (s,r,p),e in sorted(_EXCEPTIONS.items())],
             'layout_only_reasoning_effort':'high','ultra_default':False,'local_purposes':sorted(LOCAL_PURPOSES),
             'unsupported_behavior':'REJECT_WITHOUT_FALLBACK'}
@@ -61,22 +69,30 @@ def capability_check(config,capabilities):
     require(config['reasoning_effort'] in model.get('reasoning_efforts',[]),'MODEL_CONFIGURATION_UNSUPPORTED','Requested reasoning effort is not supported; no fallback was applied')
     require(config['service_tier'] in model.get('service_tiers',['default']),'MODEL_CONFIGURATION_UNSUPPORTED','Requested service tier is not supported')
     if config['reasoning_effort']=='ultra':
-        require(capabilities.get('isolated_ultra_verified') is True and capabilities.get('internal_delegation') is False,
-                'MODEL_CONFIGURATION_UNSUPPORTED','Ultra is unavailable unless the executor proves the same isolation and disables internal delegation')
+        require(capabilities.get('ultra_configuration_ready') is True and capabilities.get('internal_delegation') is True,
+                'MODEL_CONFIGURATION_UNSUPPORTED','The installed CLI must advertise Ultra with native delegation enabled; no mode downgrade is permitted')
     return {'source':capabilities['source'],'revision':capabilities['revision'],'executor':capabilities.get('executor'),
             'capability_digest':identity(capabilities),'supported':True}
 
 def resolve_assistant(capabilities):
-    config={'model':'gpt-6-astra','reasoning_effort':'xhigh','service_tier':'default'}
-    return {'policy_version':VERSION,'workflow_kind':None,'stage_id':None,'role':'PROJECT_ASSISTANT','purpose':'PROJECT_ASSISTANT',
-            'call_model':True,'rule_id':'PROJECT_ASSISTANT',**config,'capability':capability_check(config,capabilities),'override_applied':False}
+    require(False,'PROJECT_ASSISTANT_REMOVED','New assistant work is unavailable; use the native main researcher.')
 
 
-def resolve(workflow_kind,stage_id,role,purpose='DEFAULT',*,override=None,capabilities=None,require_capability=True):
+def resolve(workflow_kind,stage_id,role,purpose='DEFAULT',*,override=None,capabilities=None,require_capability=True,actor_kind=None):
     row=spec(stage_id)
     require(row['workflow_kind']==workflow_kind,'MODEL_POLICY_UNREGISTERED','Workflow/stage mismatch')
     role_contract(stage_id,role)
     base={'policy_version':VERSION,'workflow_kind':workflow_kind,'stage_id':stage_id,'role':role,'purpose':purpose}
+    if actor_kind=='MAIN' or purpose in MAIN_PURPOSES:
+        require(actor_kind=='MAIN' and purpose in MAIN_PURPOSES and (stage_id,role) in MAIN_ROLES,
+                'MODEL_POLICY_UNREGISTERED','MAIN needs an explicitly registered scientific responsibility and purpose')
+        config={'model':'gpt-6-astra','reasoning_effort':'ultra','service_tier':'default'}
+        if override:
+            require(all(override.get(k,v)==v for k,v in config.items()),'MODEL_CONFIGURATION_UNSUPPORTED',
+                    'All MAIN calls use the user-pinned gpt-6-astra/ultra policy; no downgrade is permitted')
+        return {**base,**config,'call_model':True,'actor_kind':'MAIN','rule_id':'MAIN_USER_POLICY',
+                'main_policy_version':MAIN_POLICY_VERSION,'policy_source':'PMRS 4.2.2 explicit user main configuration',
+                'capability':capability_check(config,capabilities) if require_capability else None,'override_applied':False}
     if role in NO_CALL_ROLES or stage_id in {'P0','P14'} or purpose in LOCAL_PURPOSES:
         return {**base,'call_model':False,'rule_id':'LOCAL_OPERATION','model':None,'reasoning_effort':None,
                 'service_tier':None,'capability':None,'override_applied':False}
@@ -109,11 +125,13 @@ def schema():
     return {'$schema':'https://json-schema.org/draft/2020-12/schema','$id':VERSION,
             'title':'PMRS responsibility-bound model policy','type':'object','additionalProperties':False,
             'required':['policy_version','workflow_kind','stage_id','role','purpose','call_model','rule_id','model','reasoning_effort','service_tier','capability','override_applied'],
-            'properties':{'policy_version':{'const':VERSION},'workflow_kind':{'enum':['TRW','TFDW','SURVEY']},
-                'stage_id':{'enum':[f'P{i}' for i in range(15)]+[f'D{i}' for i in range(6)]+[f'S{i}' for i in range(8)]},
+            'properties':{'policy_version':{'const':VERSION},'workflow_kind':{'enum':['TRH','FDH','SURVEY']},
+                'stage_id':{'enum':[f'P{i}' for i in range(15)]+[f'D{i}' for i in range(6)]+[f'S{i}' for i in range(8)]+['MAIN_TRH','MAIN_FDH']},
                 'role':{'type':'string'},'purpose':{'type':'string'},'call_model':{'type':'boolean'},
                 'rule_id':{'type':'string'},'model':{'type':['string','null']},'reasoning_effort':{'type':['string','null']},
-                'service_tier':{'type':['string','null']},'capability':{'type':['object','null']},'override_applied':{'type':'boolean'}},
+                'service_tier':{'type':['string','null']},'capability':{'type':['object','null']},'override_applied':{'type':'boolean'},
+                'actor_kind':{'const':'MAIN'},'main_policy_version':{'const':MAIN_POLICY_VERSION},
+                'policy_source':{'type':'string'}},
             'x-runtime-policy':describe()}
 
 

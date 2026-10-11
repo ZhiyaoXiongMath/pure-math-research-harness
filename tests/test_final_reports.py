@@ -19,7 +19,7 @@ class FinalReportTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.e=Engine()
         self.store=self.e.create(Path(self.tmp.name)/'project',demo.ARITHMETIC,synthetic=True)
-        self.target=next(iter(self.store.read_snapshot()['records']));self.iid=self.e.new_workflow(self.store,'TRW',target_ref=self.target)['instance_id']
+        self.target=next(iter(self.store.read_snapshot()['records']));self.iid=self.e.new_workflow(self.store,'TRH',target_ref=self.target)['instance_id']
         self.e.authorize(self.store,self.iid,{'intent':'Produce an honest scoped report with a finite test budget.',
           'authorized_scope':{'target_refs':[self.target],'reports':True,'allow_derived_work':True},'obligations':[]},
           {'max_calls':32,'max_workers':2,'execution_policy':demo.policy()})
@@ -93,7 +93,7 @@ class FinalReportTests(unittest.TestCase):
         self.assertEqual(self.store._head(),head);self.assertFalse(state['obligations'][oid]['definition']['consumer_bindings'])
         changed=deepcopy(state);changed['reports'][entry['report_id']]['open_research_requests'][0]['request_id']='unbound-request'
         self.assertNotIn(oid,W.report_obligation_ids(changed,self.iid))
-        other=self.e.new_workflow(self.store,'TRW',target_ref=self.target)['instance_id'];state=self.state()
+        other=self.e.new_workflow(self.store,'TRH',target_ref=self.target)['instance_id'];state=self.state()
         self.assertNotIn(oid,[o['obligation_id'] for o in views.frontier(state,self.store.read_blob,instance_id=other)['obligations']])
         self.assertNotIn(oid,[o['obligation_id'] for o in W.decision_basis(state,other)['open_obligation_refs']])
 
@@ -194,7 +194,7 @@ class FinalReportTests(unittest.TestCase):
         decision=self.e.decide(self.store,self.iid,'CONTINUE','Continue before any report from the intact exact open knowledge basis.',snapshot_commit=self.state()['knowledge_commit'])
         self.assertTrue(decision['decision_id']);self.assertFalse(self.state()['reports']);self.assertFalse(self.state()['requests'])
         result,_=self.run_report();self.assertEqual(result['state'],'COMPLETED_CURRENT_REPORT')
-        iid=self.e.new_workflow(self.store,'TRW',target_ref=self.target)['instance_id']
+        iid=self.e.new_workflow(self.store,'TRH',target_ref=self.target)['instance_id']
         self.e.authorize(self.store,iid,{'intent':'Explicitly require the scoped report before continuing.','report_first_actions':['CONTINUE'],
           'authorized_scope':{'target_refs':[self.target],'reports':True},'obligations':[]},{'max_calls':12,'max_workers':2,'execution_policy':demo.policy()})
         with self.assertRaisesRegex(PMRSError,'REPORT_BLOCKED'):
@@ -224,8 +224,8 @@ class FinalReportTests(unittest.TestCase):
         result,ex=self.run_report(warning);self.assertEqual(result['state'],'REPORT_BLOCKED');self.assertEqual(ex.calls,3)
         self.assertFalse(reports.profile_complete(self.entry()['profiles']['lecture']));self.assertFalse(self.entry()['profiles']['minimal']['body_sha256'])
 
-    def test_tfdw_zero_candidate_report_and_failure_decision_variants(self):
-        iid=self.e.new_workflow(self.store,'TFDW',discovery_scope=demo.discovery_scope('Explore possible formulations without inventing candidates.'))['instance_id']
+    def test_fdh_zero_candidate_report_and_failure_decision_variants(self):
+        iid=self.e.new_workflow(self.store,'FDH',discovery_scope=demo.discovery_scope('Explore possible formulations without inventing candidates.'))['instance_id']
         self.e.authorize(self.store,iid,{'intent':'Report this exact zero-candidate discovery scope.',
           'authorized_scope':{'target_refs':[],'reports':True},'obligations':[]},{'max_calls':12,'max_workers':2,'execution_policy':demo.policy()})
         result=reports.run(self.store,iid,executor=demo.executor(),policy=demo.policy(),renderer=actual_render)
@@ -244,7 +244,7 @@ class FinalReportTests(unittest.TestCase):
 
     def test_unrelated_workflow_commit_is_current_then_relevant_argument_is_stale(self):
         rid=reports.create(self.store,self.iid);old=deepcopy(self.entry());before=report_catalog.fingerprint(self.state(),old['scope'])
-        other=self.e.new_workflow(self.store,'TFDW',discovery_scope=demo.discovery_scope('Discover a separate matrix formulation.'))['instance_id']
+        other=self.e.new_workflow(self.store,'FDH',discovery_scope=demo.discovery_scope('Discover a separate matrix formulation.'))['instance_id']
         self.e.start_round(self.store,other,'Explore the separate formulation.',max_calls=3,policy=demo.policy());self.e.run_round(self.store,other,executor=demo.executor())
         self.assertEqual(report_catalog.fingerprint(self.state(),old['scope']),before)
         self.assertIn(reports.catalog(self.store,instance_id=self.iid)[0]['classification'],('RECOVERABLE_ACTIVE_CANDIDATE','COMPLETED_CURRENT_REPORT'))
@@ -259,7 +259,7 @@ class FinalReportTests(unittest.TestCase):
 
     def test_original_chinese_complete_report_stays_english_and_budget_stops(self):
         raw='任意光滑对象是否具备此性质？'.encode();store=self.e.create(Path(self.tmp.name)/'chinese',raw,synthetic=True)
-        target=next(iter(store.read_snapshot()['records']));iid=self.e.new_workflow(store,'TRW',target_ref=target)['instance_id']
+        target=next(iter(store.read_snapshot()['records']));iid=self.e.new_workflow(store,'TRH',target_ref=target)['instance_id']
         self.e.authorize(store,iid,{'intent':'Report only the supplied original question and exact open boundary.',
             'authorized_scope':{'target_refs':[target],'reports':True},'obligations':[]},{'max_calls':6,'execution_policy':demo.policy()})
         result=reports.run(store,iid,executor=demo.executor(),policy=demo.policy(),renderer=actual_render);self.assertEqual(result['state'],'COMPLETED_CURRENT_REPORT')

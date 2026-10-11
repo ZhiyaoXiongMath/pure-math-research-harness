@@ -44,7 +44,7 @@ class InterventionSurface(unittest.TestCase):
         code,result,_=self.req('POST','/api/action/example',payload);self.assertEqual(code,200,result)
         return result
     def test_http_all_three_plans_are_real_native_authorizations_without_calls(self):
-        for kind,stage,role in [('TRW','P3','PLAN'),('TFDW','D1','LEARN'),('SURVEY','S1','SEARCH_PLAN')]:
+        for kind,stage,role in [('TRH','P3','PLAN'),('FDH','D1','LEARN'),('SURVEY','S1','SEARCH_PLAN')]:
             made=self.create(kind);store=self.w.project(made['project'])
             payload={'project':made['project'],'instance':made['instance_id'],'intent':'Finite explicit teaching plan',
                 'max_calls':8,'max_workers':8,'run':False,
@@ -57,7 +57,7 @@ class InterventionSurface(unittest.TestCase):
             binding=result['bindings'][0];consumer=snapshot['obligations'][binding['obligation_id']]['definition']['consumer_bindings'][0]
             self.assertEqual((consumer['stage_id'],consumer['role']),(stage,role))
             _,status,_=self.req('GET','/api/status?project='+made['project']+'&instance='+made['instance_id'])
-            self.assertEqual((status['budget']['project_max_workers'],status['budget']['host_model_pool']),(8,10))
+            self.assertEqual((status['budget']['project_max_workers'],status['budget']['host_model_pool']),(8,4))
             self.assertEqual(status['pending_work'][0]['binding_id'],binding['binding_id'])
             before_grants=snapshot['budget_grants']
             code,deferred,_=self.req('POST','/api/action/defer-work',{'project':made['project'],'instance':made['instance_id'],
@@ -68,7 +68,7 @@ class InterventionSurface(unittest.TestCase):
             _,status,_=self.req('GET','/api/status?project='+made['project']+'&instance='+made['instance_id'])
             self.assertEqual(status['pending_work'],[])
     def test_cli_plan_keeps_lower_project_limit_and_rejects_nine(self):
-        made=self.create('TRW');store=self.w.project(made['project']);iid=made['instance_id']
+        made=self.create('TRH');store=self.w.project(made['project']);iid=made['instance_id']
         self.w.engine.plan_work(store,iid,'Two-slot initial authorization',[{'key':'a','stage':'P3','role':'PLAN','intent':'Compare routes to the additive identity.'}],max_calls=4,max_workers=2,policy=demo.policy())
         items=Path(self.tmp.name)/'items.json';items.write_text(json.dumps([{'key':'b','stage':'P7','role':'DIRECT','intent':'Analyze the identity directly from the group axioms.','framework_scope':'Abelian group identity uniqueness'}]))
         command=[sys.executable,'-m','research_studio','plan-work',str(store.root),'--instance',iid,'--intent','Preserve saved concurrency','--items',str(items),'--max-calls','3']
@@ -85,14 +85,14 @@ class InterventionSurface(unittest.TestCase):
         from tests.test_autoflow import response
         from research_studio.runner import FakeExecutor
         from research_studio.survey import TEACHING_TEXT
-        for kind in ('TRW','TFDW','SURVEY'):
+        for kind in ('TRH','FDH','SURVEY'):
             with self.subTest(kind=kind):
                 made=self.create(kind);store=self.w.project(made['project']);sources=[]
                 if kind=='SURVEY':
                     code,source,_=self.req('POST','/api/action/add-source',{'project':made['project'],'instance':made['instance_id'],
                         'text':TEACHING_TEXT,'filename':'Selected synthetic teaching material','media_type':'text/plain'})
                     self.assertEqual(code,200,source);sources=[source['source_ref']]
-                fake=FakeExecutor(response if kind!='TFDW' else demo.response)
+                fake=FakeExecutor(response if kind!='FDH' else demo.response)
                 with patch('research_studio.demo.executor',return_value=fake):
                     code,result,_=self.req('POST','/api/action/start',{'project':made['project'],'instance':made['instance_id'],
                         'intent':'Investigate this exact finite teaching objective.','max_calls':8,'max_workers':2,'source_refs':sources})
@@ -104,12 +104,12 @@ class InterventionSurface(unittest.TestCase):
                 self.assertIn(status['round_result']['state'],{'READY_FOR_DECISION','HUMAN_INPUT_REQUIRED','BUDGET_EXHAUSTED'},status)
                 self.assertFalse(snapshot['reports']);self.assertEqual(len(snapshot['missions']),1)
                 self.assertGreater(fake.calls,0);self.assertEqual(fake.network_calls,0)
-                if kind=='TRW':self.assertTrue({'P1','P2','P3','P4','P11'} <= {t['stage_id'] for t in snapshot['tasks'].values()})
+                if kind=='TRH':self.assertTrue({'P1','P2','P3','P4','P11'} <= {t['stage_id'] for t in snapshot['tasks'].values()})
                 if kind=='SURVEY':self.assertTrue(snapshot['survey_snapshots'])
                 self.assertTrue(snapshot['round_deliveries']);store.audit()
 
     def test_web_resource_wait_continues_same_authorized_operation(self):
-        made=self.create('TRW');store=self.w.project(made['project']);iid=made['instance_id']
+        made=self.create('TRH');store=self.w.project(made['project']);iid=made['instance_id']
         self.w.engine.start_round(store,iid,'Synthetic resource wait',max_calls=1,policy=demo.policy())
         seen=[]
         def operation(current,instance_id,**options):

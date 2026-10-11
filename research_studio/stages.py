@@ -28,7 +28,7 @@ _ROWS = [
  ("P11", "Account for genuine change and all outstanding duties", ("SYNTHESIS",), ("progress","gap")),
  ("P12", "Independently check the assembled framework and open boundary", ("INDEPENDENT",), ("review","gap")),
  ("P13", "Lecture first, independently reviewed, then same-source minimal", ("REPORT_AUTHOR","REPORT_SEMANTIC","REPORT_VISUAL"), ("report","report_review")),
- ("P14", "Wait for the researcher's explicit decision bound to this delivery", (), ()),
+ ("P14", "After the saved P13 round report, MAIN decides within the original goal and allowance in AUTO_P14; HUMAN_P14 or a reached stop request waits for the researcher's explicit decision", (), ()),
 ]
 CONTEXT = (
  ('problem',), ('problem','definition'), ('problem','definition'),

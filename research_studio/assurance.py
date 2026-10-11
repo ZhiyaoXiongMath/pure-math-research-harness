@@ -9,17 +9,62 @@ PATHS={'MODEL_CAPTURE','HUMAN_ATTESTATION'}
 PURPOSES={'PROOF_SUPPORT','REFUTATION_SUPPORT','APPLICABILITY','INTEGRATION','FORMULATION','WORK_CHECK'}
 STAGE_ROLES={'APPLICABILITY':('APPLICABILITY_REVIEW','APPLICABILITY'),'INTEGRATION':('INDEPENDENT','INTEGRATION'),'FORMULATION':('FORMULATION_REVIEW','FORMULATION'),'WORK_CHECK':('WORK_CHECK','WORK_CHECK')}
 
+SCOPE_VERSION='pmrs.exact-scope/1'
+SCOPE_META={'scope_version','extent','target_body_sha256','whole_locator'}
+ASSUMPTION_POLICY='pmrs.assumption-policy/1'
+CONDITION_ROLES={'TARGET_HYPOTHESIS','DEFINITION_NORMALIZATION','DISCHARGED_CONDITION','ADDITIONAL_CONDITION'}
+
+
 def validate_scope(scope):
     require(isinstance(scope,list) and scope,'RESPONSE_SCHEMA_INVALID','Nonempty exact scope required')
     for row in scope:
-        C.fields(row,C.SCOPE_FIELDS,'scope')
+        C.optional_fields(row,C.SCOPE_FIELDS,SCOPE_META,'scope')
         require(isinstance(row['target_ref'],str) and row['target_ref'].startswith(('KR-','IB-')),'RESPONSE_SCHEMA_INVALID','Exact target required')
         C.refs(row['aspects'],'scope aspects',nonempty=True)
         require(isinstance(row['locators'],list),'RESPONSE_SCHEMA_INVALID','Scope locators list required')
         for loc in row['locators']:validate_locator(loc,None)
+        if set(row)&SCOPE_META:
+            require(SCOPE_META<=set(row) and row['scope_version']==SCOPE_VERSION,'RESPONSE_SCHEMA_INVALID','Complete exact scope codec required')
+            C.enum(row['extent'],('WHOLE_TARGET','EXACT_REGIONS'),'scope extent')
+            validate_locator(row['whole_locator'],None)
+            whole=row['whole_locator'];require(whole['start']==0 and whole['blob_hash']==row['target_body_sha256'],'RESPONSE_SCHEMA_INVALID','Whole scope must bind the exact body from its beginning')
+            require(not row['locators'] if row['extent']=='WHOLE_TARGET' else bool(row['locators']),'RESPONSE_SCHEMA_INVALID','Scope extent and regions differ')
+            require(all(l['blob_hash']==whole['blob_hash'] and l['unit']==whole['unit'] and l['start']>=whole['start'] and l['end']<=whole['end'] for l in row['locators']),'RESPONSE_SCHEMA_INVALID','Region exceeds its exact whole body')
     return scope
 
-def requirement(purpose,scope,*,review_mode=None,accepted_evidence_paths=None):
+
+def normalize_scope(scope,snapshot,blob_get):
+    """Freeze a future exact scope. Never call this to promote old captures."""
+    from .knowledge import locator
+    validate_scope(scope);result=[]
+    for row in scope:
+        ref=row['target_ref'];backing=snapshot.get('inferences',{}).get(ref,{}).get('argument_ref',ref)
+        record=snapshot.get('records',{}).get(backing)
+        require(record is not None,'INCOMPLETE_CONTEXT','Exact scope target is missing')
+        body=blob_get(record['body_sha256']);unit=row['locators'][0]['unit'] if row['locators'] else row.get('whole_locator',{}).get('unit','UTF8_BYTE')
+        whole=locator(body,unit=unit)
+        require(whole['blob_hash']==record['body_sha256'],'ORIGINAL_BYTES_MISMATCH','Scope body differs')
+        for loc in row['locators']:
+            validate_locator(loc,blob_get)
+            require(loc['blob_hash']==whole['blob_hash'] and loc['unit']==unit,'RESPONSE_SCHEMA_INVALID','Scope regions must bind one exact body and unit')
+        if row.get('scope_version'):
+            require(row['whole_locator']==whole and row['target_body_sha256']==whole['blob_hash'],'ORIGINAL_BYTES_MISMATCH','Declared whole target is not the entire exact body')
+        result.append({**deepcopy(row),'scope_version':SCOPE_VERSION,'extent':'EXACT_REGIONS' if row['locators'] else 'WHOLE_TARGET','target_body_sha256':whole['blob_hash'],'whole_locator':whole})
+    validate_scope(result);return result
+
+
+def normalize_requirement(value,snapshot,blob_get):
+    result=deepcopy(value);result['required_scope']=normalize_scope(value['required_scope'],snapshot,blob_get)
+    for slot in result['review_slots']:slot['required_scope']=normalize_scope(slot['required_scope'],snapshot,blob_get)
+    validate_requirement(result);return result
+
+
+def _scope_regions(row):
+    if row.get('scope_version')==SCOPE_VERSION and row.get('extent')=='WHOLE_TARGET':return [row['whole_locator']]
+    return row['locators']
+
+
+def requirement(purpose,scope,*,review_mode=None,accepted_evidence_paths=None,assumption_policy=None):
     review_mode=review_mode or ('SCOPED_SINGLE' if purpose in ('PROOF_SUPPORT','REFUTATION_SUPPORT') else 'STAGE_SPECIFIC')
     if review_mode=='TARGET_DUAL':pairs=[('PROOF','PROOF'),('COUNTEREXAMPLE','COUNTEREXAMPLE')]
     elif review_mode=='SCOPED_SINGLE':pairs=[('PROOF','PROOF')] if purpose=='PROOF_SUPPORT' else [('COUNTEREXAMPLE','COUNTEREXAMPLE')]
@@ -27,10 +72,12 @@ def requirement(purpose,scope,*,review_mode=None,accepted_evidence_paths=None):
     paths=list(accepted_evidence_paths or ['MODEL_CAPTURE'])
     value={'purpose':purpose,'required_scope':deepcopy(scope),'accepted_evidence_paths':paths,'review_mode':review_mode,
       'review_slots':[{'slot_id':role.lower(),'allowed_roles':[role],'review_kind':kind,'required_scope':deepcopy(scope),'independence_required':True} for role,kind in pairs] if 'MODEL_CAPTURE' in paths else []}
+    if assumption_policy is not None:value['assumption_policy']=deepcopy(assumption_policy)
     validate_requirement(value);return value
 
 def validate_requirement(value):
-    C.fields(value,C.ASSURANCE_FIELDS,'ConsumerAssuranceRequirement')
+    C.optional_fields(value,C.ASSURANCE_FIELDS,{'assumption_policy'},'ConsumerAssuranceRequirement')
+    if 'assumption_policy' in value:validate_assumption_policy(value['assumption_policy'])
     C.enum(value['purpose'],PURPOSES,'assurance purpose');validate_scope(value['required_scope'])
     C.refs(value['accepted_evidence_paths'],'evidence paths',nonempty=True)
     require(set(value['accepted_evidence_paths'])<=PATHS,'AUTHORIZATION_REQUIRED','FORMAL_TOOL is reserved and cannot be granted or consumed')
@@ -61,20 +108,20 @@ def validate_requirement(value):
     return value
 
 def checked_scope(assessment):
-    return [{'target_ref':r['ref'],'locators':r['locators'],'aspects':[r['aspect']]} for r in assessment['data']['checked']]
+    return [{'target_ref':r['ref'],'locators':r['locators'],'aspects':[r['aspect']],**{k:r[k] for k in SCOPE_META if k in r}} for r in assessment['data']['checked']]
 
 def _intervals(scope,target,aspect,blob,unit):
-    return sorted((l['start'],l['end']) for s in scope if s['target_ref']==target and aspect in s['aspects'] for l in s['locators'] if l['blob_hash']==blob and l['unit']==unit)
+    return sorted((l['start'],l['end']) for s in scope if s['target_ref']==target and aspect in s['aspects'] for l in _scope_regions(s) if l['blob_hash']==blob and l['unit']==unit)
 
 def coverage(required,checked):
     """Pure interval/aspect set coverage; no semantic extension or role pooling."""
     missing=[];covered=[]
     for row in required:
         for aspect in row['aspects']:
-            if not row['locators']:
-                ok=any(s['target_ref']==row['target_ref'] and aspect in s['aspects'] and not s['locators'] for s in checked)
+            if not _scope_regions(row):
+                ok=any(s['target_ref']==row['target_ref'] and aspect in s['aspects'] and not _scope_regions(s) for s in checked)
                 (covered if ok else missing).append({'target_ref':row['target_ref'],'locators':[],'aspects':[aspect]});continue
-            for loc in row['locators']:
+            for loc in _scope_regions(row):
                 cursor=loc['start'];gaps=[]
                 for a,b in _intervals(checked,row['target_ref'],aspect,loc['blob_hash'],loc['unit']):
                     if b<=cursor or a>=loc['end']:continue
@@ -91,9 +138,9 @@ def scope_overlaps(a,b):
     for x in a:
         for y in b:
             if x['target_ref']!=y['target_ref'] or not set(x['aspects'])&set(y['aspects']):continue
-            if not x['locators'] or not y['locators']:return True
-            for l in x['locators']:
-                for r in y['locators']:
+            if not _scope_regions(x) or not _scope_regions(y):return True
+            for l in _scope_regions(x):
+                for r in _scope_regions(y):
                     if l['blob_hash']==r['blob_hash'] and l['unit']==r['unit'] and max(l['start'],r['start'])<min(l['end'],r['end']):return True
     return False
 
@@ -115,6 +162,9 @@ def _credential(snapshot,q,assessment,policy_digest):
         event=_execution(snapshot,q.get('review_execution_event'))
         if not event or event.get('input_manifest_hash')!=q.get('input_manifest_hash'):return None,'No authentic bound review execution'
         if not event.get('integrity_valid',False) or not event.get('excluded_verdicts',False):return None,'Review input integrity/isolation absent'
+        if event.get('task_id') in snapshot.get('tasks',{}) and snapshot['tasks'][event['task_id']].get('communication_contract'):
+            from .communication import independence_status
+            if not independence_status(snapshot,event['task_id'])['independent']:return None,'Execution consumed shared scientific communication; it is not an independent vote'
         if event.get('synthetic',False) and not snapshot.get('synthetic_test_only',False):return None,'Synthetic evidence cannot qualify a real project'
         if not set(q.get('target_revision_hashes',[]))<=set(event.get('target_revision_hashes',[])):return None,'Execution target binding differs'
     elif origin=='HUMAN_ATTESTATION':
@@ -239,28 +289,30 @@ def evaluate_requirement(snapshot,support_id,requirement,policy_digest=None,_sta
     if not argument or argument['kind']!='Argument' or argument['data']['conclusion_ref']!=support.get('statement_ref'):
         base['reasons']=['Missing or mismatched argument'];return base
     if not support.get('integrity_valid',True):base['reasons']=['Argument or premise bytes damaged'];return base
-    base['open_conditions']=deepcopy(argument['data']['open_conditions'])+list(support.get('open_assumption_refs',[]))
-    mode=argument['data']['mode'];payload=argument['data']['mode_payload']
-    if mode=='REDUCTION':base['open_conditions']+=deepcopy(payload['inference_spec']['additional_assumption_refs'])
-    elif mode=='APPLICABILITY':base['open_conditions']+=deepcopy(payload['open_conditions'])
-    elif mode=='COMPATIBILITY':base['open_conditions']+=deepcopy(payload['witness_compatibility']['open_condition_refs'])
-    # Conditional proofs qualify only explicitly conditional consumer scopes.
-    if base['open_conditions'] and not all('conditional' in r['aspects'] or 'under_assumptions' in r['aspects'] for r in requirement['required_scope']):
-        base['reasons']=['Open assumptions prevent unconditional support'];return base
+    assumptions=_assumption_evaluation(snapshot,support,argument,requirement,_stack+(support_id,))
+    base.update({k:v for k,v in assumptions.items() if k!='blocking_reasons'})
+    blockers=list(assumptions['blocking_reasons'])
     for dep in support.get('premise_support_refs',[]):
-        ds=snapshot.get('supports',{}).get(dep,{})
-        dr=ds.get('consumer_requirement')
-        if not dr:base['reasons']=['Selected premise has no frozen assurance requirement'];return base
+        ds=snapshot.get('supports',{}).get(dep,{});dr=ds.get('consumer_requirement')
+        if not dr:blockers.append('Selected premise has no frozen assurance requirement');continue
         result=evaluate_requirement(snapshot,dep,dr,ds.get('policy_digest'),_stack+(support_id,))
-        if result['result']!='QUALIFIED':base['reasons']=['Selected premise support is '+result['result']];return base
+        if result['result']!='QUALIFIED':blockers.append('Selected premise support is '+result['result'])
     structural_error=_structural_support_conditions(snapshot,support,argument,_stack+(support_id,))
-    if structural_error:base['reasons']=[structural_error];return base
-    qs=[]
+    if structural_error:blockers.append(structural_error)
+    # Typed policy is part of this consumer's immutable identity. Old evidence
+    # cannot be promoted merely by replacing a legacy free-form aspect label.
+    if requirement.get('assumption_policy'):
+        expected_policy=C.digest(requirement)
+        if policy_digest is not None and policy_digest!=expected_policy:blockers.append('Typed assurance policy digest does not match this exact consumer')
+        policy_digest=expected_policy
+    qs=[];base['review_evidence']=[];base['accepted_checked_scope']=[]
     for qid in support.get('qualification_refs',[]):
         q=snapshot.get('qualifications',{}).get(qid)
         if not q:continue
         a=snapshot.get('records',{}).get(q.get('assessment_ref'))
         if not a or a['kind']!='Assessment':continue
+        base['accepted_checked_scope']+=checked_scope(a)
+        base['review_evidence'].append({'qualification_ref':qid,'assessment_ref':q['assessment_ref'],'accepted':True,'verdict':a['data']['verdict'],'checked_scope':checked_scope(a)})
         # A new consumer policy may require additional positive evidence, but it
         # cannot erase an authentic defect on the same exact mathematical scope.
         event,error=_credential(snapshot,q,a,None if a['data']['verdict']=='DEFECT_FOUND' else policy_digest)
@@ -317,6 +369,12 @@ def evaluate_requirement(snapshot,support_id,requirement,policy_digest=None,_sta
         base['not_checked']=[{'slot_id':s['slot_id'],**r} for s in slots for r in base['slot_results'][s['slot_id']]['not_checked']] or coverage(requirement['required_scope'],allchecked)['not_checked']
         if coverage(requirement['required_scope'],allchecked)['has_coverage']:base['result']='PARTIAL'
         if not base['reasons']:base['reasons']=['Required exact scope or independent review slots remain incomplete']
+    base['review_coverage_result']=base['result']
+    if blockers:
+        base['qualification_blockers']=list(dict.fromkeys(blockers))
+        base['reasons']=list(dict.fromkeys(blockers+base['reasons']))
+        base['result']='PARTIAL' if base['result']=='PARTIAL' else 'UNQUALIFIED'
+    else:base['qualification_blockers']=[]
     return base
 
 def evaluate(statement_ref,consumer_binding,snapshot):
@@ -332,3 +390,121 @@ def evaluate(statement_ref,consumer_binding,snapshot):
     conditional=any(r['open_conditions'] for r in results)
     outcome='CONFLICTED' if state=='CONFLICTED' else 'CONDITIONAL' if conditional else ('SCOPED_REFUTATION' if req['purpose']=='REFUTATION_SUPPORT' else 'SUPPORTED_ASSERTION') if good else 'OPEN'
     return {'statement_ref':statement_ref,'support_state':state,'claim_outcome':outcome,'support_paths':results,'assurance_sources':sorted({x for r in results for x in r['assurance_sources']}) or ['UNREVIEWED'],'open_conditions':[x for r in results for x in r['open_conditions']],'checked_scope':[x for r in results for x in r['checked_scope']],'not_checked':[] if good and not explicit_conflict else [x for r in results for x in r['not_checked']] or req['required_scope']}
+
+
+def validate_assumption_policy(policy):
+    C.fields(policy,{'schema','statement_ref','bindings','accepted_condition_refs'},'AssumptionPolicy')
+    require(policy['schema']==ASSUMPTION_POLICY and isinstance(policy['statement_ref'],str) and policy['statement_ref'].startswith('KR-'),'RESPONSE_SCHEMA_INVALID','Versioned exact-statement assumption policy required')
+    C.refs(policy['accepted_condition_refs'],'accepted condition refs')
+    seen=set()
+    for row in C.sequence(policy['bindings'],'typed assumption bindings'):
+        C.fields(row,{'role','premise_ref','context_ref','assumption_locator','hypothesis_locator','argument_ref','support_ref'},'AssumptionPolicy.binding')
+        C.enum(row['role'],CONDITION_ROLES,'condition role')
+        require(isinstance(row['premise_ref'],str) and isinstance(row['argument_ref'],str),'RESPONSE_SCHEMA_INVALID','Exact premise and argument required')
+        for name in ('context_ref','support_ref'):require(row[name] is None or isinstance(row[name],str),'RESPONSE_SCHEMA_INVALID','Nullable exact reference required')
+        for name in ('assumption_locator','hypothesis_locator'):
+            if row[name] is not None:validate_locator(row[name],None)
+        identity=C.digest(row);require(identity not in seen,'RESPONSE_SCHEMA_INVALID','Duplicate typed condition binding');seen.add(identity)
+    return policy
+
+
+def condition_evidence(argument_ref,argument):
+    """Persist actual use separately from a consumer's permitted hypotheses."""
+    return {'schema':'pmrs.condition-evidence/1','argument_ref':argument_ref,'statement_ref':argument['data']['conclusion_ref'],
+        'premise_bindings':deepcopy(argument['data']['premise_bindings']),
+        'open_conditions':deepcopy(argument['data']['open_conditions']),
+        'discharged_assumptions':deepcopy(argument['data']['discharged_assumptions'])}
+
+
+def declared_assumption_policy(snapshot,statement_ref,argument_ref,*,accepted_condition_refs=()):
+    """Construct a future policy from exact locator equality, never wording.
+
+    An unmatched assumption remains unmatched and blocks qualification. This
+    helper does not label all Context premises as discharged or target facts.
+    The caller must freeze the returned policy in a newly authorized consumer.
+    """
+    statement=snapshot.get('records',{}).get(statement_ref,{})
+    argument=snapshot.get('records',{}).get(argument_ref,{})
+    require(statement.get('kind')=='Statement' and argument.get('kind')=='Argument' and argument['data']['conclusion_ref']==statement_ref,'RELATION_ENDPOINT_INVALID','Exact statement and argument required')
+    bindings=[];hypotheses=statement['data']['hypothesis_locators']
+    for p in argument['data']['premise_bindings']:
+        if p['kind']=='CONTEXT_ASSUMPTION' and p['assumption_locator'] in hypotheses:
+            bindings.append({'role':'ADDITIONAL_CONDITION' if p['premise_ref'] in accepted_condition_refs else 'TARGET_HYPOTHESIS',
+                'premise_ref':p['premise_ref'],'context_ref':p['context_ref'],'assumption_locator':deepcopy(p['assumption_locator']),
+                'hypothesis_locator':deepcopy(p['assumption_locator']),'argument_ref':argument_ref,'support_ref':None})
+        elif p['kind']=='CONDITIONAL_CANDIDATE' and p['premise_ref'] in accepted_condition_refs:
+            candidate=snapshot['records'].get(p['premise_ref'],{})
+            loc=candidate.get('data',{}).get('statement_locator')
+            if loc in hypotheses:bindings.append({'role':'ADDITIONAL_CONDITION','premise_ref':p['premise_ref'],'context_ref':p['context_ref'],
+                'assumption_locator':None,'hypothesis_locator':deepcopy(loc),'argument_ref':argument_ref,'support_ref':None})
+    result={'schema':ASSUMPTION_POLICY,'statement_ref':statement_ref,'bindings':bindings,'accepted_condition_refs':list(accepted_condition_refs)}
+    validate_assumption_policy(result);return result
+
+
+def _assumption_evaluation(snapshot,support,argument,requirement,stack):
+    policy=requirement.get('assumption_policy');data=argument['data']
+    raw_conditions=deepcopy(data['open_conditions'])+list(support.get('open_assumption_refs',[]))
+    if data['mode']=='REDUCTION':raw_conditions+=deepcopy(data['mode_payload']['inference_spec']['additional_assumption_refs'])
+    elif data['mode']=='APPLICABILITY':raw_conditions+=deepcopy(data['mode_payload']['open_conditions'])
+    elif data['mode']=='COMPATIBILITY':raw_conditions+=deepcopy(data['mode_payload']['witness_compatibility']['open_condition_refs'])
+    result={'policy_digest':C.digest(policy) if policy else None,'policy_version':policy.get('schema') if policy else 'LEGACY_ASPECT_POLICY',
+        'declared_context':[],'remaining_assumptions':deepcopy(raw_conditions),'open_conditions':deepcopy(raw_conditions),'blocking_reasons':[]}
+    if policy is None:
+        if raw_conditions and not all('conditional' in r['aspects'] or 'under_assumptions' in r['aspects'] for r in requirement['required_scope']):result['blocking_reasons']=['Open assumptions prevent unconditional support']
+        return result
+    statement=snapshot.get('records',{}).get(support['statement_ref'],{})
+    if policy['statement_ref']!=support['statement_ref'] or not any(r['target_ref']==support['statement_ref'] for r in requirement['required_scope']):
+        result['blocking_reasons']=['Typed assumptions apply only to this exact consumer statement; they cannot strengthen another target'];return result
+    # No historical support is silently reclassified by a newly introduced
+    # policy. Its new evidence must bind this policy in _credential below.
+    hypotheses=statement.get('data',{}).get('hypothesis_locators',[]);remaining=[];declared={};accepted=set(policy['accepted_condition_refs'])
+    def bound(p,role=None):
+        return [b for b in policy['bindings'] if b['argument_ref']==support['argument_ref'] and b['premise_ref']==p['premise_ref'] and b['context_ref']==p['context_ref'] and b['assumption_locator']==p['assumption_locator'] and (role is None or b['role']==role)]
+    def exact_additional_condition(ref,item):
+        if ref not in accepted:return False
+        native=snapshot.get('records',{}).get(ref,{})
+        matches=[]
+        for b in policy['bindings']:
+            if b['role']!='ADDITIONAL_CONDITION' or b['argument_ref']!=support['argument_ref'] or b['premise_ref']!=ref or b['support_ref'] is not None or b['hypothesis_locator'] not in hypotheses:continue
+            if native.get('kind')=='Statement':
+                if b['assumption_locator'] is None and b['hypothesis_locator']==native['data']['statement_locator'] and (b['context_ref'] is None or b['context_ref'] in native['data']['scope_context_refs']):matches.append(b)
+            elif native.get('kind')=='Context':
+                loc=b['assumption_locator']
+                if b['context_ref']==ref and b['hypothesis_locator']==loc and loc in [x['locator'] for x in native['data']['assumptions']] and (not isinstance(item,dict) or item.get('locator')==loc):matches.append(b)
+        return len(matches)==1
+    for p in data['premise_bindings']:
+        if p['kind']=='CONTEXT_ASSUMPTION':
+            choices=bound(p);valid=[]
+            for b in choices:
+                if b['role'] in {'TARGET_HYPOTHESIS','ADDITIONAL_CONDITION'}:
+                    actual=snapshot.get('records',{}).get(p['context_ref'],{}).get('data',{}).get('assumptions',[])
+                    if b['hypothesis_locator']!=p['assumption_locator'] or b['hypothesis_locator'] not in hypotheses or p['assumption_locator'] not in [x['locator'] for x in actual]:continue
+                    if b['role']=='ADDITIONAL_CONDITION' and p['premise_ref'] not in accepted:continue
+                    valid.append(b)
+                elif b['role']=='DISCHARGED_CONDITION' and p['assumption_locator'] in data['discharged_assumptions'] and b['support_ref']:
+                    discharge=snapshot.get('supports',{}).get(b['support_ref'],{})
+                    req=discharge.get('consumer_requirement')
+                    if req and discharge.get('statement_ref')==p['premise_ref'] and evaluate_requirement(snapshot,b['support_ref'],req,discharge.get('policy_digest'),stack)['result']=='QUALIFIED':valid.append(b)
+            if len(valid)==1:
+                b=valid[0]
+                if b['role']=='ADDITIONAL_CONDITION':remaining.append(p['premise_ref'])
+                else:declared.setdefault(p['premise_ref'],[]).append(p['assumption_locator']);result['declared_context'].append(deepcopy(b))
+            else:
+                remaining.append(p['premise_ref']);result['blocking_reasons'].append('Context assumption lacks one exact declared-hypothesis or discharged-condition binding: '+p['premise_ref'])
+        elif p['kind']=='CONDITIONAL_CANDIDATE':
+            candidate=snapshot.get('records',{}).get(p['premise_ref'],{})
+            matches=[b for b in bound(p,'ADDITIONAL_CONDITION') if b['hypothesis_locator'] in hypotheses and b['hypothesis_locator']==candidate.get('data',{}).get('statement_locator')]
+            remaining.append(p['premise_ref'])
+            if p['premise_ref'] not in accepted or len(matches)!=1:result['blocking_reasons'].append('An unresolved candidate is not explicitly accepted by this conditional consumer: '+p['premise_ref'])
+    for item in raw_conditions:
+        ref=item.get('condition_ref') if isinstance(item,dict) else item
+        if ref in declared and (not isinstance(item,dict) or item.get('locator') in declared[ref]):continue
+        if item not in remaining:remaining.append(deepcopy(item))
+        if not exact_additional_condition(ref,item):
+            result['blocking_reasons'].append('An open or inherited condition remains outside the exact consumer policy: '+str(ref))
+    # The allow-list cannot bless an unrelated conditional statement or an
+    # unlabeled Context without one of the precise bindings above.
+    used={p['premise_ref'] for p in data['premise_bindings']}|{x.get('condition_ref') if isinstance(x,dict) else x for x in raw_conditions}
+    if accepted-used:result['blocking_reasons'].append('Conditional policy lists conditions absent from this argument')
+    result['remaining_assumptions']=remaining;result['open_conditions']=remaining
+    return result

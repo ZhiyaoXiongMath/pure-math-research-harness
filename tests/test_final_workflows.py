@@ -16,7 +16,7 @@ def snapshot():
 
 
 def configured(stage='P4',role='RESEARCH',n=1,entry_basis=None):
-    s=snapshot();i=W.new_instance(s,'TRW',target_ref='KR-target',instance_id='I')
+    s=snapshot();i=W.new_instance(s,'TRH',target_ref='KR-target',instance_id='I')
     s=W.apply_control(s,W.event(s,'CREATE_INSTANCE',{'instance':i}))
     c={'binding_id':'B','instance_id':'I','mission_id':'M','stage_id':stage,'role':role,'retry_grant_id':'G',
        'method_ref':'METHOD','scope':{'target':'KR-target'},'entry_basis':entry_basis or {}}
@@ -132,10 +132,10 @@ class Workflows(unittest.TestCase):
 
     def test_handoff_shared_ref_paused_and_idempotent(self):
         s,c=configured();s['records']['KR-candidate']={'kind':'Statement','data':{}}
-        row=W.new_instance(s,'TFDW',discovery_brief_ref='brief',instance_id='D')
+        row=W.new_instance(s,'FDH',discovery_brief_ref='brief',instance_id='D')
         s=W.apply_control(s,W.event(s,'CREATE_INSTANCE',{'instance':row}))
         s['candidates']['CB']={'instance_id':'D','statement_ref':'KR-candidate','candidate_state':'SAVED'}
-        m=handoff.prepare(s,{'candidate_refs':['KR-candidate']},'TFDW_TO_TRW',from_instance_id='D')
+        m=handoff.prepare(s,{'candidate_refs':['KR-candidate']},'FDH_TO_TRH',from_instance_id='D')
         s=W.apply_control(s,W.event(s,'HANDOFF_PREPARED',{'manifest':m},instance_id='D'))
         d=W.decide_event(s,'D','ADOPT','Study this precise candidate',candidate_ref='KR-candidate');s=W.apply_control(s,d)
         e=handoff.adopt_event(s,m['handoff_id'],d['event_id']);s=W.apply_control(s,e)
@@ -158,7 +158,7 @@ class RuntimeIntegration(unittest.TestCase):
         from research_studio.changes import prepare_source_input
         store=Store.create(root,'Synthetic integration test',synthetic=True)
         receipt=store.commit(prepare_source_input(store.read_snapshot(),b'For every integer n, n + 0 = n.',blob_get=store.read_blob))
-        s=store.read_snapshot();target=receipt['target_ref'];i=W.new_instance(s,'TRW',target_ref=target,instance_id='I')
+        s=store.read_snapshot();target=receipt['target_ref'];i=W.new_instance(s,'TRH',target_ref=target,instance_id='I')
         store.commit_control(W.event(s,'CREATE_INSTANCE',{'instance':i}));s=store.read_snapshot()
         criterion=store.blob(b'Investigate the exact target. Account for the attempted method and any unproved condition.')
         c={'binding_id':'B','instance_id':'I','mission_id':'M','stage_id':stage,'role':role,'retry_grant_id':'G','method_ref':'METHOD',
@@ -241,7 +241,7 @@ class RuntimeStories(unittest.TestCase):
             e=Engine();store=e.create(directory+'/p',demo.ARITHMETIC,synthetic=True)
             target=next(iter(store.read_snapshot()['records']))
             for explicit in (False,True):
-                iid=e.new_workflow(store,'TRW',target_ref=target)['instance_id']
+                iid=e.new_workflow(store,'TRH',target_ref=target)['instance_id']
                 before=store.read_snapshot()['knowledge_commit']
                 for invalid in ('CONTINUE',['PAUSE'],['CONTINUE','CONTINUE'],[True]):
                     with self.assertRaisesRegex(PMRSError,'AUTHORIZATION_REQUIRED'):
@@ -269,13 +269,13 @@ class RuntimeStories(unittest.TestCase):
                 self.assertEqual(fake.calls,2)
             store.audit()
 
-    def test_trw_original_target_dual_and_open_decision(self):
+    def test_trh_original_target_dual_and_open_decision(self):
         from tempfile import TemporaryDirectory
         from research_studio.engine import Engine
         from research_studio import demo,assurance
         with TemporaryDirectory() as d:
             engine=Engine();store=engine.create(d+'/p',demo.ARITHMETIC,synthetic=True)
-            target=next(iter(store.read_snapshot()['records']));iid=engine.new_workflow(store,'TRW',target_ref=target)['instance_id']
+            target=next(iter(store.read_snapshot()['records']));iid=engine.new_workflow(store,'TRH',target_ref=target)['instance_id']
             engine.start_round(store,iid,'Investigate the fixed target.',max_calls=6,max_workers=2,policy=demo.policy())
             fake=demo.executor();result=engine.run_round(store,iid,executor=fake);s=store.read_snapshot()
             self.assertEqual(fake.calls,3);self.assertEqual(fake.network_calls+fake.spawn_calls,0)
@@ -293,19 +293,19 @@ class RuntimeStories(unittest.TestCase):
             self.assertEqual(engine.run_round(store,iid,executor=fake)['state'],'WAIT');self.assertEqual(len(store.read_snapshot()['tasks']),before)
             store.audit()
 
-    def test_tfdw_candidate_formulation_and_exact_paused_handoff(self):
+    def test_fdh_candidate_formulation_and_exact_paused_handoff(self):
         from tempfile import TemporaryDirectory
         from research_studio.engine import Engine
         from research_studio import demo
         with TemporaryDirectory() as d:
-            engine=Engine();store=engine.create(d+'/p',demo.scenario('TFDW').encode(),synthetic=True,phenomenon=True)
-            iid=engine.new_workflow(store,'TFDW',discovery_scope=demo.discovery_scope('Discover exact matrix candidates.'))['instance_id']
+            engine=Engine();store=engine.create(d+'/p',demo.scenario('FDH').encode(),synthetic=True,phenomenon=True)
+            iid=engine.new_workflow(store,'FDH',discovery_scope=demo.discovery_scope('Discover exact matrix candidates.'))['instance_id']
             engine.start_round(store,iid,'Keep the background fixed and retain unknown evidence.',max_calls=5,policy=demo.policy())
             fake=demo.executor();engine.run_round(store,iid,executor=fake);s=store.read_snapshot()
             self.assertEqual(fake.calls,2);self.assertEqual(len(s['candidates']),1);self.assertEqual(s['supports'],{})
             candidate=next(iter(s['candidates'].values()))['statement_ref'];self.assertEqual(s['records'][candidate]['kind'],'Statement')
             self.assertEqual({t['role'] for t in s['tasks'].values()},{'LEARN','FORMULATION_REVIEW'})
-            prepared=engine.prepare_handoff(store,iid,'TFDW_TO_TRW',{'candidate_refs':[candidate]})
+            prepared=engine.prepare_handoff(store,iid,'FDH_TO_TRH',{'candidate_refs':[candidate]})
             decision=engine.decide(store,iid,'ADOPT','Research this exact candidate without granting proof.',snapshot_commit=store.read_snapshot()['knowledge_commit'],candidate_ref=candidate)
             result=engine.adopt_handoff(store,prepared['handoff_id'],decision);s=store.read_snapshot();adopted=s['instances'][result['instance_id']]
             self.assertEqual(adopted['target_ref'],candidate);self.assertEqual(adopted['status'],'PAUSED');self.assertEqual(adopted['mission_ids'],[])
@@ -318,7 +318,7 @@ class RuntimeStories(unittest.TestCase):
         from research_studio.runner import FakeExecutor
         with TemporaryDirectory() as d:
             e=Engine();store=e.create(d+'/p',b'An unresolved phenomenon.',phenomenon=True,synthetic=True)
-            iid=e.new_workflow(store,'TFDW',discovery_scope=demo.discovery_scope('Preserve uncertainty.'))['instance_id']
+            iid=e.new_workflow(store,'FDH',discovery_scope=demo.discovery_scope('Preserve uncertainty.'))['instance_id']
             e.start_round(store,iid,'Do not fabricate candidates.',max_calls=4,policy=demo.policy())
             f=FakeExecutor(RuntimeIntegration.no_result);e.run_round(store,iid,executor=f)
             s=store.read_snapshot();self.assertEqual(s['candidates'],{});self.assertEqual(f.calls,1)
@@ -331,9 +331,9 @@ class RuntimeStories(unittest.TestCase):
         from research_studio import demo
         with TemporaryDirectory() as d:
             e=Engine();store=e.create(d+'/p',demo.ARITHMETIC,synthetic=True);target=next(iter(store.read_snapshot()['records']))
-            iid=e.new_workflow(store,'TRW',target_ref=target)['instance_id'];e.start_round(store,iid,'Fixed scope.',max_calls=6,policy=demo.policy())
+            iid=e.new_workflow(store,'TRH',target_ref=target)['instance_id'];e.start_round(store,iid,'Fixed scope.',max_calls=6,policy=demo.policy())
             e.prepare(store,iid);before=store.read_snapshot()
-            override={'explicit':True,'scope':{'workflow_kind':'TRW','stage_id':'P9','role':'PROOF','purpose':'DEFAULT'},'reasoning_effort':'xhigh'}
+            override={'explicit':True,'scope':{'workflow_kind':'TRH','stage_id':'P9','role':'PROOF','purpose':'DEFAULT'},'reasoning_effort':'xhigh'}
             e.update_configuration(store,iid,[override]);after=store.read_snapshot()
             self.assertEqual(before['tasks'],after['tasks']);self.assertEqual(before['project_budget'],after['project_budget']);self.assertEqual(before['retry_grants'],after['retry_grants'])
             e.run_round(store,iid,executor=demo.executor());s=store.read_snapshot()
@@ -389,7 +389,7 @@ class CoverageExecution(unittest.TestCase):
         from research_studio.util import loads,canonical
         with TemporaryDirectory() as d:
             e=Engine();store=e.create(d+'/p',demo.ARITHMETIC,synthetic=True);target=next(iter(store.read_snapshot()['records']))
-            iid=e.new_workflow(store,'TRW',target_ref=target)['instance_id'];policy=demo.policy()
+            iid=e.new_workflow(store,'TRH',target_ref=target)['instance_id'];policy=demo.policy()
             e.start_round(store,iid,'Review the exact long argument and its interfaces.',max_calls=12,max_workers=2,policy=policy)
             longbody=('Let n be an arbitrary integer. The identity axiom gives n + 0 = n. This line preserves the declared original mathematical text.\n'*1200)
             def author(task,s):
@@ -449,7 +449,7 @@ class RuntimeBoundaries(unittest.TestCase):
         from research_studio.runner import FakeExecutor
         with TemporaryDirectory() as d:
             e=Engine();store=e.create(d+'/p',demo.ARITHMETIC,synthetic=True);target=next(iter(store.read_snapshot()['records']))
-            iid=e.new_workflow(store,'TRW',target_ref=target)['instance_id'];e.start_round(store,iid,'Investigate.',max_calls=4,policy=demo.policy())
+            iid=e.new_workflow(store,'TRH',target_ref=target)['instance_id'];e.start_round(store,iid,'Investigate.',max_calls=4,policy=demo.policy())
             tid=e.prepare(store,iid)['prepared'][0]['task_id'];bad=FakeExecutor(lambda t,s:b'{"bad":true}')
             with self.assertRaises(PMRSError):bad.execute(store,tid)
             s=store.read_snapshot();rid=s['tasks'][tid]['request_id'];original=s['requests'][rid]['capture_ref']
@@ -483,7 +483,7 @@ class RuntimeBoundaries(unittest.TestCase):
         from research_studio.runner import FakeExecutor,CodexExecutor
         with TemporaryDirectory() as d:
             e=Engine();store=e.create(d+'/real',demo.ARITHMETIC,synthetic=False);target=next(iter(store.read_snapshot()['records']))
-            iid=e.new_workflow(store,'TRW',target_ref=target)['instance_id'];self.assertEqual(scheduler.project_remaining(store.read_snapshot()),0)
+            iid=e.new_workflow(store,'TRH',target_ref=target)['instance_id'];self.assertEqual(scheduler.project_remaining(store.read_snapshot()),0)
             fake=demo.executor()
             with self.assertRaises(PMRSError):e.run_round(store,iid,executor=fake)
             self.assertEqual(fake.calls,0)
@@ -539,20 +539,20 @@ class SharedRuntime(unittest.TestCase):
         from research_studio.runner import FakeExecutor
         with TemporaryDirectory() as d:
             e=Engine();store=e.create(d+'/p',demo.ARITHMETIC,synthetic=True);target=next(iter(store.read_snapshot()['records']))
-            trw=e.new_workflow(store,'TRW',target_ref=target)['instance_id'];tfdw=e.new_workflow(store,'TFDW',discovery_scope=demo.discovery_scope('A separate discovery phenomenon.'))['instance_id']
-            p=demo.policy();p['model_overrides']=[{'explicit':True,'scope':{'workflow_kind':'TRW','stage_id':'P4','role':'RESEARCH','purpose':'DEFAULT'},'reasoning_effort':'high'}]
-            e.start_round(store,trw,'Investigate the fixed target.',max_calls=3,max_workers=2,policy=p)
-            e.start_round(store,tfdw,'Keep the discovery frontier unknown.',max_calls=3,max_workers=2,policy=demo.policy())
+            trh=e.new_workflow(store,'TRH',target_ref=target)['instance_id'];fdh=e.new_workflow(store,'FDH',discovery_scope=demo.discovery_scope('A separate discovery phenomenon.'))['instance_id']
+            p=demo.policy();p['model_overrides']=[{'explicit':True,'scope':{'workflow_kind':'TRH','stage_id':'P4','role':'RESEARCH','purpose':'DEFAULT'},'reasoning_effort':'high'}]
+            e.start_round(store,trh,'Investigate the fixed target.',max_calls=3,max_workers=2,policy=p)
+            e.start_round(store,fdh,'Keep the discovery frontier unknown.',max_calls=3,max_workers=2,policy=demo.policy())
             barrier=Barrier(2);seen=[];lock=Lock()
             def response(t,s):
                 with lock:seen.append((t['instance_id'],t['model_policy']['reasoning_effort']))
                 barrier.wait(timeout=3);return RuntimeIntegration.no_result(t,s)
-            fake=FakeExecutor(response);e.run_round(store,trw,executor=fake)
-            s=store.read_snapshot();self.assertEqual(set(seen),{(trw,'high'),(tfdw,'xhigh')});self.assertEqual(fake.calls,2)
+            fake=FakeExecutor(response);e.run_round(store,trh,executor=fake)
+            s=store.read_snapshot();self.assertEqual(set(seen),{(trh,'high'),(fdh,'xhigh')});self.assertEqual(fake.calls,2)
             self.assertEqual(len({r['purpose_key'] for r in s['requests'].values()}),2);self.assertEqual(scheduler.project_remaining(s),4)
-            self.assertEqual(s['instances'][trw]['target_ref'],target);self.assertIsNone(s['instances'][tfdw]['target_ref']);self.assertEqual(s['candidates'],{})
+            self.assertEqual(s['instances'][trh]['target_ref'],target);self.assertIsNone(s['instances'][fdh]['target_ref']);self.assertEqual(s['candidates'],{})
             self.assertEqual(len(s['missions']),2);self.assertEqual(len(s['tasks']),2);self.assertIn('2',s['scheduler_state']['last_instance_by_tier'])
-            self.assertEqual(e.run_round(store,tfdw,executor=fake)['state'],'WAIT');self.assertEqual(fake.calls,2);store.audit()
+            self.assertEqual(e.run_round(store,fdh,executor=fake)['state'],'WAIT');self.assertEqual(fake.calls,2);store.audit()
 
     def test_concurrent_recover_has_one_scientific_commit(self):
         from tempfile import TemporaryDirectory
@@ -622,7 +622,7 @@ class FullWorkflowStories(unittest.TestCase):
         from tests.test_final_reports import actual_render
         false=b'For every real symmetric 2 by 2 matrix A, every eigenvalue of A is positive.'
         with TemporaryDirectory() as d:
-            e=Engine();store=e.create(d+'/p',false,synthetic=True);t0=next(iter(store.read_snapshot()['records']));i0=e.new_workflow(store,'TRW',target_ref=t0)['instance_id']
+            e=Engine();store=e.create(d+'/p',false,synthetic=True);t0=next(iter(store.read_snapshot()['records']));i0=e.new_workflow(store,'TRH',target_ref=t0)['instance_id']
             e.start_round(store,i0,'Resolve the original symmetric matrix claim without weakening it.',max_calls=16,max_workers=2,policy=demo.policy())
             def response(task,s):
                 out=loads(demo.response(task,s))
@@ -653,7 +653,7 @@ class FullWorkflowStories(unittest.TestCase):
             self.assertEqual(reports.run(store,i0,executor=fake,policy=demo.policy(),renderer=actual_render)['state'],'COMPLETED_CURRENT_REPORT')
             brief=store.commit(changes.prepare_source_input(store.read_snapshot(),b'Keep real symmetric matrices as the background. Investigate sufficient hypotheses for positivity of both eigenvalues, retaining the negative original example.',purpose='PHENOMENON',blob_get=store.read_blob))['source_ref']
             fixture_scope=e.prepare_discovery_scope(store,{**{k:v for k,v in demo.discovery_scope().items() if k!='phenomenon'},'phenomenon_ref':brief})
-            prepared=e.prepare_handoff(store,i0,'TRW_TO_TFDW',{'argument_refs':[refutation['argument_ref']],'example_refs':[negative],'source_refs':[brief],'discovery_scope':fixture_scope})
+            prepared=e.prepare_handoff(store,i0,'TRH_TO_FDH',{'argument_refs':[refutation['argument_ref']],'example_refs':[negative],'source_refs':[brief],'discovery_scope':fixture_scope})
             records_before=deepcopy(store.read_snapshot()['records']);decision=e.decide(store,i0,'ADOPT_HANDOFF','Investigate precise replacement hypotheses.',snapshot_commit=store.read_snapshot()['knowledge_commit']);decision['discovery_brief_ref']=brief
             discovery=e.adopt_handoff(store,prepared['handoff_id'],decision)['instance_id'];self.assertEqual(store.read_snapshot()['records'],records_before)
             self.assertEqual(store.read_snapshot()['instances'][discovery]['status'],'PAUSED')
@@ -662,7 +662,7 @@ class FullWorkflowStories(unittest.TestCase):
             learn=next(t for t in s['tasks'].values() if t['instance_id']==discovery and t['role']=='LEARN');self.assertIn(refutation['argument_ref'],{x['ref'] for x in learn['input_manifest']})
             self.assertFalse(any(x['statement_ref']==candidate for x in s['supports'].values()))
             self.assertEqual(reports.run(store,discovery,executor=fake,policy=demo.policy(),renderer=actual_render)['state'],'COMPLETED_CURRENT_REPORT')
-            prepared=e.prepare_handoff(store,discovery,'TFDW_TO_TRW',{'candidate_refs':[candidate]});records_before=deepcopy(store.read_snapshot()['records'])
+            prepared=e.prepare_handoff(store,discovery,'FDH_TO_TRH',{'candidate_refs':[candidate]});records_before=deepcopy(store.read_snapshot()['records'])
             decision=e.decide(store,discovery,'ADOPT','Adopt exactly the positive definite candidate, without borrowing proof authority.',snapshot_commit=store.read_snapshot()['knowledge_commit'],candidate_ref=candidate)
             adopted=e.adopt_handoff(store,prepared['handoff_id'],decision)['instance_id'];self.assertEqual(store.read_snapshot()['records'],records_before)
             e.start_round(store,adopted,'Prove this exact candidate independently.',max_calls=12,max_workers=2,policy=demo.policy())
@@ -696,7 +696,7 @@ class DiscoveryFlow(unittest.TestCase):
         for variant in ('ZERO','BIASED','TWO','NO_DISCRIMINATION'):
             with self.subTest(variant=variant),TemporaryDirectory() as d:
                 e=Engine();store=e.create(d+'/p',b'Finite observations of symmetric matrices; positive observations may be biased. Negative and unknown evidence must remain visible.',phenomenon=True,synthetic=True)
-                iid=e.new_workflow(store,'TFDW',discovery_scope=demo.discovery_scope('Keep the matrix background fixed and distinguish evidence from universal claims.'))['instance_id']
+                iid=e.new_workflow(store,'FDH',discovery_scope=demo.discovery_scope('Keep the matrix background fixed and distinguish evidence from universal claims.'))['instance_id']
                 e.start_round(store,iid,'Investigate formulations without padding candidate count.',max_calls=24,max_workers=2,policy=demo.policy())
                 def proposal(key,kind,targets,criterion):
                     return {'local_key':key,'type':kind,'reason_code':None,'target_refs':targets,'criterion_body':criterion,'scope_context_refs':[],
@@ -757,7 +757,7 @@ class DiscoveryFlow(unittest.TestCase):
         with TemporaryDirectory() as d:
             e=Engine();store=e.create(d+'/p',raw,title='中文题目',synthetic=True);target=next(iter(store.read_snapshot()['records']))
             source=store.commit(changes.prepare_material_input(store.read_snapshot(),'原文补充：不要把例子当成普遍证明。'.encode(),media_type='text/plain',blob_get=store.read_blob))['source_ref']
-            fixed=e.new_workflow(store,'TRW',target_ref=target)['instance_id'];discovery=e.new_workflow(store,'TFDW',discovery_scope=demo.discovery_scope('保持背景不变，研究合适的附加条件。'))['instance_id']
+            fixed=e.new_workflow(store,'TRH',target_ref=target)['instance_id'];discovery=e.new_workflow(store,'FDH',discovery_scope=demo.discovery_scope('保持背景不变，研究合适的附加条件。'))['instance_id']
             with self.assertRaises(PMRSError) as cm:e.start_round(store,None,'缺少实例选择',max_calls=2,policy=demo.policy())
             self.assertEqual(cm.exception.code,'INSTANCE_SELECTOR_REQUIRED')
             fake=FakeExecutor(RuntimeIntegration.no_result);before=store._head();views.status(store.read_snapshot(),store);store.audit()
@@ -833,7 +833,7 @@ class PersistentInputKeys(unittest.TestCase):
             self.assertFalse(O.condition_met(predicate,store.read_snapshot()))
             before=len(store.read_snapshot()['records']);store.commit(changes.prepare_material_input(store.read_snapshot(),raw,source_id='SO-required',media_type='text/plain',blob_get=store.read_blob))
             self.assertTrue(O.condition_met(predicate,store.read_snapshot()));self.assertEqual(len(store.read_snapshot()['records']),before)
-            iid=e.new_workflow(store,'TRW',target_ref=target)['instance_id'];e.start_round(store,iid,'Use the supplied exact original.',source_refs=['SO-required'],max_calls=1,policy=demo.policy())
+            iid=e.new_workflow(store,'TRH',target_ref=target)['instance_id'];e.start_round(store,iid,'Use the supplied exact original.',source_refs=['SO-required'],max_calls=1,policy=demo.policy())
             tid=e.prepare(store,iid)['prepared'][0]['task_id'];task=tasks.load(store,tid);packet=loads(store.read_blob(task['input_packet_ref']))
             import base64
             self.assertEqual(store.read_blob(packet['material_refs'][sha(raw)]['sha256']),raw);self.assertIn('SO-required',{x['ref'] for x in task['input_manifest']})
@@ -844,7 +844,7 @@ class PersistentInputKeys(unittest.TestCase):
         from research_studio import demo
         from research_studio.runner import FakeExecutor
         with TemporaryDirectory() as d:
-            e=Engine();store=e.create(d+'/p',demo.ARITHMETIC,synthetic=True);target=next(iter(store.read_snapshot()['records']));iid=e.new_workflow(store,'TRW',target_ref=target)['instance_id']
+            e=Engine();store=e.create(d+'/p',demo.ARITHMETIC,synthetic=True);target=next(iter(store.read_snapshot()['records']));iid=e.new_workflow(store,'TRH',target_ref=target)['instance_id']
             fake=FakeExecutor(RuntimeIntegration.no_result)
             e.start_round(store,iid,'One persistent responsibility.',max_calls=2,policy=demo.policy());e.run_round(store,iid,executor=fake)
             e.start_round(store,iid,'One persistent responsibility.',max_calls=2,policy=demo.policy());e.run_round(store,iid,executor=fake)
@@ -864,7 +864,7 @@ class RecoveryCompleteness(unittest.TestCase):
         from research_studio.store import Store
         from tests.test_final_reports import actual_render
         with TemporaryDirectory() as d:
-            e=Engine();store=e.create(d+'/p',demo.ARITHMETIC,synthetic=True);target=next(iter(store.read_snapshot()['records']));iid=e.new_workflow(store,'TRW',target_ref=target)['instance_id']
+            e=Engine();store=e.create(d+'/p',demo.ARITHMETIC,synthetic=True);target=next(iter(store.read_snapshot()['records']));iid=e.new_workflow(store,'TRH',target_ref=target)['instance_id']
             e.authorize(store,iid,{'intent':'Deliver both report profiles under one finite authorization.','authorized_scope':{'target_refs':[target],'reports':True},'obligations':[]},
                 {'max_calls':6,'max_workers':1,'execution_policy':demo.policy()})
             original=reports.prepare

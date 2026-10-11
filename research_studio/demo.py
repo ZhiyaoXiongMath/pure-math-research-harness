@@ -24,12 +24,14 @@ def policy():
                 'context_window_tokens':2_000_000,'model_max_output_tokens':8192,'tokenizer_revision':'synthetic-utf8-bound',
                 'tokenizer_byte_bound_verified':True,'token_count_bound':'UTF8_BYTES'},
             'model_capabilities':{'source':'SYNTHETIC_TEST_ONLY','revision':'demo-1','executor':'fake',
-                'models':{'gpt-6-astra':{'reasoning_efforts':['high','xhigh','max'],'service_tiers':['default']}}},
+                'isolated_ultra_verified':True,'internal_delegation':False,
+                'models':{'gpt-6-astra':{'reasoning_efforts':['high','xhigh','max','ultra'],'service_tiers':['default']}}},
             'executor_contract':{'executor':'fake','sandbox':'SYNTHETIC_TEST_ONLY','environment_revision':'demo-1'},
             'reserved_output_tokens':4096}
 
 
 def response(task,snapshot,*,blob_get=None):
+    if task.get('actor_kind')=='MAIN':return main_response(task,snapshot,blob_get=blob_get)
     ops=[];evidence=[];role=task['role'];stage=task['stage_id']
     prerequisite=bool(snapshot.get('synthetic_test_only') and stage in {'P1','P2','P3'} and
         task.get('target_refs') and all(snapshot['records'][ref]['body_sha256']==sha(ARITHMETIC) for ref in task['target_refs']))
@@ -103,5 +105,58 @@ def executor(*,blob_get=None):
     return FakeExecutor(response if blob_get is None else lambda task,snapshot:response(task,snapshot,blob_get=blob_get))
 
 
+def main_response(task,snapshot,*,blob_get=None):
+    """A synthetic state-machine example, never evidence of real research."""
+    from copy import deepcopy
+    from .util import loads
+    worker=deepcopy(task);worker.pop('actor_kind',None)
+    value=loads(response(worker,snapshot,blob_get=blob_get))
+    payload=value['payload'];p=payload.get('knowledge_change',payload)
+    stage=task['stage_id'];context=task['strategy_context']
+    if stage=='D2':p['operations']=[op for op in p['operations'] if op['kind']!='Example']
+    if not p['operations'] and stage not in {'S1','D5'}:
+        body='Synthetic global account: the additive identity follows axiomatically. This fixture tests native accounting only; it provides no real model judgment. Every listed work binding has been inspected, and any inconclusive review remains inconclusive.'
+        loc=locator(body)
+        p['operations']=[{'op':'NEW','local_key':'main_account','kind':'Statement','context_refs':[],
+            'body':body,'data':{'statement_locator':loc,'scope_context_refs':[],'hypothesis_locators':[loc],
+                'conclusion_locators':[loc],'quantifier_locators':[loc],'form':'CONJECTURE','representation':'AUTHORED','source_binding':None}}]
+    refs=['local:'+op['local_key'] for op in p['operations'] if 'local_key' in op]
+    if stage=='D5':refs=[row['ref'] for row in task['input_manifest'] if row['kind']=='record'][:8]
+    for effect in p['obligation_effects']:
+        effect.update(work_disposition='ADDRESSED',resolution_proposal='CANDIDATE_RESPONSE',evidence_refs=refs,remaining_conditions=[])
+    p['work_outcome']='RESULT' if refs else 'NO_RESULT'
+    target=snapshot['instances'][task['instance_id']].get('target_ref')
+    work=[]
+    if stage=='P3':
+        work=[{'key':'identity','stage_id':'P4','role':'RESEARCH','purpose':'DEFAULT','obligation_type':'ESTABLISH',
+            'question':'Does the additive identity axiom establish the fixed universally quantified integer identity?',
+            'success_criterion':'Give the argument for arbitrary integer n or retain the precise missing premise.',
+            'target_refs':[target],'input_refs':[target]+refs,'source_refs':[],'depends_on':[],
+            'route_key':'axiom','communication_group':None}]
+    if stage=='D2' and not any(t['stage_id']=='D3' and t['instance_id']==task['instance_id'] for t in snapshot['tasks'].values()):
+        work=[{'key':'candidate-discrimination','stage_id':'D3','role':'DIRECT','purpose':'DEFAULT','obligation_type':'DISCRIMINATE',
+            'question':'Which examples distinguish the exact candidate formulation?',
+            'success_criterion':'State distinguishing evidence and every unknown comparison.',
+            'target_refs':refs,'input_refs':refs,'source_refs':[],'depends_on':[],'route_key':'','communication_group':None}]
+    routes=[]
+    if stage=='P3':
+        routes=[{'route_key':'axiom','status':'ACTIVE','origin':'Synthetic exact target','mechanism':'Use the integer additive identity axiom for an arbitrary integer.',
+            'target_relation':'Direct sufficient argument','sufficient_chain':'Additive identity implies n + 0 = n.',
+            'unproved_arrows':[],'extra_assumptions':[],'decisive_probe':'Write the universal argument.',
+            'failure_evidence_refs':[],'reactivation_condition':'New exact premise evidence','allocation_rationale':'One direct synthetic responsibility suffices.',
+            'reason':'The target is an axiom instance, not an empirical pattern.','evidence_refs':refs}]
+    p['strategy_proposal']={'schema':'pmrs.strategy-proposal/1','base_strategy_revision':context['revision'],
+        'trigger_refs':context['pending_trigger_refs'],'route_updates':routes,'work_items':work,'input_plan_proposals':[],
+        'progress_account':{'summary':'Synthetic native strategy/accounting example; no external model evidence.',
+            'record_refs':refs,'remaining_difficulties':['Actual research certification was not performed.'],
+            'scope_limitations':['SYNTHETIC_TEST_ONLY'],'failed_or_unperformed':[],
+            'covered_binding_ids':context['covered_binding_ids'],'frontier_complete':stage in {'P11','D5','S3'}},
+        'direction_answers':[{'direction_id':did,'answer':'The synthetic fixture recorded this exact user direction; no real mathematical answer is certified.',
+            'record_refs':refs,'work_keys':[w['key'] for w in work],'needs_human':False} for did in context['direction_ids']],
+        'next_action':'CONTINUE' if work else 'DELIVER' if stage in {'P11','D5','S3'} else 'WAIT' if stage=='S1' else 'ACCOUNT',
+        'human_decision_needed':[],'no_change_reason':'Synthetic exact frontier accounting.'}
+    return canonical(value)
+
+
 def scenario(kind):
-    return ARITHMETIC.decode() if kind=='TRW' else 'Observe positive definite real symmetric 2 by 2 matrices. Discover a precise relationship between positive definiteness and eigenvalues, retaining positive, negative and unknown evidence.'
+    return ARITHMETIC.decode() if kind=='TRH' else 'Observe positive definite real symmetric 2 by 2 matrices. Discover a precise relationship between positive definiteness and eigenvalues, retaining positive, negative and unknown evidence.'

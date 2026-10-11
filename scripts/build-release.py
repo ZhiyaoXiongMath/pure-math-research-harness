@@ -23,8 +23,8 @@ PREFIX = 'Pure-Math-Research-Studio-' + VERSION
 SOURCE_DATE_EPOCH = int(os.environ.get('SOURCE_DATE_EPOCH', '315532800'))
 FIXED_TIME = datetime.datetime.fromtimestamp(max(SOURCE_DATE_EPOCH, 315532800), datetime.timezone.utc).timetuple()[:6]
 REQUIRED_DOCS = ['README.md', 'README.zh-CN.md', 'LICENSE', 'pyproject.toml',
-    'CHANGELOG-4.2.0.md', 'ARCHITECTURE-4.2.0.md', 'IMPLEMENTATION-NOTES-4.2.0.md',
-    'TEST-REPORT-4.2.0.md', 'UBUNTU-E2E-GUIDE.md', 'ACCEPTANCE-SCOPE-4.2.0.md']
+    'CHANGELOG-4.2.2.md', 'ARCHITECTURE-4.2.2.md', 'IMPLEMENTATION-NOTES-4.2.2.md',
+    'TEST-REPORT-4.2.2.md', 'UBUNTU-E2E-GUIDE.md', 'ACCEPTANCE-SCOPE-4.2.2.md']
 EXCLUDED = {'.git', '__pycache__', '.venv'}
 
 
@@ -34,6 +34,10 @@ def digest(data):
 
 def encoded(value):
     return (json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2)+'\n').encode()
+
+
+def file_mode(path):
+    return 0o755 if path.endswith(('.sh','.desktop')) or path in {'research_studio/native/codex-app-server','research_studio/native/codex-code-mode-host'} else 0o644
 
 
 def files(require_docs=True):
@@ -57,6 +61,20 @@ def files(require_docs=True):
     for name in result:
         if name.startswith(forbidden):
             raise ValueError('Non-product legacy or private evidence input: ' + name)
+    binary=result.get('research_studio/native/codex-app-server')
+    manifest=result.get('research_studio/native/manifest.json')
+    if binary is None or manifest is None:
+        raise ValueError('PMRS 4.2.2 requires the built native MAIN app-server and its manifest')
+    native=json.loads(manifest)
+    if native.get('gate_revision')!='pmrs.native-admission/1' or native.get('binary_sha256')!=digest(binary):
+        raise ValueError('Native MAIN binary differs from the bound admission build')
+    if binary[:6]!=b'\x7fELF\x02\x01' or int.from_bytes(binary[18:20],'little')!=62:
+        raise ValueError('This release requires a Linux x86_64 native MAIN binary')
+    host=result.get('research_studio/native/codex-code-mode-host')
+    if host is None or native.get('code_mode_host_sha256')!=digest(host):
+        raise ValueError('Native MAIN requires its verified code-mode host companion')
+    if host[:6]!=b'\x7fELF\x02\x01' or int.from_bytes(host[18:20],'little')!=62:
+        raise ValueError('The native code-mode host must be Linux x86_64')
     return result
 
 
@@ -64,12 +82,14 @@ def wheel(members):
     dist = 'pure_math_research_studio'
     info = f'{dist}-{WHEEL_VERSION}.dist-info'
     rows = {p:b for p,b in members.items() if p.startswith('research_studio/')}
+    native='research_studio/native/codex-app-server' in rows
+    tag='py3-none-linux_x86_64' if native else 'py3-none-any'
     metadata = (f'Metadata-Version: 2.4\nName: pure-math-research-studio\nVersion: {WHEEL_VERSION}\n'
-        'Summary: Shared mathematical research kernel with independent TRW, TFDW and SURVEY workflows\n'
+        'Summary: Shared mathematical research kernel with independent TRH, FDH and SURVEY workflows\n'
         'Requires-Python: >=3.11\nLicense-Expression: Apache-2.0\nLicense-File: LICENSE\n'
         'Description-Content-Type: text/markdown\n\n').encode()+members['README.md']
     rows.update({info+'/METADATA':metadata, info+'/licenses/LICENSE':members['LICENSE'],
-        info+'/WHEEL':b'Wheel-Version: 1.0\nGenerator: PMRS offline release writer\nRoot-Is-Purelib: true\nTag: py3-none-any\n',
+        info+'/WHEEL':('Wheel-Version: 1.0\nGenerator: PMRS offline release writer\nRoot-Is-Purelib: '+('false' if native else 'true')+'\nTag: '+tag+'\n').encode(),
         info+'/entry_points.txt':b'[console_scripts]\npure-math-research-studio = research_studio.cli:main\nresearch-studio = research_studio.cli:main\npmrs-desktop = research_studio.desktop:main\n',
         info+'/top_level.txt':b'research_studio\n'})
     record = io.StringIO(newline='')
@@ -80,7 +100,7 @@ def wheel(members):
     rows[info+'/RECORD'] = record.getvalue().encode()
     stream = io.BytesIO()
     write_zip(stream, rows)
-    return f'{dist}-{WHEEL_VERSION}-py3-none-any.whl', stream.getvalue()
+    return f'{dist}-{WHEEL_VERSION}-{tag}.whl', stream.getvalue()
 
 
 def write_zip(destination, members):
@@ -88,7 +108,8 @@ def write_zip(destination, members):
         for path,data in sorted(members.items()):
             entry = zipfile.ZipInfo(path, FIXED_TIME)
             entry.create_system = 3
-            entry.external_attr = (0o100755 if path.endswith(('.sh', '.desktop')) else 0o100644) << 16
+            relative=path.split(PREFIX+'/',1)[-1]
+            entry.external_attr = (0o100000 | file_mode(relative)) << 16
             entry.compress_type = zipfile.ZIP_DEFLATED
             z.writestr(entry, data, compresslevel=9)
 
@@ -101,7 +122,8 @@ def debian_installer(release):
         'Icon=applications-science\nTerminal=false\nCategories=Education;Science;\n').encode()
     data = {base + '/' + path: raw for path, raw in release.items()}
     data['usr/share/applications/pmrs-installer-' + VERSION + '.desktop'] = launcher
-    control = ('Package: pmrs4-graphical-installer\nVersion: ' + WHEEL_VERSION + '\nArchitecture: all\n'
+    architecture='amd64' if 'research_studio/native/codex-app-server' in release else 'all'
+    control = ('Package: pmrs4-graphical-installer\nVersion: ' + WHEEL_VERSION + '\nArchitecture: '+architecture+'\n'
         'Maintainer: PMRS contributors\nSection: science\nPriority: optional\n'
         'Depends: python3 (>= 3.11), python3-venv, zenity\n'
         'Description: Graphical offline installer for Pure Math Research Studio\n'
@@ -113,7 +135,8 @@ def debian_installer(release):
             for path in directories:
                 item = tarfile.TarInfo('./' + path); item.type=tarfile.DIRTYPE; item.mode=0o755; item.mtime=SOURCE_DATE_EPOCH; tar.addfile(item)
             for path, raw in sorted(rows.items()):
-                item = tarfile.TarInfo('./' + path); item.size=len(raw); item.mode=0o755 if path.endswith(('.desktop','.sh')) else 0o644
+                relative=path.split(base+'/',1)[-1]
+                item = tarfile.TarInfo('./' + path); item.size=len(raw); item.mode=file_mode(relative)
                 item.mtime=SOURCE_DATE_EPOCH; tar.addfile(item, io.BytesIO(raw))
         return gzip.compress(buffer.getvalue(), compresslevel=9, mtime=SOURCE_DATE_EPOCH)
     archive = bytearray(b'!<arch>\n')
@@ -124,7 +147,7 @@ def debian_installer(release):
         if len(raw) % 2: archive.extend(b'\n')
     audit = {'format':'DEBIAN_AR_TAR','files':{path:{'bytes':len(raw),'sha256':digest(raw)} for path,raw in sorted(data.items())},
              'control':{'bytes':len(control),'sha256':digest(control)},'maintainer_scripts':[]}
-    return 'pmrs4-graphical-installer_' + WHEEL_VERSION + '_all.deb', bytes(archive), audit
+    return 'pmrs4-graphical-installer_' + WHEEL_VERSION + '_'+architecture+'.deb', bytes(archive), audit
 
 
 def build(out):
@@ -139,7 +162,7 @@ def build(out):
     names = [PREFIX+'-source.zip', PREFIX+'-release.zip']
     wheel_name, wheel_data = wheel(members)
     audit_name = 'FINAL-ARTIFACT-AUDIT.json'
-    if any((out/p).exists() for p in [*names,wheel_name,audit_name,'SHA256SUMS.txt','pmrs4-graphical-installer_' + WHEEL_VERSION + '_all.deb']):
+    if any((out/p).exists() for p in [*names,wheel_name,audit_name,'SHA256SUMS.txt','pmrs4-graphical-installer_' + WHEEL_VERSION + '_amd64.deb']):
         raise ValueError('Use a new build directory; artifacts are not overwritten')
     try:
         commit = subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,stderr=subprocess.DEVNULL).decode().strip()
@@ -151,11 +174,12 @@ def build(out):
         'working_tree_changed':dirty,'source_content_sha256':digest(encoded({p:digest(b) for p,b in members.items()})),
         'source_date_epoch':SOURCE_DATE_EPOCH,'release_qualification':'NOT_EVALUATED_BY_BUILD','model_calls':0}
     release = {p:b for p,b in members.items() if p in REQUIRED_DOCS or p.startswith(('research_studio/','examples/'))
+               or p.startswith(('docs/TRH-MAIN-METHOD-4.2.2','docs/FDH-MAIN-METHOD-4.2.2'))
                or p in ('scripts/install-local.py','scripts/install-gui.py','scripts/prepare-release.py','scripts/verify-pdf.py','Install-PMRS.desktop','INSTALL-HELP.html')}
     release['BUILD-INFO.json'] = encoded(build_info)
     release['wheels/'+wheel_name] = wheel_data
     release['RELEASE-MANIFEST.json'] = encoded({'schema':'pmrs.release/1','version':VERSION,
-        'files':{p:{'bytes':len(b),'sha256':digest(b),'mode':0o755 if p.endswith(('.desktop','.sh')) else 0o644} for p,b in sorted(release.items())}})
+        'files':{p:{'bytes':len(b),'sha256':digest(b),'mode':file_mode(p)} for p,b in sorted(release.items())}})
     source = dict(members)
     source['BUILD-INFO.json'] = encoded(build_info)
     source['SOURCE-MANIFEST.json'] = encoded({'schema':'pmrs.source-manifest/1',

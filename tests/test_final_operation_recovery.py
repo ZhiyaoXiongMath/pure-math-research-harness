@@ -24,7 +24,7 @@ class DurableOperationRecoveryTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.w=Workspace(Path(self.tmp.name)/'workspace')
-        self.payload={'kind':'TRW','title':'恢复结果','text':'For every integer n, n + 0 = n.'}
+        self.payload={'kind':'TRH','title':'恢复结果','text':'For every integer n, n + 0 = n.'}
 
     def test_discovery_acknowledgement_and_explicit_new_operation(self):
         key='lost-response-1234567890'
@@ -111,7 +111,7 @@ class OperationRecoveryHTTPTests(unittest.TestCase):
             r=c.getresponse();return r.status,json.loads(r.read()),dict(r.getheaders())
 
     def test_authenticated_discovery_and_ack_obey_all_write_boundaries(self):
-        payload={'kind':'TRW','title':'HTTP recovery','text':'For every integer n, n + 0 = n.'}
+        payload={'kind':'TRH','title':'HTTP recovery','text':'For every integer n, n + 0 = n.'}
         status,created,_=self.req('POST','/api/action/create',payload);self.assertEqual(status,200)
         status,listing,_=self.req('GET','/api/operations');self.assertEqual(status,200)
         row=listing['operations'][0];body={'id':row['id'],'digest':row['digest']}
@@ -137,7 +137,7 @@ class OperationRecoveryHTTPTests(unittest.TestCase):
 
 class DesktopOriginRecoveryTests(unittest.TestCase):
     def test_response_loss_real_service_restart_changed_port_recovers_without_resend(self):
-        self.restart_case({'kind':'TRW','title':'Lost response restart','text':'For every integer n, n + 0 = n.'})
+        self.restart_case({'kind':'TRH','title':'Lost response restart','text':'For every integer n, n + 0 = n.'})
 
     def test_survey_response_loss_restart_new_origin_and_new_intent(self):
         self.restart_case({'kind':'SURVEY','title':'Survey response recovery','survey_scope':{

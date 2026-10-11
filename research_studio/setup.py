@@ -41,11 +41,11 @@ _LOCK = threading.RLock()
 
 
 def config_root():
-    return Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'pure-math-research-studio/4.0'
+    return Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'pure-math-research-studio/4.2.2'
 
 
 def data_root():
-    return Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'pure-math-research-studio/4.0/dependencies'
+    return Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'pure-math-research-studio/4.2.2/dependencies'
 
 
 def _no_links(path):

@@ -140,10 +140,10 @@ class SurveyRecovery(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             store,iid,e=ready_survey(Path(tmp)/'p');engine=Engine();s=store.read_snapshot()
             target=next(r for r in e['selected_refs'] if s['records'][r]['kind']=='Statement')
-            prepared=engine.prepare_handoff(store,iid,'SURVEY_TO_TRW',{'target_refs':[target]})
+            prepared=engine.prepare_handoff(store,iid,'SURVEY_TO_TRH',{'target_refs':[target]})
             decision=engine.decide(store,iid,'ADOPT_HANDOFF','Explicit synthetic handoff',snapshot_commit=store.read_snapshot()['knowledge_commit'])
             adopted=engine.adopt_handoff(store,prepared['handoff_id'],decision);new=store.read_snapshot()['instances'][adopted['instance_id']]
-            self.assertEqual(new['kind'],'TRW');self.assertEqual(new['status'],'PAUSED');self.assertEqual(new['target_ref'],target)
+            self.assertEqual(new['kind'],'TRH');self.assertEqual(new['status'],'PAUSED');self.assertEqual(new['target_ref'],target)
             self.assertEqual(new['mission_ids'],[]);self.assertEqual(len(store.read_snapshot()['tasks']),3)
             engine.decide(store,iid,'END','Knowledge only goal completed in fixture',snapshot_commit=store.read_snapshot()['knowledge_commit'])
             with self.assertRaises(PMRSError):survey.start_activity(store,iid,'S4','Restart ended instance',max_calls=1,policy=demo.policy())
@@ -260,8 +260,8 @@ class SurveyScopedReadiness(unittest.TestCase):
             override={'explicit':True,'scope':{'workflow_kind':'SURVEY','stage_id':'S1','role':'SEARCH_PLAN','purpose':'DEFAULT'},'reasoning_effort':'max'}
             Engine().update_configuration(store,iid,[override])
             self.assertEqual(before,store.read_snapshot()['tasks'][made['task_id']])
-            self.assertEqual(model_policy.resolve('TRW','P4','RESEARCH',require_capability=False)['reasoning_effort'],'max')
-            self.assertEqual(model_policy.resolve('TFDW','D1','LEARN',require_capability=False)['reasoning_effort'],'xhigh')
+            self.assertEqual(model_policy.resolve('TRH','P4','RESEARCH',require_capability=False)['reasoning_effort'],'max')
+            self.assertEqual(model_policy.resolve('FDH','D1','LEARN',require_capability=False)['reasoning_effort'],'xhigh')
             bad={**override,'reasoning_effort':'ultra'}
             with self.assertRaises(PMRSError) as error:Engine().update_configuration(store,iid,[bad])
             self.assertEqual(error.exception.code,'MODEL_CONFIGURATION_UNSUPPORTED')

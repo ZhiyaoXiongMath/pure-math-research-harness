@@ -19,7 +19,7 @@ class RoundInterventionTests(unittest.TestCase):
 
     def project(self,name='project',*,calls=3,dependency=False):
         engine=Engine();store=Store.create(self.root/name,'Explicit correction fixture only',synthetic=True)
-        iid=engine.new_workflow(store,'TRW',target=b'A synthetic exact target used only for native intervention tests.')['instance_id']
+        iid=engine.new_workflow(store,'TRH',target=b'A synthetic exact target used only for native intervention tests.')['instance_id']
         items=[{'key':'parent','stage':'P4','role':'RESEARCH','intent':'Inspect the exact first scoped mathematical interface.'}]
         if dependency:items.append({'key':'child','stage':'P4','role':'RESEARCH','intent':'Inspect the dependent second interface after the first disposition.','depends_on':['parent']})
         engine.plan_work(store,iid,'Explicit advanced correction test plan; not an automatic workflow claim.',items,

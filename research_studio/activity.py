@@ -6,12 +6,16 @@ from .util import require
 from .workflows.registry import definition, ROUTES
 
 
+def stage_order(stage_id):
+    return -1 if stage_id.startswith("MAIN_") else int(stage_id[1:])
+
+
 def graph():
     registry = definition()
     workflows = []
-    for kind in ('TRW', 'TFDW', 'SURVEY'):
+    for kind in ('TRH', 'FDH', 'SURVEY'):
         rows = [s for s in registry['stages'].values() if s['workflow_kind'] == kind]
-        rows.sort(key=lambda s: int(s['stage_id'][1:]))
+        rows.sort(key=lambda s: stage_order(s['stage_id']))
         nodes, edges = [], []
         for row in rows:
             stage = row['stage_id']
@@ -27,12 +31,12 @@ def graph():
             'analysis_routes': [{'id': route, 'roles': list(roles), 'label': label}
                                 for (route, roles), label in zip(ROUTES.items(),
                                     ('来源应用：学习与适用性', '直接分析', '比较路线：学习、直接分析，再综合'))],
-            'handoffs': [{'from': 'TRW', 'to': 'TFDW', 'to_stage': 'D0',
+            'handoffs': [{'from': 'TRH', 'to': 'FDH', 'to_stage': 'D0',
                           'label': '从当前固定目标开展表述发现', 'human_decision_required': True},
-                         {'from': 'TFDW', 'to': 'TRW', 'to_stage': 'P0',
+                         {'from': 'FDH', 'to': 'TRH', 'to_stage': 'P0',
                           'label': '采用精确候选，建立暂停的定题研究', 'human_decision_required': True},
-                         {'from':'SURVEY','to':'TRW','to_stage':'P0','label':'采用调查中的精确命题，建立暂停的定题研究','human_decision_required':True},
-                         {'from':'SURVEY','to':'TFDW','to_stage':'D0','label':'从调查中的问题建立暂停的表述发现','human_decision_required':True}],
+                         {'from':'SURVEY','to':'TRH','to_stage':'P0','label':'采用调查中的精确命题，建立暂停的定题研究','human_decision_required':True},
+                         {'from':'SURVEY','to':'FDH','to_stage':'D0','label':'从调查中的问题建立暂停的表述发现','human_decision_required':True}],
             'navigation_only': True, 'automatic_next': False, 'completion_is_not_proof': True}
 
 
@@ -57,11 +61,11 @@ def _instance(snapshot, iid):
             continue
         stage_id = None
         if kind in {'CREATE_INSTANCE', 'DISCOVERY_SCOPE_DEFINED'} or (kind == 'AUTHORIZE_MISSION' and 'mission' in payload):
-            stage_id = {'TRW':'P0','TFDW':'D0','SURVEY':'S0'}[instance['kind']]
-        elif kind in {'HUMAN_DECISION', 'HANDOFF_PREPARED', 'HANDOFF_ADOPTED'}:
-            stage_id = {'TRW':'P14','TFDW':'D5','SURVEY':'S7'}[instance['kind']]
+            stage_id = {'TRH':'P0','FDH':'D0','SURVEY':'S0'}[instance['kind']]
+        elif kind in {'HUMAN_DECISION', 'HANDOFF_PREPARED', 'HANDOFF_ADOPTED'} and instance['kind']!='TRH':
+            stage_id = {'TRH':'P14','FDH':'D5','SURVEY':'S7'}[instance['kind']]
         elif kind == 'REPORT_SELECTED':
-            stage_id = {'TRW':'P13','TFDW':'D5','SURVEY':'S6'}[instance['kind']]
+            stage_id = {'TRH':'P13','FDH':'D5','SURVEY':'S6'}[instance['kind']]
         if stage_id:
             stages[stage_id]['status'] = 'VISITED'
             stages[stage_id]['control_event_ids'].append(event['event_id'])
@@ -75,13 +79,22 @@ def _instance(snapshot, iid):
             stage['visit_ids'].append(vid)
             stage['status'] = 'VISITED'
             recent = [visit['stage_id']]
-    for delivery in snapshot.get('round_deliveries',{}).values():
-        if delivery['instance_id']==iid:
-            summary=delivery['summary'];stage=stages[summary['stage_id']]
-            stage['status']='VISITED';stage['record_refs'].extend(summary.get('produced_refs',[]))
-            if delivery['mission_id']==instance.get('current_mission_id'):recent=[summary['stage_id']]
+    # Host progress/fault accounting is not a visited P13 scientific task.
     tasks = {tid: t for tid, t in snapshot.get('tasks', {}).items() if t['instance_id'] == iid}
     running, waiting = set(), set()
+    if instance['kind']=='TRH':
+        # A technical pause/continue or handoff is a real control event, but
+        # cannot stand in for arrival at the scientific P13/P14 boundary.
+        p14=stages['P14']
+        p14['delivery_ids']=[did for did,row in snapshot.get('round_deliveries',{}).items()
+            if row.get('instance_id')==iid and (row.get('delivery_kind') or row.get('summary',{}).get('delivery_kind'))=='P13_P14']
+        decisions=[row['event_id'] for row in snapshot.get('main_decisions',{}).values()
+            if row.get('instance_id')==iid and row.get('event_type')=='MAIN_P14_DECISION']
+        p14['control_event_ids'].extend(decisions)
+        human_wait=instance.get('run_control',{}).get('state')=='WAITING_HUMAN_AT_P14'
+        if p14['delivery_ids'] or decisions or human_wait:p14['status']='VISITED'
+        if human_wait:
+            waiting.add('P14');p14['waiting_reasons'].append('WAITING_HUMAN_AT_P14')
     for tid, task in tasks.items():
         if task['stage_id'] not in stages:
             continue
@@ -134,7 +147,7 @@ def _instance(snapshot, iid):
         for key in ('task_ids', 'request_ids', 'visit_ids', 'record_refs', 'waiting_reasons', 'next_actions', 'analysis_routes'):
             if key in stage:
                 stage[key] = list(dict.fromkeys(stage[key]))
-    order = lambda sid: int(sid[1:])
+    order = stage_order
     return {'instance_id': iid, 'workflow_kind': instance['kind'], 'name': instance.get('name'),
             'instance_status': instance['status'], 'active_stages': sorted(running, key=order),
             'waiting_stages': sorted(waiting - running, key=order), 'recent_stages': recent,
