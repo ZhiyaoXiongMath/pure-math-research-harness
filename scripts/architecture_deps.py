@@ -293,7 +293,7 @@ def run(root: Path, policy: dict) -> dict:
             a = migrated_layer(inventory[source]["target"])
             b = migrated_layer(inventory[target]["target"])
             if a != b:
-                owner = policy["legacy_owners"].get(a, "DEV-PR-18")
+                owner = policy.get("legacy_owner_overrides", {}).get(source, policy["legacy_owners"].get(a, "DEV-PR-18"))
                 legacy_blocks.append({**edge, "suggested_source_layer": a,
                                       "suggested_target_layer": b,
                                       "exception_id": policy["legacy_exception_id"],
