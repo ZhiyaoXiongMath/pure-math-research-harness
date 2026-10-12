@@ -46,21 +46,40 @@ jobs:
           test -s "$RUNNER_TEMP/pmrh-devpr01/ast/dependency-graph.json"
           test -s "$RUNNER_TEMP/pmrh-devpr01/ast/architecture-audit.md"
 
-      - name: Deny network, process, real HOME and nonfixture paths; run negative tests
+      - name: Deny network/process/private paths and stage synthetic test evidence
         shell: bash
         run: |
           set -euo pipefail
-          # The launcher only writes beneath a newly provisioned, dedicated
-          # /tmp artifacts root. RUNNER_TEMP is typically beneath runner HOME
-          # and therefore is not accepted as a direct --out destination.
+          # Fresh trusted output root, separately from runner HOME; the child
+          # uses only its synthetic fixture and cannot choose another suite.
           ARTIFACT_DIR="$(mktemp -d /tmp/pmrh-devpr01-artifacts-XXXXXXXX)"
-          mkdir -p "$ARTIFACT_DIR/offline"
-          trap 'mkdir -p "$RUNNER_TEMP/pmrh-devpr01/offline"; cp -a "$ARTIFACT_DIR/offline/." "$RUNNER_TEMP/pmrh-devpr01/offline/" 2>/dev/null || true; rm -rf "$ARTIFACT_DIR"' EXIT
+          trap 'rm -rf "$ARTIFACT_DIR"' EXIT
+          mkdir -p "$ARTIFACT_DIR/offline" "$RUNNER_TEMP/pmrh-devpr01/offline"
+          TEST_EXIT=0
           PMRH_TEST_ARTIFACT_ROOT="$ARTIFACT_DIR" \
             python3 -B scripts/offline_test.py --suite devpr01 \
-              --out "$ARTIFACT_DIR/offline"
-          test -s "$ARTIFACT_DIR/offline/receipt.json"
+              --out "$ARTIFACT_DIR/offline" || TEST_EXIT=$?
+
+          # Copy any available diagnostics on failure; NEVER swallow a copy
+          # error. No successful job may depend on an EXIT trap with || true.
+          for f in unittest.log receipt.json; do
+            if test -f "$ARTIFACT_DIR/offline/$f"; then
+              cp -a -- "$ARTIFACT_DIR/offline/$f" "$RUNNER_TEMP/pmrh-devpr01/offline/$f"
+            fi
+          done
+          if test "$TEST_EXIT" -ne 0; then
+            echo "The guarded child failed (exit=$TEST_EXIT); available evidence staged." >&2
+            exit "$TEST_EXIT"
+          fi
           test -z "$(git status --porcelain)"
+
+      - name: Require complete four-file evidence and matching source hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B scripts/verify_devpr01_artifacts.py \
+            --root "$RUNNER_TEMP/pmrh-devpr01" \
+            --expected-head-sha "$PMRH_SOURCE_SHA"
 
       - name: Upload exact AST graphs and negative-test receipts
         if: always()
@@ -68,5 +87,5 @@ jobs:
         with:
           name: pmrh-devpr01-ast-and-offline-evidence
           path: ${{ runner.temp }}/pmrh-devpr01/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
