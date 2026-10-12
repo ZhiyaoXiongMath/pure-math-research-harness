@@ -50,9 +50,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -B scripts/offline_test.py --suite devpr01 \
-            --out "$RUNNER_TEMP/pmrh-devpr01/offline"
-          test -s "$RUNNER_TEMP/pmrh-devpr01/offline/receipt.json"
+          # The launcher only writes beneath a newly provisioned, dedicated
+          # /tmp artifacts root. RUNNER_TEMP is typically beneath runner HOME
+          # and therefore is not accepted as a direct --out destination.
+          ARTIFACT_DIR="$(mktemp -d /tmp/pmrh-devpr01-artifacts-XXXXXXXX)"
+          mkdir -p "$ARTIFACT_DIR/offline"
+          trap 'mkdir -p "$RUNNER_TEMP/pmrh-devpr01/offline"; cp -a "$ARTIFACT_DIR/offline/." "$RUNNER_TEMP/pmrh-devpr01/offline/" 2>/dev/null || true; rm -rf "$ARTIFACT_DIR"' EXIT
+          PMRH_TEST_ARTIFACT_ROOT="$ARTIFACT_DIR" \
+            python3 -B scripts/offline_test.py --suite devpr01 \
+              --out "$ARTIFACT_DIR/offline"
+          test -s "$ARTIFACT_DIR/offline/receipt.json"
           test -z "$(git status --porcelain)"
 
       - name: Upload exact AST graphs and negative-test receipts
