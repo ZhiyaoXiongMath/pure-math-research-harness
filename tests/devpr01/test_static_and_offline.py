@@ -100,6 +100,25 @@ class PythonOfflineBoundaryTests(unittest.TestCase):
         self.assertIn("'paid_model_calls': 0", source)
 
 
+    def test_06b_directory_mutations_and_rename_escape_are_denied(self):
+        outside = Path("/PMRH-SYNTHETIC-OUTSIDE-DO-NOT-CREATE")
+        with self.assertRaises(PermissionError):
+            outside.mkdir()
+        with self.assertRaises(PermissionError):
+            (REPO / "pmrh/__init__.py").unlink()
+        with tempfile.TemporaryDirectory(prefix="pmrh-synthetic-rename-") as directory:
+            harmless = Path(directory) / "source"
+            harmless.write_text("synthetic")
+            with self.assertRaises(PermissionError):
+                os.replace(harmless, outside / "destination")
+            with self.assertRaises(PermissionError):
+                os.symlink(str(REPO / "AGENTS.md"), outside / "alias")
+            with self.assertRaises(PermissionError):
+                os.open(str(Path(os.environ["PMRH_ORIGINAL_HOME"]) / "other"),
+                        os.O_RDONLY, dir_fd=os.open(directory, os.O_RDONLY))
+
+
+
 class SyntheticASTTests(unittest.TestCase):
     def setUp(self):
         self.work = tempfile.TemporaryDirectory(prefix="pmrh-ast-fixture-")
