@@ -3,15 +3,17 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pure-math-research-studio"
-dynamic = ["version"]
-description = "Shared mathematical research kernel with independent TRH, FDH and SURVEY workflows"
+name = "pure-math-research-harness"
+version = "0.0.0"
+description = "Pure Math Research Harness: evidence-constrained multi-agent mathematical research (Phase 0 bootstrap)"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
 license = {file = "LICENSE"}
 
 [project.scripts]
+pmrh = "pmrh.cli:main"
+# Compatibility only. The three legacy entrypoints have NOT been audited as inert.
 pure-math-research-studio = "research_studio.cli:main"
 research-studio = "research_studio.cli:main"
 pmrs-desktop = "research_studio.desktop:main"
@@ -23,8 +25,5 @@ include-package-data = true
 research_studio = ["schemas/*.json", "schemas/**/*", "workflows/*.json", "static/*", "static/**/*", "methods/*.md", "methods/*.json", "resources/*", "resources/**/*", "locales/*.json", "native/*"]
 
 [tool.setuptools.packages.find]
-include = ["research_studio*"]
+include = ["pmrh*", "research_studio*"]
 exclude = ["tests*"]
-
-[tool.setuptools.dynamic]
-version = {attr = "research_studio.__version__"}
