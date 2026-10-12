@@ -166,11 +166,14 @@ if hasattr(os, "symlink"):
     os.symlink = guarded_symlink
 
 if hasattr(os, "link"):
-    real_link = os.link
-
-    def guarded_link(src, dst, *args, **kwargs):
-        guard_path(path_with_dirfd(src, kwargs.get("src_dir_fd")))
-        guard_path(path_with_dirfd(dst, kwargs.get("dst_dir_fd")), write=True)
-        return real_link(src, dst, *args, **kwargs)
+    # SEC-01: POSIX hardlinks alias an inode, not a pathname. A readable
+    # immutable source could otherwise be hardlinked into writable scratch,
+    # then truncated through an apparently permitted scratch path. Decline ALL
+    # os.link operations in this guarded interpreter, including scratch-only
+    # links, rather than try to prove inode isolation from paths alone.
+    def guarded_link(*args, **kwargs):
+        raise PermissionError(
+            "PMRH offline test guard: hardlinks are prohibited (SEC-01)"
+        )
 
     os.link = guarded_link
