@@ -13,3 +13,7 @@
 **Document precedence:** newest explicit user authorization/formal decisions → verified original primary evidence → later approved ADRs → specific development PR design; conflict must be reported, never used to downgrade the invariants above. Prior development guidelines remain in `docs/reference/PMRS-Next_Phase1/`; the architecture audit corrects their assumption that legacy `assistant.py` is a currently active product entrypoint.
 
 **Acceptance and rollback:** the 58 + 46 planned tests are a future contract, not PASS. New work requires individual authorization and independent review. Revert code rather than rewriting scientific history or altering paused projects.
+
+## Historical acceptance metadata clarification (2026-10-12)
+
+The original Phase 0 acceptance-pending note was true when authored. Phase 0 was later [formally accepted](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/1#issuecomment-6120454287) and [merged as PR #1](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/1); DEV-PR-01 was subsequently [merged as PR #2](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/2). This annotation changes **no ADR decision** and does not imply implementation/acceptance of subsequent scientific/runtime features or the 58+46 future cases. See [PROJECT-STATE](../development/PROJECT-STATE.md); re-check GitHub for live status.
