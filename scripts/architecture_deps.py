@@ -66,12 +66,27 @@ def name_of(relative: Path) -> str | None:
 
 
 def catalog(root: Path, paths: list[Path]) -> dict[str, str]:
+    """Index real modules AND implicit namespace-package directories.
+
+    A directory with Python descendants may be imported as a package even if
+    it lacks __init__.py. Virtual entries identify namespaces explicitly; they
+    do not pretend that a non-existent Python source file was parsed.
+    """
     result = {}
+    namespace_dirs = set()
     for path in paths:
         relative = path.relative_to(root)
         name = name_of(relative)
         if name is not None:
             result[name] = relative.as_posix()
+        parent = relative.parent
+        while parent != Path("."):
+            if all(segment.isidentifier() for segment in parent.parts):
+                namespace_dirs.add(parent)
+            parent = parent.parent
+    for directory in sorted(namespace_dirs):
+        name = ".".join(directory.parts)
+        result.setdefault(name, "@namespace/" + directory.as_posix())
     return result
 
 
@@ -215,6 +230,8 @@ def closure(nodes: list[str], adjacency: dict[str, set[str]]) -> dict[str, list[
 
 
 def layer(path: str) -> str | None:
+    if path.startswith("@namespace/"):
+        path = path[len("@namespace/"):] + "/__namespace__.py"
     parts = Path(path).parts
     if len(parts) >= 3 and parts[0] == "pmrh" and parts[1] in LAYERS:
         return parts[1]
@@ -270,8 +287,11 @@ def review_entrypoints(root: Path, external: list[dict]) -> dict:
 
 
 def run(root: Path, policy: dict) -> dict:
-    paths, edges, external, dynamic, failures, digests, _ = graph_from(root)
-    nodes = [p.relative_to(root).as_posix() for p in paths]
+    paths, edges, external, dynamic, failures, digests, modules = graph_from(root)
+    source_nodes = [p.relative_to(root).as_posix() for p in paths]
+    namespace_nodes = sorted({value for value in modules.values()
+                              if value.startswith("@namespace/")})
+    nodes = sorted(set(source_nodes) | set(namespace_nodes))
     adjacency = {node: set() for node in nodes}
     for edge in edges:
         adjacency[edge["source"]].add(edge["target"])
@@ -279,12 +299,19 @@ def run(root: Path, policy: dict) -> dict:
     scc = components(nodes, adjacency)
     inventory, discrepancies = manifest_sources(root)
     violations, legacy_blocks = [], []
+    violation_keys = set()
     for edge in edges:
         source, target = edge["source"], edge["target"]
         a, b = layer(source), layer(target)
         if a and b and b not in ALLOWED[a]:
-            violations.append({**edge, "reason": "forbidden_new_layer_direction",
-                               "source_layer": a, "target_layer": b})
+            # from pmrh.adapters import codex records both the package and
+            # member. One source-line/target-layer violation is sufficient;
+            # the complete direct graph still retains both edges.
+            key = (source, edge["line"], a, b, "forbidden_new_layer_direction")
+            if key not in violation_keys:
+                violation_keys.add(key)
+                violations.append({**edge, "reason": "forbidden_new_layer_direction",
+                                   "source_layer": a, "target_layer": b})
         if source.startswith("pmrh/") and target.startswith("research_studio/"):
             violations.append({**edge, "reason": "new_package_may_not_depend_on_legacy"})
         if source.startswith("research_studio/") and target.startswith("pmrh/"):
@@ -317,7 +344,8 @@ def run(root: Path, policy: dict) -> dict:
         "source_root": ".",
         "source_manifest_sha256": hashlib.sha256(json.dumps(digests, sort_keys=True).encode()).hexdigest(),
         "source_sha256": digests,
-        "counts": {"python_files": len(nodes), "local_import_occurrences": len(edges),
+        "counts": {"python_files": len(paths), "namespace_package_nodes": len(namespace_nodes),
+                   "local_import_occurrences": len(edges),
                    "direct_unique_edges": sum(map(len, adjacency.values())),
                    "transitive_unique_edges": sum(map(len, transitive.values())),
                    "cyclic_components": sum(len(c) > 1 for c in scc),
@@ -326,6 +354,8 @@ def run(root: Path, policy: dict) -> dict:
                    "parse_failures": len(failures),
                    "nonliteral_imports": len(dynamic)},
         "direct_imports": edges,
+        "namespace_packages": {name: target for name, target in sorted(modules.items())
+                               if target.startswith("@namespace/")},
         "direct_graph": {k: sorted(v) for k, v in adjacency.items()},
         "transitive_graph": transitive,
         "strongly_connected_components": scc,
