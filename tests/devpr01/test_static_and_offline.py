@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from scripts import architecture_deps as deps
 from scripts import offline_test
@@ -117,6 +118,114 @@ class PythonOfflineBoundaryTests(unittest.TestCase):
                 os.open(str(Path(os.environ["PMRH_ORIGINAL_HOME"]) / "other"),
                         os.O_RDONLY, dir_fd=os.open(directory, os.O_RDONLY))
 
+
+
+    def artifact_fixture(self):
+        root = tempfile.TemporaryDirectory(prefix="pmrh-devpr01-artifacts-")
+        self.addCleanup(root.cleanup)
+        output = Path(root.name) / "offline"
+        output.mkdir()
+        return Path(root.name), output
+
+    def test_19_reject_out_without_provisioned_root_before_any_execution(self):
+        _, valid = self.artifact_fixture()
+        with mock.patch.dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": ""}), \
+             mock.patch.object(offline_test.tempfile, "TemporaryDirectory") as scratch, \
+             mock.patch.object(offline_test.subprocess, "run") as spawn:
+            with self.assertRaisesRegex(ValueError, "explicitly provisioned"):
+                offline_test.execute("devpr01", out=valid)
+            scratch.assert_not_called()
+            spawn.assert_not_called()
+        self.assertEqual(list(valid.iterdir()), [])
+
+    def test_20_reject_home_subpath_other_project_and_traversal_before_writes(self):
+        root, valid = self.artifact_fixture()
+        invalid = (
+            Path(os.environ["PMRH_ORIGINAL_HOME"]) / "project" / "evidence",
+            Path("/PMRH-SYNTHETIC-PROJECT-OUTPUT-DO-NOT-CREATE") / "artifacts",
+            root.parent / "unrelated-project" / "out",
+            root / ".." / root.name / "offline",
+            root,  # Only a proper descendant may be an output directory.
+        )
+        with mock.patch.dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(root)}), \
+             mock.patch.object(offline_test.tempfile, "TemporaryDirectory") as scratch, \
+             mock.patch.object(offline_test.subprocess, "run") as spawn:
+            for path in invalid:
+                with self.subTest(path=str(path)):
+                    with self.assertRaises(ValueError):
+                        offline_test.execute("devpr01", out=path)
+            scratch.assert_not_called()
+            spawn.assert_not_called()
+        self.assertEqual(list(valid.iterdir()), [])
+
+    def test_21_refuse_fake_artifact_root_inside_home_or_project(self):
+        _, destination = self.artifact_fixture()
+        for bad_root in (Path(os.environ["PMRH_ORIGINAL_HOME"]) / "pmrh-devpr01-artifacts-ABCDEF",
+                         Path("/PMRH-REAL-PROJECT-DO-NOT-ACCESS") / "pmrh-devpr01-artifacts-ABCDEF"):
+            with self.subTest(root=str(bad_root)), \
+                 mock.patch.dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(bad_root)}), \
+                 mock.patch.object(offline_test.tempfile, "TemporaryDirectory") as scratch:
+                with self.assertRaises(ValueError):
+                    offline_test.execute("devpr01", out=bad_root / "offline")
+                scratch.assert_not_called()
+        self.assertFalse((destination / "receipt.json").exists())
+
+    def test_22_reject_symlink_in_output_ancestor_or_artifact_root(self):
+        root, valid = self.artifact_fixture()
+        with tempfile.TemporaryDirectory(prefix="pmrh-synthetic-unrelated-") as elsewhere:
+            outside = Path(elsewhere) / "nested"
+            outside.mkdir()
+            (root / "redirect").symlink_to(elsewhere, target_is_directory=True)
+            alias = root.parent / ("pmrh-devpr01-artifacts-symlink-" + root.name[-8:])
+            alias.symlink_to(root, target_is_directory=True)
+            self.addCleanup(alias.unlink)
+            with mock.patch.object(offline_test.tempfile, "TemporaryDirectory") as scratch, \
+                 mock.patch.object(offline_test.subprocess, "run") as spawn:
+                with mock.patch.dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(root)}):
+                    with self.assertRaises(ValueError):
+                        offline_test.execute("devpr01", out=root / "redirect" / "nested")
+                with mock.patch.dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(alias)}):
+                    with self.assertRaises(ValueError):
+                        offline_test.execute("devpr01", out=alias / "offline")
+                scratch.assert_not_called()
+                spawn.assert_not_called()
+        self.assertEqual(list(valid.iterdir()), [])
+
+    def test_23_refuse_preexisting_receipt_symlink_without_writing_target(self):
+        root, output = self.artifact_fixture()
+        target = root.parent / ("pmrh-unwritten-" + root.name[-8:])
+        (output / "receipt.json").symlink_to(target)
+        with mock.patch.dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(root)}), \
+             mock.patch.object(offline_test.tempfile, "TemporaryDirectory") as scratch, \
+             mock.patch.object(offline_test.subprocess, "run") as spawn:
+            with self.assertRaisesRegex(ValueError, "existing test artifact"):
+                offline_test.execute("devpr01", out=output)
+            scratch.assert_not_called()
+            spawn.assert_not_called()
+        self.assertFalse(target.exists())
+
+    def test_24_explicit_isolated_output_fd_accepts_only_new_receipt(self):
+        root, output = self.artifact_fixture()
+        with mock.patch.dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(root)}):
+            fd = offline_test._isolated_artifact_directory(output)
+            try:
+                offline_test._write_artifact_fd(fd, "synthetic.txt", b"fixture")
+                with self.assertRaises(FileExistsError):
+                    offline_test._write_artifact_fd(fd, "synthetic.txt", b"overwrite")
+            finally:
+                os.close(fd)
+            self.assertEqual((output / "synthetic.txt").read_bytes(), b"fixture")
+
+    def test_25_model_usage_is_unmeasured_even_if_suite_passes(self):
+        measurement = offline_test.model_measurement()
+        self.assertIsNone(measurement["count"])
+        self.assertEqual(measurement["measurement"], "NOT_INSTRUMENTED")
+        self.assertEqual(measurement["observed_provider_events"], "NOT_MEASURED")
+        self.assertFalse(measurement["zero_calls_verified"])
+        self.assertIn("SYNTHETIC", measurement["static_scope"])
+        source = (REPO / "scripts/offline_test.py").read_text()
+        self.assertIn('"research_model_calls": model_measurement()', source)
+        self.assertNotIn('"research_model_calls": 0 if successful', source)
 
 
 class SyntheticASTTests(unittest.TestCase):
@@ -231,6 +340,62 @@ class SyntheticASTTests(unittest.TestCase):
         self.assertEqual(blockers[0]["owner"], "DEV-PR-18")
         self.assertEqual(blockers[0]["target"], "research_studio/store.py")
         self.assertEqual(blockers[0]["exception_id"], "LEGACY-SYNTHETIC-FROZEN")
+
+
+    def test_26_namespace_package_import_blocked_without_init(self):
+        self.put("pmrh/__init__.py", "")
+        self.put("pmrh/domain/reader.py", "import pmrh.adapters\n")
+        self.put("pmrh/adapters/backend.py", "VALUE = 1\n")
+        self.inventory({})
+        paths, edges, _, _, _, _, modules = deps.graph_from(self.root)
+        self.assertNotIn("pmrh/adapters/__init__.py",
+                         [p.relative_to(self.root).as_posix() for p in paths])
+        self.assertEqual(modules["pmrh.adapters"], "@namespace/pmrh/adapters")
+        self.assertIn(("pmrh/domain/reader.py", "@namespace/pmrh/adapters"),
+                      {(e["source"], e["target"]) for e in edges})
+        report = deps.run(self.root, self.policy)
+        self.assertTrue(any(v["source_layer"] == "domain" and
+                            v["target_layer"] == "adapters" and
+                            v["import"] == "pmrh.adapters"
+                            for v in report["architecture_violations"]))
+        self.assertIn("pmrh.adapters", report["namespace_packages"])
+
+    def test_27_namespace_from_pmrh_import_adapters_fails(self):
+        self.put("pmrh/__init__.py", "")
+        self.put("pmrh/domain/reader.py", "from pmrh import adapters\n")
+        self.put("pmrh/adapters/backend.py", "VALUE = 1\n")
+        self.inventory({})
+        report = deps.run(self.root, self.policy)
+        invalid = [v for v in report["architecture_violations"]
+                   if v["reason"] == "forbidden_new_layer_direction"]
+        self.assertEqual(len(invalid), 1)
+        self.assertEqual(invalid[0]["target"], "@namespace/pmrh/adapters")
+        self.assertEqual(invalid[0]["kind"], "from_member")
+
+    def test_28_legitimate_namespace_port_import_and_transitive_graph(self):
+        self.put("pmrh/__init__.py", "")
+        self.put("pmrh/application/service.py", "from pmrh import ports\n")
+        self.put("pmrh/ports/contracts.py", "from pmrh.domain import types\n")
+        self.put("pmrh/domain/types.py", "VALUE = 1\n")
+        self.inventory({})
+        report = deps.run(self.root, self.policy)
+        self.assertEqual(report["architecture_violations"], [])
+        self.assertIn("@namespace/pmrh/ports",
+                      report["direct_graph"]["pmrh/application/service.py"])
+        self.assertIn("@namespace/pmrh/domain",
+                      report["direct_graph"]["pmrh/ports/contracts.py"])
+        self.assertIn("@namespace/pmrh/ports",
+                      report["transitive_graph"]["pmrh/application/service.py"])
+
+    def test_29_dynamic_literal_namespace_import_is_checked(self):
+        self.put("pmrh/domain/reader.py",
+                 "import importlib\nx = importlib.import_module('pmrh.adapters')\n")
+        self.put("pmrh/adapters/backend.py", "VALUE = 1\n")
+        self.inventory({})
+        report = deps.run(self.root, self.policy)
+        self.assertTrue(any(v["kind"] == "dynamic_literal" and
+                            v["reason"] == "forbidden_new_layer_direction"
+                            for v in report["architecture_violations"]))
 
 
 if __name__ == "__main__":
