@@ -29,7 +29,17 @@ ALLOWED = {
     "observability": {"observability", "ports", "domain"},
     "interfaces": {"interfaces", "application", "ports", "domain"},
     "legacy": {"legacy", "ports", "domain"},
-    "bootstrap": set(LAYERS),
+    "bootstrap": set(LAYERS) | {"root_initializer"},
+    "root_initializer": {"root_initializer"},
+}
+# The root initializer contains only inert identity metadata. Real CLI roots
+# are explicitly mapped; no unapproved root module acts as a layer bridge.
+for _allow in ALLOWED.values():
+    _allow.add("root_initializer")
+ROOT_MODULE_LAYERS = {
+    "__init__.py": "root_initializer",
+    "__main__.py": "interfaces",
+    "cli.py": "interfaces",
 }
 FORBIDDEN_IMPORTS = {
     "domain": {"subprocess", "socket", "sqlite3", "http", "urllib", "requests",
@@ -105,6 +115,42 @@ def relative_base(source_name: str | None, is_package: bool,
     return ".".join(base)
 
 
+
+def dynamic_import_bindings(parsed: ast.AST):
+    """Conservatively detect importlib imports, including aliases.
+
+    Any alias rebound in the same file is classified unresolved rather than
+    being trusted as a definite importlib call. This does not execute Python.
+    """
+    modules, functions, builtins_modules, foreign, writes = set(), set(), set(), set(), set()
+    for node in ast.walk(parsed):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                bound = alias.asname or alias.name.split(".", 1)[0]
+                if alias.name == "importlib" or (alias.name.startswith("importlib.") and not alias.asname):
+                    modules.add(bound)
+                elif alias.name == "builtins" or (alias.name.startswith("builtins.") and not alias.asname):
+                    builtins_modules.add(bound)
+                else:
+                    foreign.add(bound)
+        elif isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                bound = alias.asname or alias.name
+                if node.level == 0 and node.module == "importlib" and alias.name == "import_module":
+                    functions.add(bound)
+                elif node.level == 0 and node.module == "builtins" and alias.name == "__import__":
+                    functions.add(bound)
+                else:
+                    foreign.add(bound)
+        elif isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            writes.add(node.id)
+        elif isinstance(node, ast.arg):
+            writes.add(node.arg)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            writes.add(node.name)
+    return modules, functions, builtins_modules, ((modules | functions | builtins_modules) & (writes | foreign))
+
+
 def graph_from(root: Path):
     paths = source_files(root)
     modules = catalog(root, paths)
@@ -121,6 +167,7 @@ def graph_from(root: Path):
             continue
         mod = name_of(path.relative_to(root))
         is_package = path.name == "__init__.py"
+        module_aliases, function_aliases, builtins_aliases, shadowed = dynamic_import_bindings(parsed)
         for node in ast.walk(parsed):
             requests = []
             if isinstance(node, ast.Import):
@@ -142,26 +189,38 @@ def graph_from(root: Path):
                                          "from_member", node.lineno))
             elif isinstance(node, ast.Call):
                 f = node.func
-                dynamic = ((isinstance(f, ast.Name) and f.id == "__import__")
-                           or (isinstance(f, ast.Attribute) and f.attr == "import_module"
-                               and isinstance(f.value, ast.Name)
-                               and f.value.id == "importlib"))
-                if dynamic:
+                binding = None
+                if isinstance(f, ast.Name) and (f.id == "__import__" or f.id in function_aliases):
+                    binding = f.id
+                elif isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name):
+                    if f.attr == "import_module" and f.value.id in module_aliases:
+                        binding = f.value.id
+                    elif f.attr == "__import__" and f.value.id in builtins_aliases:
+                        binding = f.value.id
+                if binding is not None:
+                    if binding in shadowed:
+                        nonliteral.append({"source": rel, "line": node.lineno,
+                                           "kind": "dynamic_binding_shadowed",
+                                           "binding": binding})
+                        continue
                     if node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
                         name = node.args[0].value
                         if name.startswith("."):
-                            # A relative dynamic import needs a known package argument.
-                            if len(node.args) > 1 and isinstance(node.args[1], ast.Constant) and isinstance(node.args[1].value, str):
-                                package = node.args[1].value
+                            args = node.args
+                            pkgarg = args[1] if len(args) > 1 else next(
+                                (kw.value for kw in node.keywords if kw.arg == "package"), None)
+                            if isinstance(pkgarg, ast.Constant) and isinstance(pkgarg.value, str):
                                 depth = len(name) - len(name.lstrip("."))
-                                name = relative_base(package, True, name.lstrip("."),
-                                                     depth)
+                                name = relative_base(pkgarg.value, True, name.lstrip("."), depth)
                             else:
                                 nonliteral.append({"source": rel, "line": node.lineno,
                                                    "kind": "dynamic_relative_package"})
                                 continue
                         if name:
                             requests.append((name, "dynamic_literal", node.lineno))
+                        else:
+                            nonliteral.append({"source": rel, "line": node.lineno,
+                                               "kind": "dynamic_empty_name"})
                     else:
                         nonliteral.append({"source": rel, "line": node.lineno,
                                            "kind": "dynamic_nonliteral"})
@@ -233,8 +292,11 @@ def layer(path: str) -> str | None:
     if path.startswith("@namespace/"):
         path = path[len("@namespace/"):] + "/__namespace__.py"
     parts = Path(path).parts
-    if len(parts) >= 3 and parts[0] == "pmrh" and parts[1] in LAYERS:
-        return parts[1]
+    if parts and parts[0] == "pmrh":
+        if len(parts) == 2:
+            return ROOT_MODULE_LAYERS.get(parts[1], "unclassified")
+        if len(parts) >= 3:
+            return parts[1] if parts[1] in LAYERS else "unclassified"
     return None
 
 
