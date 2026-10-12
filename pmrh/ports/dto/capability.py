@@ -31,6 +31,10 @@ class CapabilityManifest(DTO):
     def _validate(self) -> None:
         for value in (self.adapter_version, self.backend_build_or_hash, self.platform):
             identifier(value)
+        if self.tool_isolation is E.ToolIsolation.TESTED_ON_PLATFORM:
+            require(self.evidence_origin is not E.EvidenceOrigin.STATIC_DECLARATION
+                    and bool(self.test_receipt_refs),
+                    "Platform-tested isolation needs observation receipts, not a static declaration.")
         if self.evidence_origin is not E.EvidenceOrigin.STATIC_DECLARATION:
             require(bool(self.test_receipt_refs), "Observed capability manifests need evidence receipts.")
         require(len(set(self.hard_budget_units)) == len(self.hard_budget_units),

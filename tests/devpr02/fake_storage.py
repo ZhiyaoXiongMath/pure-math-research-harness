@@ -125,7 +125,8 @@ class FakeUnitOfWork:
         batch = self._batch(tx)
         if batch is None:
             raise ValueError("synthetic transaction has no staged batch")
-        return self.policy.intent(batch, E.Operation.COMMIT, batch.operation_id,
+        staged = T.StagingReceipt(transaction=tx, batch_digest=batch.wire_digest(), state=E.TransactionState.OPEN)
+        return self.policy.intent(staged, E.Operation.COMMIT, batch.operation_id,
                                   epoch=tx.expected.owner_epoch, version=tx.expected.expected_control_version,
                                   scope=tx.expected.boundary.scope)
 

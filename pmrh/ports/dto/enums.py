@@ -302,6 +302,7 @@ class RunnerEventKind(StrEnum):
 
 class ProviderEventKind(StrEnum):
     REQUEST_OBSERVED = "REQUEST_OBSERVED"
+    REFUSAL = "REFUSAL"
     OUTPUT_AVAILABLE = "OUTPUT_AVAILABLE"
     TERMINATED = "TERMINATED"
     USAGE = "USAGE"

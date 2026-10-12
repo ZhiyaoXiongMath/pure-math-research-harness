@@ -5,7 +5,7 @@ from dataclasses import replace
 from typing import Iterator
 
 from pmrh.ports.capabilities import check_capabilities
-from pmrh.ports.dto import control as P, core as C, enums as E, events as V, execution as X, specs as S
+from pmrh.ports.dto import capability as K, control as P, core as C, enums as E, events as V, execution as X, specs as S
 from . import fixtures as F
 from .fake_policy import FakePolicyGateway
 
@@ -26,7 +26,7 @@ class FakeAgentRunner:
         self.first_available = 1
         self.prepare_effects = self.send_effects = self.steer_effects = self.cancel_effects = 0
 
-    def describe_capabilities(self) -> object:
+    def describe_capabilities(self) -> K.CapabilityManifest:
         return self.manifest
 
     def prepare(self, spec: S.AgentInvocationSpec) -> X.PreparedInvocation | C.ErrorEnvelope:
@@ -68,7 +68,7 @@ class FakeAgentRunner:
             return C.port_error(E.ErrorCode.IDEMPOTENCY_CONFLICT, E.Operation.START, identity=identity)
         sent = self.dispatch_outcome is E.DispatchState.SENT
         handle = X.InvocationHandle(identity=identity, backend_binding_ref=spec.runner_binding_ref,
-                                    backend_invocation_id=F.observed("synthetic:backend-invocation-1") if sent else F.unknown())
+                                    backend_invocation_id=F.observed("synthetic:backend-invocation-" + str(self.send_effects + 1)) if sent else F.unknown())
         raw = (F.ref("send-observation-" + self.dispatch_outcome.value),)
         error = None
         if not sent:
@@ -83,7 +83,8 @@ class FakeAgentRunner:
         self.observations[identity.invocation_id] = X.ExecutionObservation(
             identity=identity, state=state, observed_at=self.policy.clock.now(), raw_evidence_refs=raw,
             actual_model_id=F.unknown(), provider_request_id=F.unknown())
-        env = F.envelope(identity=identity)
+        env = replace(F.envelope(identity=identity),
+                      event_id="synthetic:runner-event-" + identity.wire_digest()[:32])
         self.event_records[identity.invocation_id] = ((V.RunnerEvent(sequence=1, kind=E.RunnerEventKind.STARTED,
                                                                      envelope=env, raw_event_ref=env.raw_evidence_ref),)
                                                      if sent else ())
@@ -204,6 +205,9 @@ class FakeModelProvider:
         self.manifest = policy.manifest
         self.supported_selection = F.model()
         self.scripted_actual_model = "synthetic:model-1"
+        self.scripted_event_kind = E.ProviderEventKind.REQUEST_OBSERVED
+        # Register an attempted inference even when no provider ID is observed.
+        self.inference_keys: dict[str, str] = {}
         self.dispatch_outcome = E.DispatchState.SENT
         self.requests: dict[str, tuple[S.InferenceSpec, X.ExecutionObservation]] = {}
         self.operations: dict[str, tuple[str, tuple[V.ProviderEvent | C.ErrorEnvelope, ...]]] = {}
@@ -243,7 +247,7 @@ class FakeModelProvider:
         if old is not None:
             return iter(old[1] if old[0] == spec.wire_digest() else
                         (C.port_error(E.ErrorCode.IDEMPOTENCY_CONFLICT, E.Operation.STREAM, identity=spec.identity),))
-        if any(existing.inference_id == spec.inference_id for existing, _ in self.requests.values()):
+        if spec.inference_id in self.inference_keys:
             return iter((C.port_error(E.ErrorCode.IDEMPOTENCY_CONFLICT, E.Operation.STREAM, identity=spec.identity),))
         if self.dispatch_outcome is not E.DispatchState.NOT_SENT:
             self.send_effects += 1
@@ -253,16 +257,19 @@ class FakeModelProvider:
                                    evidence=(F.ref("provider-send-observation"),)),)
         else:
             provider_id = "synthetic:provider-request-" + str(self.send_effects)
-            env = replace(F.envelope(identity=spec.identity), provider_id=F.observed("synthetic:provider"),
+            env = replace(F.envelope(identity=spec.identity),
+                          event_id="synthetic:provider-event-" + spec.wire_digest()[:32],
+                          provider_id=F.observed("synthetic:provider"),
                           provider_request_id=F.observed(provider_id))
             events = (V.ProviderEvent(sequence=1, inference_id=spec.inference_id,
-                                       kind=E.ProviderEventKind.REQUEST_OBSERVED, envelope=env,
+                                       kind=self.scripted_event_kind, envelope=env,
                                        raw_event_ref=env.raw_evidence_ref, actual_model_id=F.observed(self.scripted_actual_model)),)
             observation = X.ExecutionObservation(identity=spec.identity, state=E.ExecutionState.RUNNING,
                                                    observed_at=self.policy.clock.now(), raw_evidence_refs=(env.raw_evidence_ref,),
                                                    actual_model_id=F.observed(self.scripted_actual_model),
                                                    provider_request_id=F.observed(provider_id))
             self.requests[provider_id] = (spec, observation)
+        self.inference_keys[spec.inference_id] = spec.idempotency_key
         self.operations[spec.idempotency_key] = (spec.wire_digest(), events)
         return iter(events)
 

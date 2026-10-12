@@ -62,6 +62,18 @@ def _hints(cls: type) -> dict:
 def _typed(expected, value, *, wire: bool):
     origin, args = get_origin(expected), get_args(expected)
     if origin in (Union, types.UnionType):
+        # A tagged object selects its DTO branch before validation. A failed
+        # nested version/member/integrity check must not turn into a generic
+        # TYPE_MISMATCH merely because the field also permits null.
+        if wire and type(value) is dict:
+            candidates = [t for t in args if isinstance(t, type) and issubclass(t, DTO)]
+            if len(candidates) == 1:
+                return _typed(candidates[0], value, wire=True)
+            for candidate in candidates:
+                if value.get("dto_type") == candidate.__name__:
+                    return _typed(candidate, value, wire=True)
+            if candidates:
+                raise ContractViolation(ErrorCode.INVALID_WIRE, "Unknown union DTO type identity.")
         for option in args:
             try:
                 return _typed(option, value, wire=wire)
@@ -101,6 +113,9 @@ def _typed(expected, value, *, wire: bool):
     if expected in (str, int, bool, type(None)):
         require(type(value) is expected, "Scalar type differs from the contract.",
                 ErrorCode.TYPE_MISMATCH)
+        if expected is int:
+            require(-(2 ** 63) <= value < 2 ** 63,
+                    "Integer is outside the signed 64-bit wire contract.")
         if expected is str:
             try:
                 value.encode("utf-8")
@@ -187,7 +202,9 @@ class DTO:
         try:
             require(len(text.encode("utf-8")) <= MAX_JSON_BYTES, "Wire document is too large.")
             value = json.loads(text, object_pairs_hook=_pairs, parse_constant=_constant)
-        except (json.JSONDecodeError, UnicodeError, RecursionError):
+        except ContractViolation:
+            raise
+        except (ValueError, UnicodeError, RecursionError):
             raise ContractViolation(ErrorCode.INVALID_WIRE, "Malformed JSON document.") from None
         return cls.from_wire(value)
 

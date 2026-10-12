@@ -1,13 +1,11 @@
-"""Public DTO modules, closed schema v1.0; importing never contacts a backend.
+"""Public DTO namespaces and strict wire helpers, schema v1.0.
 
-Use exact module paths, e.g. pmrh.ports.dto.specs.AgentInvocationSpec. Import all
-source-defined DTO modules here so decode_wire has a closed, complete registry.
-No caller-supplied module or SDK type is dynamically loaded.
+The parent pmrh.ports.interfaces statically imports the typed Port contracts,
+which loads every DTO module. Keep this initializer lightweight to avoid
+DTO-module -> package-export -> DTO-module dependency cycles. No module is
+chosen or dynamically imported by a wire value.
 """
-from . import capability, control, core, enums, events, execution, orchestration, specs, storage
+from . import enums
 from .wire import SCHEMA_VERSION, ContractViolation, DTO, decode_wire
 
-__all__ = [
-    "capability", "control", "core", "enums", "events", "execution", "orchestration", "specs", "storage",
-    "SCHEMA_VERSION", "ContractViolation", "DTO", "decode_wire",
-]
+__all__ = ["enums", "SCHEMA_VERSION", "ContractViolation", "DTO", "decode_wire"]
