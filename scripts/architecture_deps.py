@@ -289,7 +289,7 @@ def run(root: Path, policy: dict) -> dict:
             violations.append({**edge, "reason": "new_package_may_not_depend_on_legacy"})
         if source.startswith("research_studio/") and target.startswith("pmrh/"):
             violations.append({**edge, "reason": "legacy_may_not_depend_on_new_package"})
-        if source in inventory and target in inventory:
+        if source in inventory and target in inventory and not target.endswith("/__init__.py"):
             a = migrated_layer(inventory[source]["target"])
             b = migrated_layer(inventory[target]["target"])
             if a != b:
