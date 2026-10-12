@@ -68,7 +68,7 @@ class PythonOfflineBoundaryTests(unittest.TestCase):
             (REPO / "DO_NOT_CREATE_DEVPR01").write_text("forbidden")
         # A hypothetical project outside source, HOME and fixture is denied
         # without examining its existence.
-        project = Path(tempfile.gettempdir()).parent / "synthetic-formal-project"
+        project = Path("/PMRH-SYNTHETIC-PROJECT-DO-NOT-CREATE")
         with self.assertRaises(PermissionError):
             (project / "proof.json").write_text("forbidden")
         self.assertEqual((REPO / "pmrh/__init__.py").read_text().count("__version__"), 1)
