@@ -1,0 +1,29 @@
+# DEV-PR-01 — Independent review findings and remediation ledger
+
+**Source authority:** attached `PMRH_DEV-PR-01_Independent_Review_2026-10-12.md`, 2026-10-12, verdict **REQUEST_CHANGES**, source HEAD `419a180fdf4b114691e8e44c8bf955e10a410970`. This document is the development team's trace, NOT independent re-review or MAIN acceptance.
+
+| ID | Severity | Affected code / reviewer location | Exact pre-fix synthetic counterexample | Root cause | Remediation / negative + positive evidence target | Initial outcome |
+|---|---|---|---|---|---|---|
+| SEC-01 | **MAJOR** | `scripts/offline_guard/sitecustomize.py`, `guarded_link`, lines 34–52, 168–176 | `os.link(source_file, scratch/file)` followed by `Path(scratch/file).write_text(...)` changes source inode despite direct source writes being denied | Source path is checked as **read**, and hardlinks preserve the same inode | Deny `os.link` entirely for guarded tests; prove source SHA and inode content remain unchanged following both direct and hardlink write attempts; ordinary synthetic scratch writing still works | PENDING_RETEST |
+| AST-01 | **MAJOR** | `scripts/architecture_deps.py`, `graph_from` Call handling, lines 143–167 | `from importlib import import_module; import_module("pmrh.adapters")`, or `as load; load("pmrh.adapters")`, without `adapters/__init__.py` | Recognized only literal `importlib.import_module` and `__import__` spellings, omitted alias bindings | Track imported importlib aliases conservatively, report unknown/shadowed calls separately and fail the new-layer gate on unresolved dynamic imports; test direct/module alias/function alias, legal intra-layer alias and unknown expression | PENDING_RETEST |
+| AST-02 | **MAJOR** | `scripts/architecture_deps.py`, `layer` / `run`, lines 232–238, 303–318 | `pmrh/domain/reader.py` imports `pmrh.bridge`, whose `pmrh/bridge.py` imports namespace `pmrh.adapters` | `layer("pmrh/bridge.py")` returns None and old gate ignores unclassified endpoints | Explicit allowlisted root metadata/entrypoints and rejection of all other root modules; enforce edge + transitive boundary; test bridge counterexample, allowed root initializer, CLI entrypoints, and legal layered imports | PENDING_RETEST |
+| CI-01 | **MAJOR** | `.github/workflows/devpr01-offline.yml`, EXIT trap / upload, lines 56–72 | `cp -a ... || true` fails to copy offline receipt, while AST files exist; upload with `if-no-files-found: warn` still yields green job | No verified completeness contract for required four files and no failure propagated from staging copy | Fail on copy failures; verify required JSON/MD/log/receipt, content, source SHA, test count/log digest and statuses before SUCCESS; upload diagnostics with `if: always` but never accept partial outputs; positive + missing/corrupt evidence negatives | PENDING_RETEST |
+| TEST-01 | MINOR | `scripts/offline_test.py`, `execute/_execute_guarded`, lines 153–186 | Synthetic `subprocess.TimeoutExpired` propagates; no `unittest.log` or `receipt.json` | Exception not converted to auditable failure receipt | Capture timeout and local spawn error as structured ERROR, preserve partial stdout/stderr status and unknown counts; test timeout/OS error and ordinary pass | PENDING_RETEST |
+| AST-03 | MINOR | `config/architecture-exceptions.json` + `scripts/architecture_deps.py`, legacy edge reporting, lines 319–328 | `store.py→native_main.py`, `codex_client.py→runner.py` appear as real direct edges but not in the 442 cross-layer records | A *named same-layer coupling* differs from *inferred provisional cross-layer* | Emit a separate named-coupling table with matched/absent exact direct edges, owner, and membership in cross-layer set; test two same-layer named cases and keep 442 as non-exhaustive | PENDING_RETEST |
+
+## Frozen pre-fix review evidence
+
+The independent reviewer verified the guard's original Git blob `a09abbe0b831d7c7bcccf51bad0bd03d708f9c27`, and in isolated fake directories recorded `DIRECT_WRITE=DENIED`, `SAME_INODE=True`, `SOURCE_CONTENT_AFTER=HARDLINK-WRITE-ALLOWED`. For AST-01 the reviewer observed **0 violations / 0 unresolved** on a known illegal import-module function alias. For AST-02, the `domain → bridge → adapters` graph had **0 violations / 0 unresolved**. For CI-01 the actual previously downloaded zip was complete, but the workflow code admitted a future missing offline receipt without necessarily failing. TEST-01 used a mocked timeout against exact prior launcher blob and got no receipt. AST-03 concerned distinct record populations, not missing edges from the direct graph.
+
+Those are **pre-fix** receipts quoted by the reviewer. The developer must not claim to have independently rerun them until an independent reproduction is executed. All test cases use synthetic paths and never operate on research projects.
+
+## Retest ledger
+
+| Stage | HEAD SHA | Test/CI receipts | Outcome |
+|---|---|---|---|
+| Reviewer baseline | `419a180fdf4b114691e8e44c8bf955e10a410970` | [DEV-PR-01 #38228521189](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38228521189) (26 passing), [Phase0 #38228521221](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38228521221) (6 passing) | **REQUEST_CHANGES** despite green CI |
+| Third remediation final | TO_BE_FILLED | Pending final-HEAD Actions, raw artifacts, and checksums | **NOT_EXECUTED**, not ACCEPTED |
+
+## Constraints / residual risks to be retested
+
+No OS-level sandbox or provider billing/request instrumentation is implemented. Python path and import controls cannot prevent native code, pre-opened file descriptors, runtime `exec` or unconstrained external processes from escaping. Unresolved static imports must remain visible and prevent declaring the new package compliant without review. The original journal, `research_studio/`, real scientific projects, MAIN/Goal and paid models are entirely outside this PR.
