@@ -22,6 +22,14 @@ Use the pull-request template. Distinguish `PLANNED` (design only), `IMPLEMENTED
 
 Source hierarchy and boundary conflicts are specified in [AGENTS.md](AGENTS.md). A new implementation proposal cannot bypass original target/D0, scoped evidence, human authorization, PAUSED, UNKNOWN, or independence. Follow the 18-package dependency map in [ROADMAP](docs/development/ROADMAP.md) and retain the 58 + 46 acceptance baseline unchanged.
 
+## Management cycles, independent review and post-merge handoff
+
+The frozen [ROADMAP](docs/development/ROADMAP.md) tracks 18 planning packages and dependencies, **not live status or permission**. [PROJECT-STATE](docs/development/PROJECT-STATE.md) is the versioned management evidence index; [MAIN-OPERATING-PROTOCOL](docs/development/MAIN-OPERATING-PROTOCOL.md) governs roles, explicit user authorization, remediation, formal acceptance and post-merge transfer. Before starting, each new Development MAIN reads current rules, all active ADRs and the [prior handoff](docs/development/handoffs/DEV-PR-01.md), then fetches **real** GitHub `main`/PR/review/CI and reports state conflicts. Original GitHub records control actual SHA/PR/CI facts; they cannot substitute for human consent.
+
+Default one separately staffed Development MAIN for each planned DEV-PR cycle. Development Chat makes only the scoped branch, commits, tests and Open PR; Independent Review Chat audits exact source/evidence and records findings and a recommendation; Development MAIN separately decides `MAIN ACCEPTED`. `REVIEWED`, `MAIN ACCEPTED` and `GITHUB MERGED` are **not synonyms**. A developer must not self-approve, enlarge work or merge. After an authorized merge, verify `main`, merge parents and CI provenance before Handoff; the outgoing MAIN does not start the successor PR.
+
+A next work package always requires **new explicit user authorization**, not PROJECT-STATE inheritance. Concurrent packages require prior agreement on file/contract ownership, frozen base SHA, dependency order and named architectural conflict coordinator. Scientific Research MAINs are separate from software governance MAINs.
+
 ## Rollback and data integrity
 
 Before merging, the default rollback is closing the unmerged PR and deleting its development branch **only after authorization and preservation of receipts**. After merge, revert the software commit on a new PR. Do not reset, rewrite, delete scientific journal/blobs, purge UNKNOWN reservations or alter research projects as a form of rollback. No live project migration without separate explicit authorization.
