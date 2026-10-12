@@ -1,0 +1,62 @@
+{
+  "schema": "pmrh.legacy-architecture-exceptions/1",
+  "legacy_exception_id": "LEGACY-4.2.2-FROZEN-IMPORTS",
+  "legacy_baseline_commit": "e4de0210f9985224e030ac4cfd2f7e2904005b37",
+  "legacy_baseline_tree": "c17a592ff0a4906afa7a6423535f41c67c926128",
+  "scope": "Existing intra-research_studio Python-to-Python imports ONLY. No exemptions for pmrh -> research_studio or research_studio -> pmrh.",
+  "enforcement": "CI requires git diff --exit-code against immutable legacy commit for the entire research_studio/ directory. Every inferred cross-layer dependency is emitted as an exact source/target/line exception with an owner, not silently omitted. Changes require a separately reviewed policy revision. No legacy module may be changed under this DEV-PR-01.",
+  "reason": "Original 4.2.2 research runtime predates the ports/adapters split; moving it is outside DEV-PR-01. The destination mapping is provisional for mixed-responsibility files.",
+  "legacy_owners": {
+    "domain": "DEV-PR-04",
+    "ports": "DEV-PR-02",
+    "application": "DEV-PR-06",
+    "orchestration": "DEV-PR-08",
+    "adapters": "DEV-PR-07",
+    "observability": "DEV-PR-09",
+    "interfaces": "DEV-PR-09",
+    "legacy": "DEV-PR-10",
+    "retire": "DEV-PR-14",
+    "bootstrap": "DEV-PR-18",
+    "unassigned": "DEV-PR-18"
+  },
+  "legacy_owner_overrides": {
+    "research_studio/store.py": "DEV-PR-05",
+    "research_studio/changes.py": "DEV-PR-04",
+    "research_studio/host_pool.py": "DEV-PR-03",
+    "research_studio/knowledge_access.py": "DEV-PR-03",
+    "research_studio/runner.py": "DEV-PR-07",
+    "research_studio/native_main.py": "DEV-PR-07",
+    "research_studio/workspace.py": "DEV-PR-08",
+    "research_studio/model_policy.py": "DEV-PR-07",
+    "research_studio/assistant.py": "DEV-PR-10",
+    "research_studio/ui.py": "DEV-PR-14",
+    "research_studio/desktop.py": "DEV-PR-14"
+  },
+  "named_blockers": [
+    {
+      "source": "research_studio/store.py",
+      "target": "research_studio/native_main.py",
+      "owner": "DEV-PR-05",
+      "reason": "Authoritative store references concrete native Codex reducer"
+    },
+    {
+      "source": "research_studio/codex_client.py",
+      "target": "research_studio/runner.py",
+      "owner": "DEV-PR-07",
+      "reason": "Capability/transport and runner coupling"
+    },
+    {
+      "source": "research_studio/workspace.py",
+      "target": "research_studio/native_main.py",
+      "owner": "DEV-PR-08",
+      "reason": "UI workspace performs runtime coordination"
+    },
+    {
+      "source": "research_studio/scheduler.py",
+      "target": "research_studio/host_pool.py",
+      "owner": "DEV-PR-06",
+      "reason": "Resource admission and scheduler boundary"
+    }
+  ],
+  "review_required": "Every temporary allowance must retain an exact owner/removal PR; compare CI-produced edges against this frozen source. Do not auto-refresh the exception snapshot on CI."
+}
