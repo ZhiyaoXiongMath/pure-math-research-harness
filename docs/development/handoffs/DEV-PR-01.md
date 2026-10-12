@@ -2,7 +2,7 @@
 
 **Scope:** `DEV-PR-01`, static dependency graph and isolated synthetic offline test baseline.  
 **Handoff baseline:** `main@5d1b34d27bfbc171b2c5041973db8e8c1406a4b1` (verified 2026-10-12).  
-**Status distinction:** GitHub `MERGED` verified; original final reviewer report body and separate MAIN acceptance archival source not accessible to this GOV-01 author. This handoff does not grant DEV-PR-02/03 authority.
+**Status distinction:** GitHub `MERGED` verified; the complete original final independent Chat review is now [archived unchanged](../reviews/DEV-PR-01-INDEPENDENT-RE-REVIEW.md) (SHA-256 `8d40e731b3101c122b8e58e77da62a96b0089bfc2075885e6b509c688c74c6c9`); a separate archival source for the MAIN acceptance decision remains unavailable. This handoff does not grant DEV-PR-02/03 authority.
 
 ## 1. Real GitHub PR and acceptance history
 
@@ -10,7 +10,7 @@
 - Development base: `main@977e866d64bba5cf7b5549f17a3d4b5599a4c20a` (Phase 0 merge). Development branch: `chore/dev-pr-01-static-offline-baseline`. **Final development head: `f8f93e962100010489946f4d82e302ea187c9874`**.
 - Merge SHA: **`5d1b34d27bfbc171b2c5041973db8e8c1406a4b1`**; first parent Phase 0 merge, second parent final dev head. Final dev tree and merge tree both `5681becd4810657210643d99928f5f663c9f9760`.
 - The PR touched **12 files**: architecture scanner and exceptions inventory, Python-level synthetic offline guard/runner, mandatory CI artifact gate, workflow, tests and developer audit/closure documents. `research_studio/` was not changed. No product, mathematical protocol, real MAIN/Goal, budget or live project migration was implemented.
-- The initial independent review froze head `419a180fdf4b114691e8e44c8bf955e10a410970` with `REQUEST_CHANGES` (4 MAJOR, 2 MINOR). Following remediation, previously supplied final independent-review metadata reports `APPROVE_FOR_MAIN_ACCEPTANCE` at `f8f93e962...`, and the former Development MAIN is reported to have issued `ACCEPTED`. The **complete final independent report and separately retrievable MAIN acceptance record are missing**. GitHub has no submitted native PR #2 Review or conversation comment at this snapshot. This is an archival evidence gap, not reason to invent a Review; [see placeholder](../reviews/DEV-PR-01-INDEPENDENT-RE-REVIEW.md).
+- The initial independent review froze head `419a180fdf4b114691e8e44c8bf955e10a410970` with `REQUEST_CHANGES` (4 MAJOR, 2 MINOR). Following remediation, previously supplied final independent-review metadata reports `APPROVE_FOR_MAIN_ACCEPTANCE` at `f8f93e962...`, and the former Development MAIN is reported to have issued `ACCEPTED`. The [complete final reviewer report](../reviews/DEV-PR-01-INDEPENDENT-RE-REVIEW.md) has now been copied **verbatim** from the user attachment (16,855 bytes; SHA-256 `8d40e731b3101c122b8e58e77da62a96b0089bfc2075885e6b509c688c74c6c9`); its original `open` PR status describes the actual **pre-merge** audit moment and is preserved, not retrospectively edited. The independently retrievable MAIN `ACCEPTED` artifact is still unavailable. No submitted native GitHub PR #2 Review or issue conversation comment was found at the prior verification snapshot; the report is **independent Chat review**, not a GitHub Review submission.
 - `REVIEWED` recommendation, `MAIN ACCEPTED` decision and observed GitHub `MERGED` remain different, even when describing one completed cycle.
 
 ## 2. Actual CI (source SHA and bounded results)
@@ -26,16 +26,16 @@ GitHub's ephemeral PR test-merge tree was checked against the same final develop
 
 ## 3. Six independent-review findings — final dispositions
 
-These are grounded in the [developer remediation ledger](../DEV-PR-01-INDEPENDENT-REVIEW-FINDINGS.md), the recorded final CI and the previously supplied final re-review **metadata**; this is not the missing reviewer report body.
+These dispositions are supported by the [archived original independent re-review](../reviews/DEV-PR-01-INDEPENDENT-RE-REVIEW.md), [developer remediation ledger](../DEV-PR-01-INDEPENDENT-REVIEW-FINDINGS.md) and final CI. This handoff summarizes the independent report; it does not replace or rewrite it.
 
 | Finding | Severity | Final code/test change | Recorded disposition |
 |---|---|---|---|
-| **SEC-01** | MAJOR | Deny Python-guarded `os.link` hardlink escape while keeping original-source write denial and legal scratch tests | Implemented/tested, final reviewer metadata PASS |
-| **AST-01** | MAJOR | Recognize supported `importlib.import_module` function/module aliases; unresolved dynamic targets fail closed in new `pmrh` layers | Implemented/tested, final reviewer metadata PASS |
-| **AST-02** | MAJOR | Explicitly classify `pmrh` root modules and enforce forbidden transitive layer paths | Implemented/tested, final reviewer metadata PASS |
-| **CI-01** | MAJOR | Require all four CI artifacts with checked HEAD, hash, count and status; copy/upload failures cannot yield green | Implemented/tested, final reviewer metadata PASS |
-| **TEST-01** | MINOR | Timeout and child-start failures produce structured `ERROR` receipt/partial-output flags where possible | Implemented/tested, **not deferred**, final reviewer metadata PASS |
-| **AST-03** | MINOR | Report named legacy couplings independently of 442 provisional cross-layer entries, matching real direct edges | Implemented/tested, **not deferred**, final reviewer metadata PASS |
+| **SEC-01** | MAJOR | Deny Python-guarded `os.link` hardlink escape while keeping original-source write denial and legal scratch tests | Implemented/tested, archived independent re-review PASS |
+| **AST-01** | MAJOR | Recognize supported `importlib.import_module` function/module aliases; unresolved dynamic targets fail closed in new `pmrh` layers | Implemented/tested, archived independent re-review PASS |
+| **AST-02** | MAJOR | Explicitly classify `pmrh` root modules and enforce forbidden transitive layer paths | Implemented/tested, archived independent re-review PASS |
+| **CI-01** | MAJOR | Require all four CI artifacts with checked HEAD, hash, count and status; copy/upload failures cannot yield green | Implemented/tested, archived independent re-review PASS |
+| **TEST-01** | MINOR | Timeout and child-start failures produce structured `ERROR` receipt/partial-output flags where possible | Implemented/tested, **not deferred**, archived independent re-review PASS |
+| **AST-03** | MINOR | Report named legacy couplings independently of 442 provisional cross-layer entries, matching real direct edges | Implemented/tested, **not deferred**, archived independent re-review PASS |
 
 Final source-static report (not a dynamic dependency certification): **144 Python files**, **4 namespace virtual nodes**, **987** unique direct edges, **6,160** transitive reachabilities, **one** large cyclic SCC, **442** provisional legacy cross-layer entries plus **4** separately named architectural couplings, **0** syntax errors and **0** known detected new-layer violations.
 
