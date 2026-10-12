@@ -15,12 +15,53 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest import mock
+from contextlib import contextmanager
 
 from scripts import architecture_deps as deps
 from scripts import offline_test
 
 REPO = Path(__file__).resolve().parents[2]
+
+
+class NeverCalled:
+    """Tiny process-free sentinel; importing unittest.mock loads asyncio/ssl."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def __call__(self, *args, **kwargs):
+        self.calls += 1
+        raise AssertionError("preflight invoked a forbidden operation")
+
+    def assert_not_called(self):
+        if self.calls:
+            raise AssertionError("preflight was not side-effect-free")
+
+
+@contextmanager
+def patch_dict(mapping, values):
+    absent = object()
+    old = {key: mapping.get(key, absent) for key in values}
+    try:
+        mapping.update(values)
+        yield
+    finally:
+        for key, previous in old.items():
+            if previous is absent:
+                mapping.pop(key, None)
+            else:
+                mapping[key] = previous
+
+
+@contextmanager
+def patch_object(obj, name):
+    original = getattr(obj, name)
+    blocked = NeverCalled()
+    try:
+        setattr(obj, name, blocked)
+        yield blocked
+    finally:
+        setattr(obj, name, original)
 
 
 class PythonOfflineBoundaryTests(unittest.TestCase):
@@ -129,9 +170,9 @@ class PythonOfflineBoundaryTests(unittest.TestCase):
 
     def test_19_reject_out_without_provisioned_root_before_any_execution(self):
         _, valid = self.artifact_fixture()
-        with mock.patch.dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": ""}), \
-             mock.patch.object(offline_test.tempfile, "TemporaryDirectory") as scratch, \
-             mock.patch.object(offline_test.subprocess, "run") as spawn:
+        with patch_dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": ""}), \
+             patch_object(offline_test.tempfile, "TemporaryDirectory") as scratch, \
+             patch_object(offline_test.subprocess, "run") as spawn:
             with self.assertRaisesRegex(ValueError, "explicitly provisioned"):
                 offline_test.execute("devpr01", out=valid)
             scratch.assert_not_called()
@@ -147,9 +188,9 @@ class PythonOfflineBoundaryTests(unittest.TestCase):
             root / ".." / root.name / "offline",
             root,  # Only a proper descendant may be an output directory.
         )
-        with mock.patch.dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(root)}), \
-             mock.patch.object(offline_test.tempfile, "TemporaryDirectory") as scratch, \
-             mock.patch.object(offline_test.subprocess, "run") as spawn:
+        with patch_dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(root)}), \
+             patch_object(offline_test.tempfile, "TemporaryDirectory") as scratch, \
+             patch_object(offline_test.subprocess, "run") as spawn:
             for path in invalid:
                 with self.subTest(path=str(path)):
                     with self.assertRaises(ValueError):
@@ -163,8 +204,8 @@ class PythonOfflineBoundaryTests(unittest.TestCase):
         for bad_root in (Path(os.environ["PMRH_ORIGINAL_HOME"]) / "pmrh-devpr01-artifacts-ABCDEF",
                          Path("/PMRH-REAL-PROJECT-DO-NOT-ACCESS") / "pmrh-devpr01-artifacts-ABCDEF"):
             with self.subTest(root=str(bad_root)), \
-                 mock.patch.dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(bad_root)}), \
-                 mock.patch.object(offline_test.tempfile, "TemporaryDirectory") as scratch:
+                 patch_dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(bad_root)}), \
+                 patch_object(offline_test.tempfile, "TemporaryDirectory") as scratch:
                 with self.assertRaises(ValueError):
                     offline_test.execute("devpr01", out=bad_root / "offline")
                 scratch.assert_not_called()
@@ -179,12 +220,12 @@ class PythonOfflineBoundaryTests(unittest.TestCase):
             alias = root.parent / ("pmrh-devpr01-artifacts-symlink-" + root.name[-8:])
             alias.symlink_to(root, target_is_directory=True)
             self.addCleanup(alias.unlink)
-            with mock.patch.object(offline_test.tempfile, "TemporaryDirectory") as scratch, \
-                 mock.patch.object(offline_test.subprocess, "run") as spawn:
-                with mock.patch.dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(root)}):
+            with patch_object(offline_test.tempfile, "TemporaryDirectory") as scratch, \
+                 patch_object(offline_test.subprocess, "run") as spawn:
+                with patch_dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(root)}):
                     with self.assertRaises(ValueError):
                         offline_test.execute("devpr01", out=root / "redirect" / "nested")
-                with mock.patch.dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(alias)}):
+                with patch_dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(alias)}):
                     with self.assertRaises(ValueError):
                         offline_test.execute("devpr01", out=alias / "offline")
                 scratch.assert_not_called()
@@ -195,9 +236,9 @@ class PythonOfflineBoundaryTests(unittest.TestCase):
         root, output = self.artifact_fixture()
         target = root.parent / ("pmrh-unwritten-" + root.name[-8:])
         (output / "receipt.json").symlink_to(target)
-        with mock.patch.dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(root)}), \
-             mock.patch.object(offline_test.tempfile, "TemporaryDirectory") as scratch, \
-             mock.patch.object(offline_test.subprocess, "run") as spawn:
+        with patch_dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(root)}), \
+             patch_object(offline_test.tempfile, "TemporaryDirectory") as scratch, \
+             patch_object(offline_test.subprocess, "run") as spawn:
             with self.assertRaisesRegex(ValueError, "existing test artifact"):
                 offline_test.execute("devpr01", out=output)
             scratch.assert_not_called()
@@ -206,7 +247,7 @@ class PythonOfflineBoundaryTests(unittest.TestCase):
 
     def test_24_explicit_isolated_output_fd_accepts_only_new_receipt(self):
         root, output = self.artifact_fixture()
-        with mock.patch.dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(root)}):
+        with patch_dict(os.environ, {"PMRH_TEST_ARTIFACT_ROOT": str(root)}):
             fd = offline_test._isolated_artifact_directory(output)
             try:
                 offline_test._write_artifact_fd(fd, "synthetic.txt", b"fixture")
