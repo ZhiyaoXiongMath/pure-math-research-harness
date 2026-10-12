@@ -1,0 +1,65 @@
+name: PMRH DEV-PR-01 AST and synthetic offline guard
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  architecture-and-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONNOUSERSITE: '1'
+      PIP_NO_INDEX: '1'
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+      PMRH_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout source, without retained GitHub credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fail closed if original legacy implementation changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE=e4de0210f9985224e030ac4cfd2f7e2904005b37
+          test "$(git rev-parse "$BASE^{tree}")" = c17a592ff0a4906afa7a6423535f41c67c926128
+          git diff --exit-code "$BASE" -- research_studio/
+          test -z "$(git status --porcelain)"
+          echo "LEGACY_FROZEN_SOURCE_CHECK=PASS"
+
+      - name: Complete AST graph, layering rules and entrypoint risk audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/pmrh-devpr01/ast"
+          python3 -B scripts/architecture_deps.py \
+            --check \
+            --json "$RUNNER_TEMP/pmrh-devpr01/ast/dependency-graph.json" \
+            --markdown "$RUNNER_TEMP/pmrh-devpr01/ast/architecture-audit.md"
+          test -s "$RUNNER_TEMP/pmrh-devpr01/ast/dependency-graph.json"
+          test -s "$RUNNER_TEMP/pmrh-devpr01/ast/architecture-audit.md"
+
+      - name: Deny network, process, real HOME and nonfixture paths; run negative tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B scripts/offline_test.py --suite devpr01 \
+            --out "$RUNNER_TEMP/pmrh-devpr01/offline"
+          test -s "$RUNNER_TEMP/pmrh-devpr01/offline/receipt.json"
+          test -z "$(git status --porcelain)"
+
+      - name: Upload exact AST graphs and negative-test receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pmrh-devpr01-ast-and-offline-evidence
+          path: ${{ runner.temp }}/pmrh-devpr01/
+          if-no-files-found: warn
+          retention-days: 30
