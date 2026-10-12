@@ -329,7 +329,12 @@ class CIArtifactReviewClosure(unittest.TestCase):
     def test_CI_01_workflow_has_no_swallowed_copy_or_warning_upload(self):
         workflow = (Path(__file__).resolve().parents[2] /
                     ".github/workflows/devpr01-offline.yml").read_text()
-        self.assertNotIn("|| true", workflow)
+        # GitHub expressions and comments can contain ||; reject ignored
+        # copy failures in executable command lines, not explanatory prose.
+        for line in workflow.splitlines():
+            if "cp -a" in line or "cp --" in line:
+                self.assertNotIn("|| true", line)
+                self.assertNotIn("2>/dev/null", line)
         self.assertNotIn("if-no-files-found: warn", workflow)
         self.assertIn("if-no-files-found: error", workflow)
         self.assertIn("verify_devpr01_artifacts.py", workflow)
