@@ -158,19 +158,55 @@ def _execute_guarded(suite: str, *, began: float, out_fd: int | None,
         source_dir, filename_pattern = SUITES[suite]
         cmd = [sys.executable, "-B", "-m", "unittest", "discover", "-s",
                source_dir, "-p", filename_pattern, "-t", ".", "-v"]
-        run = subprocess.run(cmd, cwd=ROOT, env=env, text=True,
-                             capture_output=True, timeout=120, check=False)
-        transcript = (run.stdout + "\n" + run.stderr).encode()
-        count_match = re.search(r"\bRan (\d+) tests?\b", run.stderr)
-        tests = int(count_match.group(1)) if count_match else 0
-        successful = run.returncode == 0 and tests > 0 and "\nOK" in run.stderr
+        execution_error = None
+        def normalized_text(raw):
+            if raw is None:
+                return ""
+            return raw.decode("utf-8", "replace") if isinstance(raw, bytes) else str(raw)
+
+        try:
+            run = subprocess.run(cmd, cwd=ROOT, env=env, text=True,
+                                 capture_output=True, timeout=120, check=False)
+            stdout_text, stderr_text = normalized_text(run.stdout), normalized_text(run.stderr)
+            child_exit_code = run.returncode
+        except subprocess.TimeoutExpired as exc:
+            stdout_text = normalized_text(exc.stdout)
+            stderr_text = normalized_text(exc.stderr)
+            child_exit_code = None
+            execution_error = {
+                "kind": "TIMEOUT",
+                "phase": "unittest_child",
+                "exception_type": "TimeoutExpired",
+                "timeout_seconds": exc.timeout,
+                "partial_stdout_captured": bool(stdout_text),
+                "partial_stderr_captured": bool(stderr_text),
+            }
+        except (OSError, subprocess.SubprocessError) as exc:
+            stdout_text = stderr_text = ""
+            child_exit_code = None
+            execution_error = {
+                "kind": "PROCESS_START_OR_TRANSPORT_ERROR",
+                "phase": "unittest_child",
+                "exception_type": type(exc).__name__,
+                "partial_stdout_captured": False,
+                "partial_stderr_captured": False,
+            }
+        if execution_error:
+            stderr_text += ("\nPMRH_OFFLINE_ERROR=" +
+                            json.dumps(execution_error, sort_keys=True) + "\n")
+        transcript = (stdout_text + "\n" + stderr_text).encode()
+        count_match = re.search(r"\bRan (\d+) tests?\b", stderr_text)
+        tests = int(count_match.group(1)) if count_match else (None if execution_error else 0)
+        successful = execution_error is None and child_exit_code == 0 and tests > 0 and "\nOK" in stderr_text
         result = {"schema": "pmrh.offline-test-receipt/1",
                   "suite": suite, "source_sha": env["PMRH_SOURCE_SHA"],
                   "python": sys.version, "tests": tests,
-                  "status": "PASS" if successful else "FAIL",
-                  "exit_code": run.returncode,
+                  "status": "PASS" if successful else ("ERROR" if execution_error else "FAIL"),
+                  "exit_code": child_exit_code,
+                  "execution_error": execution_error,
                   "elapsed_seconds": round(time.monotonic() - began, 4),
-                  "child_processes": 1,
+                  "child_process_attempts": 1,
+                  "child_process_started": ("UNOBSERVED" if execution_error else True),
                   "research_model_calls": model_measurement(),
                   "synthetic_only": True,
                   "security_guarantee": "PYTHON_LEVEL_DEFENSE_IN_DEPTH_ONLY_NOT_OS_SANDBOX",
@@ -182,7 +218,7 @@ def _execute_guarded(suite: str, *, began: float, out_fd: int | None,
                                (json.dumps(result, indent=2) + "\n").encode("utf-8"))
         print("PMRH_OFFLINE_TEST=" + json.dumps(result, sort_keys=True), flush=True)
         if not successful:
-            print(run.stderr[-9000:], file=sys.stderr)
+            print(stderr_text[-9000:], file=sys.stderr)
         return result
 
 
