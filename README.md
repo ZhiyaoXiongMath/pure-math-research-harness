@@ -1,3 +1,13 @@
+# Pure Math Research Harness (PMRH)
+
+**Current status: Phase 0 repository bootstrap — NOT a released research CLI.** This repository preserves the original Pure Math Research Studio 4.2.2-preview history and compatibility code. The new `pmrh` command can only display help/version; all research and control commands are deliberately unsupported. Do not run existing legacy product entrypoints on formal research projects under the Phase 0 test authorization.
+
+Development controls: [AGENTS.md](AGENTS.md) · [CONTRIBUTING.md](CONTRIBUTING.md) · [Phase 0 provenance](docs/development/PHASE0-PROVENANCE.md) · [18 planned work packages](docs/development/ROADMAP.md) · [reference audit documents](docs/reference/PMRS-Next_Phase1/README.md).
+
+The following text is the original historical **PMRS 4.2.2-preview README** retained for provenance. Its legacy runtime claims are not Phase 0 PMRH acceptance claims.
+
+---
+
 # Pure Math Research Studio 4.2.2 preview
 
 [简体中文](README.zh-CN.md) · [Architecture](ARCHITECTURE-4.2.2.md) · [Changes](CHANGELOG-4.2.2.md) · [Validation limits](TEST-REPORT-4.2.2.md)

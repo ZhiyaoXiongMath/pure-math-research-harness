@@ -1,0 +1,15 @@
+# ADR-0002 — Freeze PMRH research-safety and architecture invariants
+
+**Decision scope:** binding constraints for future PR design; Phase 0 implements none of the research services below. **Authority:** explicit Phase 0 user instruction (2026-10-12) informed by the fixed 4.2.2 source and the audit. Implementation and independent acceptance remain pending.
+
+1. **Mathematical protocols:** TRH P0–P14 and FDH D0–D5 retain their scientific responsibilities; original goal/D0 scope and dynamic MAIN choice cannot be changed by software convenience. One logical MAIN owner per instance, with versioned backend binding and fencing.
+2. **Evidence authority:** retain six native records—Context, Statement, Argument, Example, SourceEvidence and Assessment—with immutable raw source identity, exact conditions, scope, reviewer independence, qualification and invalidation propagation. Software/schema checks do not prove a theorem.
+3. **Fast/slow mathematics:** future first-class KnowledgeModule, Transition, ResearchMap, Frontier/Probe, ReaderProfile and RefinementBinding will bind precise upper-level assertions to verified lower-level evidence and open obligations. Conditions, quantifiers, common witnesses and directions of implication cannot disappear in a summary.
+4. **Human control and conservative execution:** keep grant identity, budgets, PAUSED, UNKNOWN, captured external request/input evidence, crash recovery and no blind model retry. Completion, admission, scientific qualification, and final delivery are distinct states.
+5. **Ports/adapters architecture:** mathematical domain rules are independent of the orchestration engine, AgentRunner, ModelProvider and UI; a managed agent invocation is not the same as a single provider inference. Do not silently substitute stock Codex for the patched native MAIN root gate. Keep authoritative journal/blob semantics; SQLite projections are not evidence authority.
+6. **Headless target with functional equivalence:** Codex/CLI first, no self-built UI *after* replacing workspaces' supervision, status, reporting, authorization, maintenance and recovery roles. Do not delete the Web UI or browser test merely to satisfy packaging aesthetics.
+7. **Observer isolation:** observers read allowed snapshots and write scratch/proposals only. Their output is not operator authorization, MAIN control, canonical KB write, or independently checked evidence. Do not re-enable the disabled `PROJECT_ASSISTANT` execution entrypoint.
+
+**Document precedence:** newest explicit user authorization/formal decisions → verified original primary evidence → later approved ADRs → specific development PR design; conflict must be reported, never used to downgrade the invariants above. Prior development guidelines remain in `docs/reference/PMRS-Next_Phase1/`; the architecture audit corrects their assumption that legacy `assistant.py` is a currently active product entrypoint.
+
+**Acceptance and rollback:** the 58 + 46 planned tests are a future contract, not PASS. New work requires individual authorization and independent review. Revert code rather than rewriting scientific history or altering paused projects.

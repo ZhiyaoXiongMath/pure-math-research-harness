@@ -1,0 +1,618 @@
+{
+  "baseline_commit": "e4de0210f9985224e030ac4cfd2f7e2904005b37",
+  "method": "Connected GitHub tree metadata + targeted source review; manually transcribed inventory; no local AST/import execution.",
+  "coverage_levels": {
+    "E": "本阶段直接读取关键源码范围；不表示逐行完整审计",
+    "H": "引用本对话前段同一固定提交的定向源码读取",
+    "D": "目录及已读架构/方法/调用点交叉定位；模块内部待进一步逐函数核对",
+    "T": "仅确认目录元数据，职责归属为待验证建议"
+  },
+  "modules": [
+    {
+      "path": "research_studio/__init__.py",
+      "bytes": 95,
+      "role": "包入口",
+      "coverage": "T",
+      "target": "package",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/__init__.py"
+    },
+    {
+      "path": "research_studio/__main__.py",
+      "bytes": 47,
+      "role": "命令入口",
+      "coverage": "T",
+      "target": "interfaces/cli",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/__main__.py"
+    },
+    {
+      "path": "research_studio/activity.py",
+      "bytes": 10694,
+      "role": "状态展示投影",
+      "coverage": "D",
+      "target": "observability/projections",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/activity.py"
+    },
+    {
+      "path": "research_studio/admission.py",
+      "bytes": 413,
+      "role": "接纳入口",
+      "coverage": "T",
+      "target": "application/admission",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/admission.py"
+    },
+    {
+      "path": "research_studio/archive.py",
+      "bytes": 3983,
+      "role": "归档",
+      "coverage": "T",
+      "target": "adapters/storage",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/archive.py"
+    },
+    {
+      "path": "research_studio/assistant.py",
+      "bytes": 47417,
+      "role": "已停用助手及历史兼容",
+      "coverage": "H",
+      "target": "legacy/assistant",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/assistant.py"
+    },
+    {
+      "path": "research_studio/assurance.py",
+      "bytes": 41195,
+      "role": "数学资格与独立审查",
+      "coverage": "E",
+      "target": "domain/qualification",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/assurance.py"
+    },
+    {
+      "path": "research_studio/changes.py",
+      "bytes": 64560,
+      "role": "科学变更校验与接纳",
+      "coverage": "E",
+      "target": "domain/validation + application/admission",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/changes.py"
+    },
+    {
+      "path": "research_studio/autoflow.py",
+      "bytes": 20760,
+      "role": "应用推进与历史入口",
+      "coverage": "D",
+      "target": "application + orchestration/legacy",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/autoflow.py"
+    },
+    {
+      "path": "research_studio/cli.py",
+      "bytes": 17839,
+      "role": "CLI 与装配",
+      "coverage": "H",
+      "target": "interfaces/cli + bootstrap",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/cli.py"
+    },
+    {
+      "path": "research_studio/codex_client.py",
+      "bytes": 19355,
+      "role": "Codex 登录、能力探测及输入测量",
+      "coverage": "E",
+      "target": "adapters/codex",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/codex_client.py"
+    },
+    {
+      "path": "research_studio/communication.py",
+      "bytes": 32050,
+      "role": "消息、暴露、独立性和输送",
+      "coverage": "D",
+      "target": "application/communication + domain/exposure",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/communication.py"
+    },
+    {
+      "path": "research_studio/context.py",
+      "bytes": 23554,
+      "role": "任务前提闭包与上下文过滤",
+      "coverage": "D",
+      "target": "domain/input_policy + application/context",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/context.py"
+    },
+    {
+      "path": "research_studio/contracts.py",
+      "bytes": 49386,
+      "role": "记录与调用契约混合",
+      "coverage": "D",
+      "target": "domain/contracts + ports/dtos",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/contracts.py"
+    },
+    {
+      "path": "research_studio/corrections.py",
+      "bytes": 8878,
+      "role": "修订请求",
+      "coverage": "D",
+      "target": "application/corrections",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/corrections.py"
+    },
+    {
+      "path": "research_studio/demo.py",
+      "bytes": 14380,
+      "role": "教学与合成输送",
+      "coverage": "D",
+      "target": "tests/support",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/demo.py"
+    },
+    {
+      "path": "research_studio/desktop.py",
+      "bytes": 3641,
+      "role": "桌面启动",
+      "coverage": "D",
+      "target": "retire/interfaces/desktop",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/desktop.py"
+    },
+    {
+      "path": "research_studio/engine.py",
+      "bytes": 26684,
+      "role": "共享应用门面",
+      "coverage": "E",
+      "target": "application/research",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/engine.py"
+    },
+    {
+      "path": "research_studio/execution.py",
+      "bytes": 67575,
+      "role": "调用生命周期、接纳和恢复",
+      "coverage": "E",
+      "target": "application/execution + domain/events",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/execution.py"
+    },
+    {
+      "path": "research_studio/handoff.py",
+      "bytes": 7302,
+      "role": "范围化研究交接",
+      "coverage": "D",
+      "target": "domain/handoff + application/handoff",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/handoff.py"
+    },
+    {
+      "path": "research_studio/harness_methods.py",
+      "bytes": 30337,
+      "role": "科研方法与实际输入装配",
+      "coverage": "D",
+      "target": "domain/protocols + application/context",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/harness_methods.py"
+    },
+    {
+      "path": "research_studio/harness_runtime.py",
+      "bytes": 8791,
+      "role": "MAIN 事件准入与唤醒",
+      "coverage": "E",
+      "target": "application/main_control + orchestration",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/harness_runtime.py"
+    },
+    {
+      "path": "research_studio/host_pool.py",
+      "bytes": 8747,
+      "role": "全局槽位及公平分配",
+      "coverage": "E",
+      "target": "application/resources + adapters/local_runtime",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/host_pool.py"
+    },
+    {
+      "path": "research_studio/incidents.py",
+      "bytes": 13938,
+      "role": "事故分类与受控恢复",
+      "coverage": "D",
+      "target": "application/recovery + observability",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/incidents.py"
+    },
+    {
+      "path": "research_studio/input_delivery.py",
+      "bytes": 17933,
+      "role": "实际输入送达与封窗",
+      "coverage": "D",
+      "target": "application/input_delivery",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/input_delivery.py"
+    },
+    {
+      "path": "research_studio/input_plans.py",
+      "bytes": 21059,
+      "role": "输入选择及材料计划",
+      "coverage": "D",
+      "target": "domain/input_policy + application/context",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/input_plans.py"
+    },
+    {
+      "path": "research_studio/knowledge.py",
+      "bytes": 22335,
+      "role": "六类科学记录与精确引用",
+      "coverage": "H",
+      "target": "domain/evidence",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/knowledge.py"
+    },
+    {
+      "path": "research_studio/knowledge_access.py",
+      "bytes": 12699,
+      "role": "授权知识导航、检索及展开",
+      "coverage": "E",
+      "target": "application/queries + adapters/index",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/knowledge_access.py"
+    },
+    {
+      "path": "research_studio/language.py",
+      "bytes": 6174,
+      "role": "科研输出语言规则",
+      "coverage": "D",
+      "target": "domain/presentation_policy",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/language.py"
+    },
+    {
+      "path": "research_studio/localization.py",
+      "bytes": 2481,
+      "role": "界面地区配置",
+      "coverage": "T",
+      "target": "interfaces/localization",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/localization.py"
+    },
+    {
+      "path": "research_studio/main_history.py",
+      "bytes": 4434,
+      "role": "MAIN 历史导航",
+      "coverage": "D",
+      "target": "application/context",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/main_history.py"
+    },
+    {
+      "path": "research_studio/main_input_tables.py",
+      "bytes": 8893,
+      "role": "MAIN 输入元数据编码",
+      "coverage": "D",
+      "target": "application/context",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/main_input_tables.py"
+    },
+    {
+      "path": "research_studio/main_materials.py",
+      "bytes": 3242,
+      "role": "MAIN 材料引用装配",
+      "coverage": "D",
+      "target": "application/context",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/main_materials.py"
+    },
+    {
+      "path": "research_studio/main_recovery.py",
+      "bytes": 12599,
+      "role": "原生 MAIN 特定故障恢复",
+      "coverage": "D",
+      "target": "adapters/codex/recovery + application/recovery",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/main_recovery.py"
+    },
+    {
+      "path": "research_studio/main_session.py",
+      "bytes": 5696,
+      "role": "MAIN 状态及会话入口",
+      "coverage": "D",
+      "target": "application/main_control + observability",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/main_session.py"
+    },
+    {
+      "path": "research_studio/model_policy.py",
+      "bytes": 12493,
+      "role": "角色配置与 Codex 参数编码混合",
+      "coverage": "E",
+      "target": "domain/role_requirements + application/model_selection + adapters/codex",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/model_policy.py"
+    },
+    {
+      "path": "research_studio/native_main.py",
+      "bytes": 43000,
+      "role": "持久 Codex MAIN、原生 Goal、根轮次门控",
+      "coverage": "E",
+      "target": "adapters/codex/native_runner",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/native_main.py"
+    },
+    {
+      "path": "research_studio/obligations.py",
+      "bytes": 22590,
+      "role": "科研职责、依赖和资格阈值",
+      "coverage": "D",
+      "target": "domain/obligations",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/obligations.py"
+    },
+    {
+      "path": "research_studio/operations.py",
+      "bytes": 465,
+      "role": "操作兼容入口",
+      "coverage": "T",
+      "target": "application/commands",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/operations.py"
+    },
+    {
+      "path": "research_studio/pdf_filter.py",
+      "bytes": 2468,
+      "role": "PDF 编译隔离",
+      "coverage": "D",
+      "target": "adapters/reporting",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/pdf_filter.py"
+    },
+    {
+      "path": "research_studio/portability.py",
+      "bytes": 4407,
+      "role": "项目导入导出",
+      "coverage": "D",
+      "target": "adapters/storage/portability",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/portability.py"
+    },
+    {
+      "path": "research_studio/relations.py",
+      "bytes": 8353,
+      "role": "数学依赖关系",
+      "coverage": "E",
+      "target": "domain/relations",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/relations.py"
+    },
+    {
+      "path": "research_studio/render.py",
+      "bytes": 12274,
+      "role": "受限 TeX 编译、PDF 检查与工具",
+      "coverage": "E",
+      "target": "adapters/reporting",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/render.py"
+    },
+    {
+      "path": "research_studio/report_catalog.py",
+      "bytes": 13974,
+      "role": "报告目录及当前性",
+      "coverage": "D",
+      "target": "application/reports + observability",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/report_catalog.py"
+    },
+    {
+      "path": "research_studio/report_revisions.py",
+      "bytes": 10321,
+      "role": "报告修订、版本和授权",
+      "coverage": "D",
+      "target": "domain/report_contract + application/reports",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/report_revisions.py"
+    },
+    {
+      "path": "research_studio/reports.py",
+      "bytes": 94644,
+      "role": "报告编排、接纳、修订、输出",
+      "coverage": "H",
+      "target": "application/reports + domain/report_contract + adapters/reporting",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/reports.py"
+    },
+    {
+      "path": "research_studio/research_audit.py",
+      "bytes": 28894,
+      "role": "研究时钟、检查点和指导",
+      "coverage": "H",
+      "target": "domain/research_memory + application/audit",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/research_audit.py"
+    },
+    {
+      "path": "research_studio/research_plans.py",
+      "bytes": 16383,
+      "role": "多分支工作计划与历史控制",
+      "coverage": "D",
+      "target": "application/plans",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/research_plans.py"
+    },
+    {
+      "path": "research_studio/research_prompts.py",
+      "bytes": 16038,
+      "role": "科研职责提示词",
+      "coverage": "D",
+      "target": "domain/protocols",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/research_prompts.py"
+    },
+    {
+      "path": "research_studio/resources.py",
+      "bytes": 13438,
+      "role": "磁盘、内存与准备资源",
+      "coverage": "D",
+      "target": "application/resources + adapters/local_runtime",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/resources.py"
+    },
+    {
+      "path": "research_studio/restricted_tex.py",
+      "bytes": 9773,
+      "role": "受限 TeX 与语义身份",
+      "coverage": "D",
+      "target": "domain/report_contract + adapters/reporting",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/restricted_tex.py"
+    },
+    {
+      "path": "research_studio/rounds.py",
+      "bytes": 11176,
+      "role": "轮次结果与交付",
+      "coverage": "D",
+      "target": "domain/delivery + application/reports",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/rounds.py"
+    },
+    {
+      "path": "research_studio/runner.py",
+      "bytes": 40151,
+      "role": "进程、沙箱、输入、执行、协调器",
+      "coverage": "E",
+      "target": "adapters/codex + application/supervisor + testing",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/runner.py"
+    },
+    {
+      "path": "research_studio/scheduler.py",
+      "bytes": 21784,
+      "role": "职责准入、资源公平与预算",
+      "coverage": "E",
+      "target": "application/admission + orchestration",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/scheduler.py"
+    },
+    {
+      "path": "research_studio/setup.py",
+      "bytes": 16986,
+      "role": "环境探测及配置",
+      "coverage": "D",
+      "target": "bootstrap + adapters/local_runtime",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/setup.py"
+    },
+    {
+      "path": "research_studio/stages.py",
+      "bytes": 6368,
+      "role": "阶段入口",
+      "coverage": "T",
+      "target": "domain/protocols + application",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/stages.py"
+    },
+    {
+      "path": "research_studio/store.py",
+      "bytes": 30651,
+      "role": "权威 journal/blob、事务、回放和索引",
+      "coverage": "E",
+      "target": "adapters/storage/journal + application/unit_of_work",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/store.py"
+    },
+    {
+      "path": "research_studio/strategy.py",
+      "bytes": 64011,
+      "role": "MAIN 路线、提案、派工与状态",
+      "coverage": "H",
+      "target": "domain/strategy + application/main_control",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/strategy.py"
+    },
+    {
+      "path": "research_studio/survey.py",
+      "bytes": 74955,
+      "role": "综述领域与线性编排",
+      "coverage": "D",
+      "target": "domain/survey + application/survey",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/survey.py"
+    },
+    {
+      "path": "research_studio/survey_retrieval.py",
+      "bytes": 13942,
+      "role": "来源检索与获取",
+      "coverage": "D",
+      "target": "adapters/sources",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/survey_retrieval.py"
+    },
+    {
+      "path": "research_studio/task_tools.py",
+      "bytes": 24035,
+      "role": "请求级 MCP、权限、消息和读记录",
+      "coverage": "E",
+      "target": "interfaces/mcp + application/tool_gateway",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/task_tools.py"
+    },
+    {
+      "path": "research_studio/tasks.py",
+      "bytes": 42661,
+      "role": "冻结任务、材料、请求、模型配置",
+      "coverage": "D",
+      "target": "application/tasks + ports/dtos",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/tasks.py"
+    },
+    {
+      "path": "research_studio/ui.py",
+      "bytes": 26924,
+      "role": "HTTP 路由和网页接入",
+      "coverage": "E",
+      "target": "retire/interfaces/web",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/ui.py"
+    },
+    {
+      "path": "research_studio/usage_ledger.py",
+      "bytes": 33087,
+      "role": "计量规则、Codex 事件解析、投影",
+      "coverage": "E",
+      "target": "application/usage + adapters/codex/usage + observability",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/usage_ledger.py"
+    },
+    {
+      "path": "research_studio/util.py",
+      "bytes": 5574,
+      "role": "散列、路径、原子文件等共享工具",
+      "coverage": "D",
+      "target": "domain/value_helpers + adapters/filesystem",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/util.py"
+    },
+    {
+      "path": "research_studio/version.py",
+      "bytes": 536,
+      "role": "版本元数据",
+      "coverage": "T",
+      "target": "package",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/version.py"
+    },
+    {
+      "path": "research_studio/views.py",
+      "bytes": 29430,
+      "role": "科研和运行投影",
+      "coverage": "D",
+      "target": "observability/queries",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/views.py"
+    },
+    {
+      "path": "research_studio/workflow_instances.py",
+      "bytes": 42400,
+      "role": "TRH/FDH 生命周期、授权和控制",
+      "coverage": "D",
+      "target": "domain/lifecycle + application/control",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/workflow_instances.py"
+    },
+    {
+      "path": "research_studio/workspace.py",
+      "bytes": 52139,
+      "role": "工作区、动作、后台线程和展示",
+      "coverage": "E",
+      "target": "application/supervisor + application/commands + retire/web_state",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/workspace.py"
+    },
+    {
+      "path": "research_studio/workflows/__init__.py",
+      "bytes": 79,
+      "role": "科研协议包",
+      "coverage": "T",
+      "target": "domain/protocols",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/workflows/__init__.py"
+    },
+    {
+      "path": "research_studio/workflows/fdh.py",
+      "bytes": 18980,
+      "role": "D0–D5 职责契约",
+      "coverage": "D",
+      "target": "domain/protocols",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/workflows/fdh.py"
+    },
+    {
+      "path": "research_studio/workflows/registry.py",
+      "bytes": 9996,
+      "role": "统一职责注册、独立性角色、禁止自动阶段转移",
+      "coverage": "E",
+      "target": "domain/protocols",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/workflows/registry.py"
+    },
+    {
+      "path": "research_studio/workflows/survey.py",
+      "bytes": 3794,
+      "role": "综述职责契约",
+      "coverage": "D",
+      "target": "domain/protocols",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/workflows/survey.py"
+    },
+    {
+      "path": "research_studio/workflows/trh.py",
+      "bytes": 42217,
+      "role": "P0–P14 职责契约",
+      "coverage": "D",
+      "target": "domain/protocols",
+      "url": "https://github.com/ZhiyaoXiongMath/Pure-Math-Research-Studio/blob/e4de0210f9985224e030ac4cfd2f7e2904005b37/research_studio/workflows/trh.py"
+    }
+  ],
+  "counts": {
+    "top_level_python_modules": 69,
+    "workflow_python_modules": 5,
+    "python_source_bytes_from_git_tree": 1560557,
+    "coverage": {
+      "T": 9,
+      "D": 39,
+      "H": 6,
+      "E": 20
+    }
+  },
+  "product_code_executed": false,
+  "repository_tests_executed": false,
+  "runtime_dependency_sbom_complete": false
+}

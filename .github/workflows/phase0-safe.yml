@@ -1,0 +1,54 @@
+name: PMRH Phase 0 safe offline checks
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  phase0-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONNOUSERSITE: '1'
+      PIP_NO_INDEX: '1'
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+    steps:
+      - name: Checkout complete Git history (no credential persistence)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Confirm immutable imported baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE=e4de0210f9985224e030ac4cfd2f7e2904005b37
+          TREE=c17a592ff0a4906afa7a6423535f41c67c926128
+          test "$(git cat-file -t "$BASE")" = commit
+          test "$(git rev-parse "$BASE^{tree}")" = "$TREE"
+          test "$(git cat-file -p "$BASE" | sed -n 's/^parent //p' | head -1)" = bc2225d1baca3e6b01693622967d7eeb26e5d82d
+          for entry in \
+            'v4.0.0:3c176c678af33825ed40b963134ada0b3d942eec' \
+            'v4.1.0:35cee188672bb1dd0199d02d3fe1f170a9e806d7' \
+            'v4.2.0:08dc6d711c16cf3d119bcd29e4336fba081b7877'; do
+            label="${entry%%:*}"
+            object="${entry#*:}"
+            test "$(git rev-parse "refs/tags/$label")" = "$object"
+          done
+      - name: Isolated Python stdlib smoke, integrity, and static checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          SAFE_DIR="$(mktemp -d "${RUNNER_TEMP}/pmrh-phase0.XXXXXXXX")"
+          trap 'rm -rf "$SAFE_DIR"' EXIT
+          mkdir -p "$SAFE_DIR"/{home,config,cache,data,tmp}
+          export HOME="$SAFE_DIR/home"
+          export XDG_CONFIG_HOME="$SAFE_DIR/config"
+          export XDG_CACHE_HOME="$SAFE_DIR/cache"
+          export XDG_DATA_HOME="$SAFE_DIR/data"
+          export TMPDIR="$SAFE_DIR/tmp"
+          python3 -B -m unittest discover -s tests/phase0 -p 'test_*.py' -v
