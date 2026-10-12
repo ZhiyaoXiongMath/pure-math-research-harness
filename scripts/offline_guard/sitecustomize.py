@@ -73,10 +73,22 @@ def guarded_io_open(path, mode="r", *args, **kwargs):
     return real_io_open(path, mode, *args, **kwargs)
 
 
+def path_with_dirfd(path, dir_fd=None):
+    if dir_fd is None:
+        return path
+    if isinstance(path, int):
+        raise PermissionError("PMRH offline test guard: opaque fd path denied")
+    try:
+        base = Path(os.readlink("/proc/self/fd/" + str(dir_fd)))
+    except (OSError, ValueError):
+        raise PermissionError("PMRH offline test guard: unresolved dir_fd") from None
+    return base / os.fspath(path)
+
+
 def guarded_os_open(path, flags, *args, **kwargs):
     writing = bool(flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT |
                             os.O_TRUNC | os.O_APPEND))
-    guard_path(path, write=writing)
+    guard_path(path_with_dirfd(path, kwargs.get("dir_fd")), write=writing)
     return real_os_open(path, flags, *args, **kwargs)
 
 
@@ -113,3 +125,52 @@ for name in ("fork", "forkpty", "posix_spawn", "posix_spawnp", "spawnl", "spawnl
              "execlp", "execlpe"):
     if hasattr(os, name):
         setattr(os, name, denied)
+
+
+# Pathlib and shutil can mutate files without builtins.open. Cover the common
+# Python OS mutations too. Descriptor-only operations and native extensions
+# remain outside this process-level guard's security guarantee.
+def guarded_unary(fn):
+    def wrapper(path, *args, **kwargs):
+        guard_path(path_with_dirfd(path, kwargs.get("dir_fd")), write=True)
+        return fn(path, *args, **kwargs)
+    return wrapper
+
+
+for name in ("mkdir", "rmdir", "remove", "unlink", "chmod", "chown",
+             "utime", "truncate"):
+    if hasattr(os, name):
+        setattr(os, name, guarded_unary(getattr(os, name)))
+
+
+def guarded_move(fn):
+    def wrapper(source, destination, *args, **kwargs):
+        guard_path(path_with_dirfd(source, kwargs.get("src_dir_fd")), write=True)
+        guard_path(path_with_dirfd(destination, kwargs.get("dst_dir_fd")), write=True)
+        return fn(source, destination, *args, **kwargs)
+    return wrapper
+
+
+for name in ("rename", "replace"):
+    if hasattr(os, name):
+        setattr(os, name, guarded_move(getattr(os, name)))
+
+
+if hasattr(os, "symlink"):
+    real_symlink = os.symlink
+
+    def guarded_symlink(src, dst, *args, **kwargs):
+        guard_path(path_with_dirfd(dst, kwargs.get("dir_fd")), write=True)
+        return real_symlink(src, dst, *args, **kwargs)
+
+    os.symlink = guarded_symlink
+
+if hasattr(os, "link"):
+    real_link = os.link
+
+    def guarded_link(src, dst, *args, **kwargs):
+        guard_path(path_with_dirfd(src, kwargs.get("src_dir_fd")))
+        guard_path(path_with_dirfd(dst, kwargs.get("dst_dir_fd")), write=True)
+        return real_link(src, dst, *args, **kwargs)
+
+    os.link = guarded_link
