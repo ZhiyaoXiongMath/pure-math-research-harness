@@ -362,10 +362,17 @@ def run(root: Path, policy: dict) -> dict:
     inventory, discrepancies = manifest_sources(root)
     violations, legacy_blocks = [], []
     violation_keys = set()
+    for filename in source_nodes:
+        if layer(filename) == "unclassified":
+            violations.append({"source": filename, "reason": "unclassified_pmrh_module",
+                               "requires": "explicit approved layer or root-module mapping"})
     for edge in edges:
         source, target = edge["source"], edge["target"]
         a, b = layer(source), layer(target)
-        if a and b and b not in ALLOWED[a]:
+        if a == "unclassified" or b == "unclassified":
+            violations.append({**edge, "reason": "unclassified_dependency_endpoint",
+                               "source_layer": a, "target_layer": b})
+        elif a and b and b not in ALLOWED[a]:
             # from pmrh.adapters import codex records both the package and
             # member. One source-line/target-layer violation is sufficient;
             # the complete direct graph still retains both edges.
@@ -388,12 +395,46 @@ def run(root: Path, policy: dict) -> dict:
                                       "exception_id": policy["legacy_exception_id"],
                                       "owner": owner, "remove_by": owner,
                                       "classification": "PROVISIONAL_MIGRATION_BLOCKER"})
+    # Do not allow a classified layer to reach a forbidden implementation
+    # indirectly through an otherwise plausible module/bridge.
+    direct_pairs = {(e["source"], e["target"]) for e in edges}
+    for source in source_nodes:
+        a = layer(source)
+        if a not in ALLOWED:
+            continue
+        for target in transitive[source]:
+            b = layer(target)
+            if b is not None and b != "unclassified" and b not in ALLOWED[a] and (source, target) not in direct_pairs:
+                violations.append({"source": source, "target": target,
+                                   "reason": "forbidden_transitive_dependency",
+                                   "source_layer": a, "target_layer": b})
+    # Unresolved new package imports need review; never report clean merely
+    # because a static target cannot be identified.
+    for item in dynamic:
+        if item["source"].startswith("pmrh/"):
+            violations.append({**item, "reason": "unresolved_dynamic_import",
+                               "review_required": True})
     for edge in external:
         source, imported = edge["source"], edge["import"].split(".", 1)[0]
         a = layer(source)
         if a in FORBIDDEN_IMPORTS and imported in FORBIDDEN_IMPORTS[a]:
             violations.append({**edge, "reason": "prohibited_capability_import",
                                "source_layer": a})
+    named_couplings = []
+    for named in policy.get("named_blockers", []):
+        matches = [edge for edge in edges if edge["source"] == named["source"]
+                   and edge["target"] == named["target"]]
+        cross = sum(item["source"] == named["source"] and item["target"] == named["target"]
+                    for item in legacy_blocks)
+        named_couplings.append({**named,
+                                "status": "MATCHED_DIRECT_EDGE" if matches else "MISSING_DIRECT_EDGE",
+                                "direct_occurrences": len(matches),
+                                "cross_layer_occurrences": cross,
+                                "classification": ("CROSS_LAYER_AND_NAMED" if cross
+                                                   else "NAMED_COUPLING_OUTSIDE_PROVISIONAL_CROSS_LAYER")})
+        if not matches:
+            violations.append({"reason": "missing_named_legacy_coupling",
+                               "source": named["source"], "target": named["target"]})
     if policy.get("legacy_baseline_commit") != "e4de0210f9985224e030ac4cfd2f7e2904005b37":
         violations.append({"reason": "legacy_baseline_mismatch"})
     if any(key not in policy.get("legacy_owners", {}) for key in set(
@@ -412,6 +453,8 @@ def run(root: Path, policy: dict) -> dict:
                    "transitive_unique_edges": sum(map(len, transitive.values())),
                    "cyclic_components": sum(len(c) > 1 for c in scc),
                    "legacy_migration_blockers": len(legacy_blocks),
+                   "named_legacy_couplings": len(named_couplings),
+                   "unresolved_new_layer_imports": sum(x["source"].startswith("pmrh/") for x in dynamic),
                    "architecture_violations": len(violations),
                    "parse_failures": len(failures),
                    "nonliteral_imports": len(dynamic)},
@@ -426,6 +469,7 @@ def run(root: Path, policy: dict) -> dict:
         "syntax_errors": failures,
         "architecture_violations": violations,
         "legacy_migration_blockers": legacy_blocks,
+        "named_architectural_couplings": named_couplings,
         "legacy_policy": policy,
         "legacy_inventory_discrepancies": discrepancies,
         "test_entrypoint_review": review_entrypoints(root, external),
@@ -458,6 +502,18 @@ def markdown(report: dict) -> str:
         lines.append("- " + v["source"] + " → " + v["target"] + " ("
                      + v["suggested_source_layer"] + " → " + v["suggested_target_layer"]
                      + "; owner " + v["owner"] + ")")
+    lines.extend(["", "## Named architectural couplings", "",
+                  "Named same-layer couplings are tracked separately; provisional cross-layer edges are not exhaustive."])
+    for named in report["named_architectural_couplings"]:
+        lines.append("- " + named["source"] + " → " + named["target"] +
+                     ": " + named["status"] + "; direct=" + str(named["direct_occurrences"])
+                     + "; cross-layer=" + str(named["cross_layer_occurrences"])
+                     + "; owner=" + named["owner"])
+    lines.extend(["", "## Unresolved dynamic imports", ""])
+    for issue in report["dynamic_unresolved"][:40]:
+        lines.append("- " + json.dumps(issue, sort_keys=True))
+    if not report["dynamic_unresolved"]:
+        lines.append("None detected within supported static patterns; not proof of complete runtime import closure.")
     lines.extend(["", "## Legacy test entrypoint risk", "",
                   report["test_entrypoint_review"]["historical_runner"]["reason"],
                   "", "## Limitations", "",
