@@ -62,13 +62,16 @@ def _isolated_artifact_directory(out: Path) -> int:
     if not (hasattr(os, "O_DIRECTORY") and hasattr(os, "O_NOFOLLOW")):
         raise ValueError("--out requires POSIX no-follow directory verification")
 
-    # Traverse every component from / via O_NOFOLLOW so neither an ancestor
-    # symlink nor a last-component symlink can redirect the output, even if
-    # someone changes a directory entry between the path checks and open.
+    # Traverse every component below the operator-provisioned system temp
+    # directory via O_NOFOLLOW. Each component is opened relative to the
+    # previous directory descriptor, not through a racy resolved pathname.
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
-    fd = os.open("/", flags)
     try:
-        for part in destination.parts[1:]:
+        fd = os.open(safe_tmp, flags)
+    except OSError as exc:
+        raise ValueError("system temporary directory is unavailable or a symlink") from exc
+    try:
+        for part in destination.relative_to(safe_tmp).parts:
             nxt = os.open(part, flags, dir_fd=fd)
             os.close(fd)
             fd = nxt
