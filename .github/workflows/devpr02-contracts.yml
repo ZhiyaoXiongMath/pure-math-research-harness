@@ -1,0 +1,88 @@
+name: PMRH DEV-PR-02 versioned contracts
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.13']
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONNOUSERSITE: '1'
+      PIP_NO_INDEX: '1'
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+      PMRH_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact PR HEAD with complete history and no retained credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select Python without installing product dependencies
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Verify exact source and frozen legacy implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PMRH_SOURCE_SHA"
+          BASE=e4de0210f9985224e030ac4cfd2f7e2904005b37
+          test "$(git rev-parse "$BASE^{tree}")" = c17a592ff0a4906afa7a6423535f41c67c926128
+          git diff --exit-code "$BASE" -- research_studio/
+          test -z "$(git status --porcelain)"
+          echo "PMRH_CHECKOUT_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "PMRH_CHECKOUT_TREE=$(git rev-parse HEAD^{tree})" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/pmrh-devpr02/ast" "$RUNNER_TEMP/pmrh-devpr02/offline"
+          # Auditable software snapshot only, not a Git-history migration.
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/pmrh-devpr02/source.tar.gz"
+      - name: Inherited complete AST and fail-closed architecture gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B scripts/architecture_deps.py --check \
+            --json "$RUNNER_TEMP/pmrh-devpr02/ast/dependency-graph.json" \
+            --markdown "$RUNNER_TEMP/pmrh-devpr02/ast/architecture-audit.md"
+      - name: Guarded synthetic contracts with raw failure evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARTIFACT_DIR="$(mktemp -d /tmp/pmrh-devpr01-artifacts-XXXXXXXX)"
+          trap 'rm -rf "$ARTIFACT_DIR"' EXIT
+          mkdir "$ARTIFACT_DIR/offline"
+          TEST_EXIT=0
+          PMRH_TEST_ARTIFACT_ROOT="$ARTIFACT_DIR" \
+            python -B scripts/offline_contracts.py --out "$ARTIFACT_DIR/offline" || TEST_EXIT=$?
+          for f in unittest.log receipt.json; do
+            if test -f "$ARTIFACT_DIR/offline/$f"; then
+              cp -a -- "$ARTIFACT_DIR/offline/$f" "$RUNNER_TEMP/pmrh-devpr02/offline/$f"
+            fi
+          done
+          if test "$TEST_EXIT" -ne 0; then exit "$TEST_EXIT"; fi
+          test -z "$(git status --porcelain)"
+      - name: Verify required artifacts, source fingerprints and individual raw test records
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B scripts/verify_devpr02_artifacts.py \
+            --root "$RUNNER_TEMP/pmrh-devpr02" --source-root . \
+            --expected-head-sha "$PMRH_SOURCE_SHA" --expected-tree-sha "$PMRH_CHECKOUT_TREE" \
+            | tee "$RUNNER_TEMP/pmrh-devpr02/artifact-gate.log"
+      - name: Upload exact source snapshot, raw logs and structured evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pmrh-devpr02-contracts-${{ env.PMRH_SOURCE_SHA }}-py${{ matrix.python }}
+          path: ${{ runner.temp }}/pmrh-devpr02/
+          if-no-files-found: error
+          retention-days: 30
