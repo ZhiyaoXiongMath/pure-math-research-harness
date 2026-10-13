@@ -1,9 +1,9 @@
 # PMRH development project state — versioned evidence snapshot
 
-**Checked:** 2026-10-12 (GitHub Connector, UTC timestamps below).  
-**Verified main baseline:** `5d1b34d27bfbc171b2c5041973db8e8c1406a4b1`.  
+**Checked:** 2026-10-13 (GitHub Connector, UTC timestamps below).  
+**Verified main baseline:** `e1cb2dd76d9b5f8651750d6bd89d0b44819b6515` (post-DEV-PR-02 merge, before this archival PR).  
 **Repository:** [pure-math-research-harness](https://github.com/ZhiyaoXiongMath/pure-math-research-harness).  
-**Management cycle:** GOV-01, expressly authorized *governance-documentation-only* work; [PR #3](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/3) was Open when this snapshot was updated. This document intentionally does not record its own final commit SHA or claim GOV-01 acceptance/merge.
+**Management cycle:** DEV-PR-02 post-merge documentation archive (read-only source/CI verification and bounded management record). GOV-01's previous `Open` snapshot is historical; [PR #3](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/3) is now merged at `efd2be4e93ca8f1ee9f6a03fa53df6a1f008c8fb`. This document does not predict the archival PR's own commit or merge SHA.
 
 > This file is a **versioned management state and evidence index**. It is NOT a live GitHub status mirror, a human authorization token, or scientific authority. A newly appointed Development MAIN must read current GitHub refs, PRs, reviews, merge records and CI, compare them with this snapshot, and report discrepancies. For observed commit/PR/CI facts, original GitHub records prevail; for authorization and acceptance, the relevant explicit human decisions are separately required.
 
@@ -24,11 +24,24 @@ The DEV-PR-01 merge has parents Phase 0 merge `977e866d...` and accepted-for-mer
 - [Final Actions artifact 11739533909](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38234570618/artifacts/11739533909): AST JSON, architecture Markdown, raw unittest log and receipt JSON. Developer-recorded archive SHA-256: `f779fb2ee83f27e9e57b4cb865e4d703a7f1c3ea720c2475a41c532f5ad12145`. This is **not** the independent reviewer report.
 - [Original independent re-review, unmodified](reviews/DEV-PR-01-INDEPENDENT-RE-REVIEW.md) (SHA-256 `8d40e731b3101c122b8e58e77da62a96b0089bfc2075885e6b509c688c74c6c9`); [six findings and developer remediation](DEV-PR-01-INDEPENDENT-REVIEW-FINDINGS.md), [source/architecture/test baseline](DEV-PR-01-BASELINE.md), [handoff](handoffs/DEV-PR-01.md), [Phase 0 provenance](PHASE0-PROVENANCE.md).
 
+## 1A. GOV-01 and DEV-PR-02 — independently rechecked 2026-10-13
+
+| Cycle | Review / acceptance distinction | Observed GitHub identity |
+|---|---|---|
+| GOV-01 | Governance docs/archival PR completed; the earlier "Open" note was a dated historical snapshot, not its present state. No native GitHub Review or separately linkable MAIN acceptance object was verified here; do not invent one. | [PR #3](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/3) **MERGED** as `efd2be4e93ca8f1ee9f6a03fa53df6a1f008c8fb` (2026-10-12T13:17:08Z). |
+| DEV-PR-02 | `IMPLEMENTED / TESTED / REVIEWED / MAIN ACCEPTED / GITHUB MERGED` for bounded ports/DTO/error contracts. [Original R3 independent report](reviews/DEV-PR-02-INDEPENDENT-RE-REVIEW-R3.md) recommends `APPROVE_FOR_MAIN_ACCEPTANCE`; its authorship is an independent Chat audit, not a native submitted GitHub Review. Separate [MAIN acceptance archive](DEV-PR-02-MAIN-ACCEPTANCE.md) documents the decision and non-blocking risk. | [PR #4](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/4) **MERGED**, base `efd2be4e...`, final head `bdc698873999d3fc1773e76588339276ddc581ca`, merge `e1cb2dd76d9b5f8651750d6bd89d0b44819b6515` (2026-10-13T10:06:46Z), identical accepted/merge tree `9dc07cf45cb02ba31e047f266380be85717a64f2`. |
+
+DEV-PR-02 exact source CI: [Python 3.11/3.13 run 38367753519](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38367753519) (119/119 each), [DEV-PR-01 regression 38367753326](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38367753326) (48/48), [Phase 0 regression 38367753356](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38367753356) (6/6). These tested the PR head or a temporary PR merge ref of the **identical tree**. No separate post-merge `main@e1cb2dd...` CI run is claimed.
+
+R3 closed REV02-WIRE-01 / EVENT-01 / UNKNOWN-01 / CI-01 (4 MAJOR) and DOC-01 (MINOR); REV02-HELPER-01 remains **`INCONCLUSIVE / NOT_EXECUTED`** (independent helper implementation/optimized-mode test not obtained). MAIN **accepted this nonblocking MINOR** solely with a rule that unverified external handoff helpers must never be the single authority for critical integrity/merge decisions. The original local deliverer retains the responsibility to supply their implementations if future trusted use is proposed; targeted helper re-check only, no new general code gate. See [handoff](handoffs/DEV-PR-02.md) and [formal acceptance](DEV-PR-02-MAIN-ACCEPTANCE.md).
+
+**Archive PR limitation:** presence of these draft document links on a PR branch does not mean the documentation PR was reviewed or merged. Its completion must be separately checked live before declaring `HANDOFF COMPLETE`.
+
 ## 2. Current governance and future package status
 
-The [ROADMAP](ROADMAP.md) freezes 18 planned IDs and their dependency graph, not real-time progress. Phase 0 was `ACCEPTED / MERGED` with a durable GitHub comment trail. DEV-PR-01 is `IMPLEMENTED / TESTED / MERGED`, with the original final independent Chat review now preserved verbatim; MAIN acceptance is reported in prior management context, but a separately traceable GitHub MAIN acceptance record has not been located. The `MERGED` state is independently verified. GOV-01 is **USER-AUTHORIZED FOR DOCS ONLY**, not self-reviewed, accepted or merged.
+The [ROADMAP](ROADMAP.md) freezes 18 planning IDs and their dependencies; it grants no execution permission. Phase 0 is `MAIN ACCEPTED / GITHUB MERGED`; DEV-PR-01 is `IMPLEMENTED / TESTED / REVIEWED / GITHUB MERGED` with its previous MAIN acceptance reported but no separately traceable acceptance archive; GOV-01 is `GITHUB MERGED` with its earlier status preserved as a historical snapshot. DEV-PR-02 is `IMPLEMENTED / TESTED / REVIEWED / MAIN ACCEPTED / GITHUB MERGED`, limited to the software contract scope and the explicit HELPER-01 risk acceptance in §1A.
 
-`DEV-PR-02` through `DEV-PR-18` remain planning packages without a GOV-01 grant for implementation, test execution, review or merger. **DEV-PR-02 and DEV-PR-03 are NOT authorized to start.** No parallel work is implicitly authorized.
+**DEV-PR-03 through DEV-PR-18 are not authorized for product implementation.** A handoff or future acceptance proposal is not a development grant; no parallel or next-package work is implicitly authorized. The separately proposed mathematics acceptance clarifications for DEV-PR-04/11/12 are `PROPOSED / NOT AUTHORIZED FOR IMPLEMENTATION`, pending explicit user confirmation before any normative GitHub addendum.
 
 ## 3. Effective ADR and acceptance contracts
 
@@ -47,6 +60,8 @@ The DEV-PR-01 Python-level guards are **not an OS sandbox**: preexisting hardlin
 
 ## 5. Next candidates, dependencies, and authorization
 
-**Candidate DEV-PR-02:** ports, immutable DTOs and explicit error contracts; depends on DEV-PR-01 import and safety baseline. **Candidate DEV-PR-03:** pure read-only queries vs reconciliation; depends on DEV-PR-01 and interface alignment with DEV-PR-02; historical `host_pool.status()` is not certified pure. See [handoff](handoffs/DEV-PR-01.md).
+**Candidate DEV-PR-03 (NOT AUTHORIZED):** split strictly pure read-only queries from resource-pool reconciliation; dependent on DEV-PR-01 and aligned with DEV-PR-02 Ports. Historical `host_pool.status()` may mutate its ledger; the DEV-PR-01 and DEV-PR-02 synthetic gates do **not** certify this legacy query as read-only. Read [DEV-PR-02 Handoff](handoffs/DEV-PR-02.md) and [DEV-PR-01 Handoff](handoffs/DEV-PR-01.md), use the merged `pmrh.ports` interfaces only when they have concrete consumers, and preserve existing runtime default behavior.
 
-These are **unstarted candidates**. Before either, the next Development MAIN must independently re-check current `main`/PRs/CI, report any mismatch, read active ADRs and handoffs, resolve ownership and architectural conflicts, and obtain **new explicit user authorization**. Nothing in this state index, roadmap or prior PR transfers that authority.
+The user directed future management toward near-term MVP value, lowest reasonable complexity, minimum duplicate reviews, and explicit stop rules **without lowering research evidence or access safety**; these instructions have been transferred in the DEV-PR-02 Handoff. Specific DEV-PR-04/11/12 acceptance additions remain proposals and require a **separate approved, merged documentation addendum** before being treated as new formal tests. Future MAIN prompts must read the then-approved rules, not unapproved Library discussions.
+
+Before any successor work, independently re-check current `main`/PRs/CI, effective ADRs, current Handoff/acceptance, ownership and tooling. Obtain **fresh explicit user authorization** for DEV-PR-03 or any other new work package. Neither this index nor the software merge grants it.
