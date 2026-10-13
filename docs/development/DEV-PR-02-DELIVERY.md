@@ -178,7 +178,7 @@ python -B -m unittest discover -s tests/devpr02 -p test_*.py -t . -v
 
 本地还出现过一次环境失败：平台 `/opt/pyvenv` Python 预加载 `/opt/pyvenv/lib/python3.13/site-packages/sitecustomize.py`，没有加载项目守卫，导致 socket 拦截负例失败。该运行没有被标为 PASS；未修改守卫或删除负例。
 
-用 `/usr/bin/python3.13` 再次核对加载的是项目 `scripts/offline_guard/sitecustomize.py`，实际跑过 86 项全部通过。最终这次本地 raw log SHA-256：`9de54538ed7c0643f5bda5a690dbda7d3e2c7cbbdc020a3be8e2ddc53ed8c3bf`。本地源码标签为 UNCOMMITTED_LOCAL_DEVPR02_FIXUP；之后已与远端 b2a00be 源码逐字节比较一致，未伪装成当时已提交的 HEAD。
+用 `/usr/bin/python3.13` 再次核对加载的是项目 `scripts/offline_guard/sitecustomize.py`，实际跑过 86 项全部通过。最终这次本地 raw log SHA-256：`a4abd794597343acdbd5671ae540cd5fed3e9dc93abbac0b1a376beab224febd`。本地源码标签为 UNCOMMITTED_LOCAL_DEVPR02_FIXUP；之后已与远端 b2a00be 源码逐字节比较一致，未伪装成当时已提交的 HEAD。
 
 ## 6. 验收映射与 NOT_EXECUTED
 
@@ -213,3 +213,10 @@ DEV-PR-03/04/05/06/07 分别继承只读、领域、存储、控制、Runtime �
 合并后：必须通过独立的软件 revert PR 撤销，不重写历史，不删除原始科研 capture，不恢复 MAIN/Goal 或改变预算/科学结论。
 
 包含本记录的最终 HEAD 经源码、PR 文件范围、三个 workflow、四个 Job 和原始产物复核成功后，开发者在 PR 描述中标记 READY_FOR_INDEPENDENT_REVIEW，并保持 PR Open。该标记只表示可交给独立 MAIN 审核，不是 APPROVE、ACCEPTED 或合并授权。
+
+## MAIN-directed remediation annotation (2026-10-13)
+
+本文件是 dd044d09 开发检查点的历史记录，不代表返工已获验收。
+REV02-DOC-01：修正 §5 本地成功日志抄录值；原始日志和 receipt 不变。
+独立审核和 MAIN 后续决定均为 REQUEST_CHANGES；四项 MAJOR 与两项 MINOR 的返工见
+[DEV-PR-02-REMEDIATION.md](DEV-PR-02-REMEDIATION.md)，新 HEAD 与实际证据以 PR #4 最新描述为准。

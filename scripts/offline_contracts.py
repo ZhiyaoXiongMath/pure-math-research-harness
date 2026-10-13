@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from scripts import offline_test as baseline
-from scripts.verify_devpr02_artifacts import source_fingerprints
+from scripts.verify_devpr02_artifacts import source_fingerprints, expected_test_ids, validate_test_log
 
 SCHEMA = "pmrh.devpr02-ci-receipt/1.0"
 COMMAND_TAIL = ["-B", "-m", "unittest", "discover", "-s", "tests/devpr02", "-p", "test_*.py", "-t", ".", "-v"]
@@ -46,6 +46,7 @@ def execute(*, out: Path, forbidden_roots: list[str] | None = None) -> dict:
     out_fd = baseline._isolated_artifact_directory(out)
     try:
         before = source_fingerprints(ROOT)
+        expected_ids = expected_test_ids(ROOT)
         with tempfile.TemporaryDirectory(prefix="pmrh-devpr02-offline-") as folder:
             environment = baseline.environment(Path(folder), forbidden_roots=forbidden_roots)
             command = [sys.executable, *COMMAND_TAIL]
@@ -66,7 +67,13 @@ def execute(*, out: Path, forbidden_roots: list[str] | None = None) -> dict:
             matches = re.findall(r"\bRan (\d+) tests? in [^\n]+", stderr)
             count = int(matches[-1]) if matches else (None if error else 0)
             unchanged = before == source_fingerprints(ROOT)
-            success = error is None and exit_code == 0 and count is not None and count > 0 and "\nOK\n" in stderr and unchanged
+            try:
+                observed_ids = validate_test_log(raw, expected_ids)
+                identities_valid = True
+            except ValueError:
+                observed_ids = ()
+                identities_valid = False
+            success = error is None and exit_code == 0 and identities_valid and unchanged
             status = "PASS" if success else ("ERROR" if error else "FAIL")
             version = str(sys.version_info.major) + "." + str(sys.version_info.minor)
             sha = environment["PMRH_SOURCE_SHA"]
@@ -80,7 +87,9 @@ def execute(*, out: Path, forbidden_roots: list[str] | None = None) -> dict:
                                      "isolated_home": True, "synthetic_only": True,
                                      "guard": "PYTHON_LEVEL_DEFENSE_IN_DEPTH_ONLY_NOT_OS_SANDBOX",
                                      "ci_infrastructure_network": "NOT_MEASURED"},
-                "test_count": count, "pass_fail_status": status, "exit_code": exit_code,
+                "test_count": count, "expected_test_ids": list(expected_ids),
+                "validated_test_ids": list(observed_ids), "test_identity_status": "PASS" if identities_valid else "FAIL",
+                "pass_fail_status": status, "exit_code": exit_code,
                 "execution_error": error, "source_unchanged": unchanged,
                 "source_files_sha256": before, "raw_log_sha256": hashlib.sha256(raw).hexdigest(),
                 "artifact_identity": "pmrh-devpr02-contracts-" + sha + "-py" + version,

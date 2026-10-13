@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import json
 from pathlib import Path
@@ -25,6 +26,93 @@ def source_fingerprints(root: Path) -> dict[str, str]:
     if not any(p.startswith("tests/devpr02/test_") for p in result):
         raise ValueError("No contract tests were found")
     return dict(sorted(result.items()))
+
+
+def expected_test_ids(source_root: Path) -> tuple[str, ...]:
+    """Read the frozen synthetic suite without importing or executing tests.
+
+    Approved shape: top-level, undecorated, direct unittest.TestCase classes,
+    with ordinary directly defined test methods. Reject collection overrides,
+    inheritance/dynamic test definitions rather than silently under-counting.
+    New source-defined methods are discovered automatically; no fixed count.
+    The caller must authenticate source_root against the frozen Git tree.
+    """
+    directory = source_root / "tests/devpr02"
+    ids = []
+    for path in sorted(directory.rglob("test_*.py")):
+        if path.is_symlink() or not path.is_file():
+            raise ValueError("Test source missing or linked")
+        parsed = ast.parse(path.read_bytes(), filename=path.name)
+        module = ".".join(path.relative_to(source_root).with_suffix("").parts)
+        if any(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "load_tests"
+               for n in ast.walk(parsed)):
+            raise ValueError("Dynamic unittest collection is outside the frozen suite contract")
+        accepted = set()
+        classes = set()
+        for cls in (n for n in parsed.body if isinstance(n, ast.ClassDef)):
+            methods = [n for n in cls.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                       and n.name.startswith("test")]
+            is_case = any(ast.unparse(b) == "unittest.TestCase" for b in cls.bases)
+            if not methods and not is_case:
+                continue
+            if (cls.name in classes or cls.decorator_list or cls.keywords
+                    or len(cls.bases) != 1 or not is_case):
+                raise ValueError("Test class must be a unique direct unittest.TestCase")
+            classes.add(cls.name)
+            names = set()
+            for member in cls.body:
+                if isinstance(member, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.Delete)):
+                    raise ValueError("Test class rebinding is outside the frozen suite contract")
+                if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)) and member.name in (
+                    "id", "shortDescription", "run", "__call__", "__new__", "__init__"):
+                    raise ValueError("Test identity or execution override is not supported")
+            for method in methods:
+                if method.name in names or method.decorator_list or isinstance(method, ast.AsyncFunctionDef):
+                    raise ValueError("Duplicate, decorated or dynamic test method is not supported")
+                names.add(method.name)
+                accepted.add(id(method))
+                ids.append(module + "." + cls.name + "." + method.name)
+        for node in ast.walk(parsed):
+            if (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    and node.name.startswith("test") and id(node) not in accepted):
+                raise ValueError("Unaccounted test definition in frozen source")
+        for node in parsed.body:
+            if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.Delete)):
+                targets = (node.targets if isinstance(node, (ast.Assign, ast.Delete)) else [node.target])
+                for target in targets:
+                    if any((isinstance(n, ast.Name) and (n.id in classes or n.id == "load_tests"))
+                           or isinstance(n, ast.Attribute) for n in ast.walk(target)):
+                        raise ValueError("Module-level test rebinding is not supported")
+    if not ids or len(ids) != len(set(ids)):
+        raise ValueError("Frozen source has no unique complete test inventory")
+    return tuple(sorted(ids))
+
+
+def validate_test_log(raw_log: bytes, expected_ids: tuple[str, ...]) -> tuple[str, ...]:
+    """Cross-check the outer terminal result and exact unique method identities.
+
+    Arbitrary fixture output may contain 'FAIL'. Only actual result records and
+    the terminal unittest footer are interpreted; an earlier OK is not enough.
+    """
+    footer = re.search(rb"(?:^|\n)Ran (\d+) tests? in [0-9.]+s\n\nOK[ \t\r\n]*\Z", raw_log)
+    if footer is None:
+        raise ValueError("Raw unittest final success footer absent or contradicted")
+    records = list(re.finditer(rb"^(test[A-Za-z0-9_]*) \(([A-Za-z_][A-Za-z0-9_.]*)\) \.\.\. ([^\r\n]+)$",
+                               raw_log[:footer.start()], re.MULTILINE))
+    if not records or re.fullmatch(rb"[ \t\r\n-]*", raw_log[records[-1].end():footer.start()]) is None:
+        raise ValueError("Unexpected terminal material after the final test record")
+    observed = []
+    for record in records:
+        method, identity, status = record.groups()
+        if status != b"ok" or method != identity.rsplit(b".", 1)[-1]:
+            raise ValueError("A test result is not successful or has inconsistent identity")
+        observed.append(identity.decode("ascii"))
+    if len(observed) != len(set(observed)):
+        raise ValueError("Duplicate test identities in the raw log")
+    if (int(footer[1]) != len(observed) or not observed
+            or set(observed) != set(expected_ids) or len(expected_ids) != len(set(expected_ids))):
+        raise ValueError("Raw test identities differ from the complete frozen source suite")
+    return tuple(sorted(observed))
 
 
 def validate(root: Path, expected_sha: str, expected_tree: str, source_root: Path) -> dict:
@@ -91,16 +179,14 @@ def validate(root: Path, expected_sha: str, expected_tree: str, source_root: Pat
     raw_log = payloads["offline/unittest.log"]
     if receipt.get("raw_log_sha256") != digests["offline/unittest.log"]:
         raise ValueError("Raw contract log digest mismatch")
-    footers = re.findall(rb"\bRan (\d+) tests? in [^\n]+\n\nOK(?:\s|$)", raw_log)
-    names = re.findall(rb"^test_[^\n]+ \.\.\. ok$", raw_log, re.MULTILINE)
-    if not footers:
-        raise ValueError("Raw unittest success footer absent")
-    count = int(footers[-1])
-    if type(receipt.get("test_count")) is not int or receipt["test_count"] != count or count < 1 or len(names) != count:
+    names = validate_test_log(raw_log, expected_test_ids(source_root))
+    count = len(names)
+    if type(receipt.get("test_count")) is not int or receipt["test_count"] != count:
         raise ValueError("Actual individual test log count differs from receipt")
     return {"schema_version": "pmrh.devpr02-artifact-gate/1.0", "status": "PASS", "source_sha": expected_sha,
             "source_tree": expected_tree, "test_count": count, "files": digests,
-            "artifact_identity": receipt["artifact_identity"]}
+            "artifact_identity": receipt["artifact_identity"], "test_ids": list(names),
+            "test_ids_sha256": hashlib.sha256("\n".join(names).encode("ascii")).hexdigest()}
 
 
 def main(argv=None) -> int:

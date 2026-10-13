@@ -144,6 +144,8 @@ class ArtifactGateTests(unittest.TestCase):
             path = self.source / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("# SYNTHETIC_TEST_ONLY\n")
+        (self.source / "tests/devpr02/test_example.py").write_text(
+            "import unittest\nclass Example(unittest.TestCase):\n    def test_fixture(self): pass\n")
         (self.root / "ast").mkdir()
         (self.root / "offline").mkdir()
         sources = verifier.source_fingerprints(self.source)
@@ -153,7 +155,7 @@ class ArtifactGateTests(unittest.TestCase):
                       "counts": {"unresolved_new_layer_imports": 0}}
         (self.root / "ast/dependency-graph.json").write_text(json.dumps(self.graph))
         (self.root / "ast/architecture-audit.md").write_text("# DEV-PR-01 synthetic architecture fixture\n")
-        self.log = b"test_fixture (synthetic.Example.test_fixture) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nOK\n"
+        self.log = b"test_fixture (tests.devpr02.test_example.Example.test_fixture) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nOK\n"
         (self.root / "offline/unittest.log").write_bytes(self.log)
         self.receipt = {
             "schema_version": "pmrh.devpr02-ci-receipt/1.0", "dto_schema_version": "pmrh.ports/1.0", "suite": "devpr02",

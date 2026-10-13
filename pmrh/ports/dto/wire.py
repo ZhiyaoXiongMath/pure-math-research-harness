@@ -21,6 +21,8 @@ from .enums import ErrorCode
 SCHEMA_VERSION = "pmrh.ports/1.0"
 MAX_JSON_BYTES = 8 * 1024 * 1024
 MAX_TUPLE_ITEMS = 4096
+MAX_WIRE_DEPTH = 64
+MAX_WIRE_NODES = 262144
 _REGISTRY: dict[str, type] = {}
 
 
@@ -105,7 +107,7 @@ def _typed(expected, value, *, wire: bool):
         return value
     if isinstance(expected, type) and issubclass(expected, DTO):
         if wire:
-            return expected.from_wire(value)
+            return _decode_dto(expected, value)
         require(type(value) is expected and _REGISTRY.get(expected.__name__) is expected,
                 "Expected the exact registered DTO, not an implementation object.",
                 ErrorCode.TYPE_MISMATCH)
@@ -124,6 +126,91 @@ def _typed(expected, value, *, wire: bool):
         return value
     raise ContractViolation(ErrorCode.TYPE_MISMATCH,
                             "Unsupported type at the DTO boundary.")
+
+
+def _wire_budget(value, *, wire: bool) -> int:
+    """Count the complete canonical UTF-8 document once at each public boundary.
+
+    This traversal allocates no aggregate JSON string. It counts repeated values
+    at each occurrence (not by object identity), bounds depth/nodes, and rejects
+    cycles by the depth bound. Nested decoding uses _decode_dto rather than
+    recursively restarting a document budget. Object and text forms share the
+    same budget; text ingress additionally bounds the received UTF-8 bytes.
+    """
+    size = nodes = 0
+
+    def add(amount):
+        nonlocal size
+        size += amount
+        require(size <= MAX_JSON_BYTES, "Wire document is too large.")
+
+    def string_size(text):
+        require(type(text) is str, "Expected a JSON object member name.", ErrorCode.TYPE_MISMATCH)
+        # UTF-8 and JSON escaping cannot be shorter than the Python string.
+        require(len(text) <= MAX_JSON_BYTES - size, "Wire document is too large.")
+        try:
+            return len(json.dumps(text, ensure_ascii=False).encode("utf-8"))
+        except UnicodeError:
+            raise ContractViolation(ErrorCode.INVALID_WIRE, "Invalid Unicode scalar.") from None
+
+    def visit(item, depth):
+        nonlocal nodes
+        nodes += 1
+        require(depth <= MAX_WIRE_DEPTH and nodes <= MAX_WIRE_NODES,
+                "Wire document exceeds the structural resource budget.")
+        if not wire and isinstance(item, DTO):
+            require(_REGISTRY.get(type(item).__name__) is type(item),
+                    "Unregistered DTO type.", ErrorCode.INVALID_WIRE)
+            members = [("dto_type", type(item).__name__)]
+            members.extend((f.name, getattr(item, f.name)) for f in fields(item))
+        elif wire and type(item) is dict:
+            members = item.items()
+        else:
+            members = None
+        if members is not None:
+            add(2 + max(0, len(members) - 1))  # braces and commas
+            for name, child in members:
+                add(string_size(name) + 1)  # key and colon
+                visit(child, depth + 1)
+        elif type(item) is (list if wire else tuple):
+            require(len(item) <= MAX_TUPLE_ITEMS, "Sequence exceeds the contract bound.")
+            add(2 + max(0, len(item) - 1))
+            for child in item:
+                visit(child, depth + 1)
+        elif not wire and isinstance(item, Enum):
+            add(string_size(item.value))
+        elif type(item) is str:
+            add(string_size(item))
+        elif type(item) is bool:
+            add(4 if item else 5)
+        elif item is None:
+            add(4)
+        elif type(item) is int:
+            require(-(2 ** 63) <= item < 2 ** 63,
+                    "Integer is outside the signed 64-bit wire contract.")
+            add(len(str(item)))
+        else:
+            raise ContractViolation(ErrorCode.INVALID_WIRE,
+                                    "Implementation objects cannot cross the wire boundary.")
+
+    visit(value, 0)
+    return size
+
+
+def _decode_dto(cls, value):
+    """Decode a nested DTO after the public entrypoint's aggregate preflight."""
+    require(type(value) is dict, "Expected a JSON object.", ErrorCode.TYPE_MISMATCH)
+    require(value.get("schema_version") == SCHEMA_VERSION,
+            "Unsupported or missing schema version; no implicit upgrade.",
+            ErrorCode.UNSUPPORTED_SCHEMA_VERSION)
+    require(type(value.get("dto_type")) is str and value["dto_type"] == cls.__name__
+            and _REGISTRY.get(cls.__name__) is cls,
+            "Unexpected DTO type identity.", ErrorCode.INVALID_WIRE)
+    names = {f.name for f in fields(cls)}
+    require(names <= value.keys(), "Required DTO member is missing.", ErrorCode.MISSING_FIELD)
+    require(value.keys() == names | {"dto_type"}, "Unknown DTO member.", ErrorCode.INVALID_WIRE)
+    hints = _hints(cls)
+    return cls(**{name: _typed(hints[name], value[name], wire=True) for name in names})
 
 
 def _encode(value):
@@ -172,6 +259,7 @@ class DTO:
         """Additional pure invariants, overridden by the declared DTO type."""
 
     def to_wire(self) -> dict:
+        _wire_budget(self, wire=False)
         return _encode(self)
 
     def to_json(self) -> str:
@@ -184,17 +272,8 @@ class DTO:
     @classmethod
     def from_wire(cls, value):
         require(type(value) is dict, "Expected a JSON object.", ErrorCode.TYPE_MISMATCH)
-        require(value.get("schema_version") == SCHEMA_VERSION,
-                "Unsupported or missing schema version; no implicit upgrade.",
-                ErrorCode.UNSUPPORTED_SCHEMA_VERSION)
-        require(type(value.get("dto_type")) is str and value["dto_type"] == cls.__name__
-                and _REGISTRY.get(cls.__name__) is cls,
-                "Unexpected DTO type identity.", ErrorCode.INVALID_WIRE)
-        names = {f.name for f in fields(cls)}
-        require(names <= value.keys(), "Required DTO member is missing.", ErrorCode.MISSING_FIELD)
-        require(value.keys() == names | {"dto_type"}, "Unknown DTO member.", ErrorCode.INVALID_WIRE)
-        hints = _hints(cls)
-        return cls(**{name: _typed(hints[name], value[name], wire=True) for name in names})
+        _wire_budget(value, wire=True)
+        return _decode_dto(cls, value)
 
     @classmethod
     def from_json(cls, text: str):

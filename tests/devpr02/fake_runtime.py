@@ -225,10 +225,11 @@ class FakeModelProvider:
         error = check_capabilities(self.manifest, inference_spec.capability_requirements,
                                    operation=E.Operation.VALIDATE_REQUEST, scope=inference_spec.identity.scope)
         if error is not None:
-            return error
+            return replace(error, identity=inference_spec.identity,
+                           operation_id=inference_spec.inference_id)
         if isinstance(self.describe_model(inference_spec.model_selection), C.ErrorEnvelope):
             return C.port_error(E.ErrorCode.UNSUPPORTED_CAPABILITY, E.Operation.VALIDATE_REQUEST,
-                                identity=inference_spec.identity)
+                                identity=inference_spec.identity, operation_id=inference_spec.inference_id)
         return S.RequestValidation(request_digest=inference_spec.wire_digest(), capabilities=self.manifest,
                                      requires_inference_permit=True)
 
@@ -242,22 +243,29 @@ class FakeModelProvider:
         if not isinstance(check, C.ErrorEnvelope):
             check = self.policy.verify(inference_permit, self.stream_intent(spec))
         if isinstance(check, C.ErrorEnvelope):
-            return iter((check,))
+            # Normalize upstream validation/policy rejection to the operation
+            # being attempted, retaining evidence and the exact local inference.
+            return iter((replace(check, operation=E.Operation.STREAM,
+                                 scope=spec.identity.scope, identity=spec.identity,
+                                 operation_id=spec.inference_id),))
         old = self.operations.get(spec.idempotency_key)
         if old is not None:
             return iter(old[1] if old[0] == spec.wire_digest() else
-                        (C.port_error(E.ErrorCode.IDEMPOTENCY_CONFLICT, E.Operation.STREAM, identity=spec.identity),))
+                        (C.port_error(E.ErrorCode.IDEMPOTENCY_CONFLICT, E.Operation.STREAM, identity=spec.identity,
+                                      operation_id=spec.inference_id),))
         if spec.inference_id in self.inference_keys:
-            return iter((C.port_error(E.ErrorCode.IDEMPOTENCY_CONFLICT, E.Operation.STREAM, identity=spec.identity),))
+            return iter((C.port_error(E.ErrorCode.IDEMPOTENCY_CONFLICT, E.Operation.STREAM, identity=spec.identity,
+                                      operation_id=spec.inference_id),))
         if self.dispatch_outcome is not E.DispatchState.NOT_SENT:
             self.send_effects += 1
         if self.dispatch_outcome is not E.DispatchState.SENT:
             code = E.ErrorCode.NOT_SENT if self.dispatch_outcome is E.DispatchState.NOT_SENT else E.ErrorCode.SEND_OUTCOME_UNKNOWN
             events = (C.port_error(code, E.Operation.STREAM, identity=spec.identity,
-                                   evidence=(F.ref("provider-send-observation"),)),)
+                                   operation_id=spec.inference_id, evidence=(F.ref("provider-send-observation"),)),)
         else:
             provider_id = "synthetic:provider-request-" + str(self.send_effects)
             env = replace(F.envelope(identity=spec.identity),
+                          operation_id=spec.inference_id,
                           event_id="synthetic:provider-event-" + spec.wire_digest()[:32],
                           provider_id=F.observed("synthetic:provider"),
                           provider_request_id=F.observed(provider_id))
@@ -275,7 +283,8 @@ class FakeModelProvider:
 
     def inspect(self, provider_request_id: str) -> X.ExecutionObservation | C.ErrorEnvelope:
         entry = self.requests.get(provider_request_id)
-        return entry[1] if entry else C.port_error(E.ErrorCode.UNOBSERVED, E.Operation.INSPECT)
+        return entry[1] if entry else C.port_error(E.ErrorCode.UNOBSERVED, E.Operation.INSPECT,
+                                                operation_id=provider_request_id)
 
     def cancel_intent(self, provider_request_id: str) -> P.OperationIntent:
         return self.policy.intent(F.observed(provider_request_id), E.Operation.CANCEL, provider_request_id + ":cancel")
@@ -284,12 +293,14 @@ class FakeModelProvider:
                permit: P.OperationPermit | None = None) -> X.CancellationReceipt | C.ErrorEnvelope:
         entry = self.requests.get(provider_request_id)
         if entry is None:
-            return C.port_error(E.ErrorCode.UNOBSERVED, E.Operation.CANCEL)
+            return C.port_error(E.ErrorCode.UNOBSERVED, E.Operation.CANCEL, operation_id=provider_request_id)
         check = self.policy.verify(permit, self.cancel_intent(provider_request_id))
         if isinstance(check, C.ErrorEnvelope):
-            return check
+            return replace(check, scope=entry[0].identity.scope, identity=entry[0].identity,
+                           operation_id=entry[0].inference_id)
         if self.manifest.cancellation is E.Cancellation.UNSUPPORTED:
-            return C.port_error(E.ErrorCode.UNSUPPORTED_CAPABILITY, E.Operation.CANCEL)
+            return C.port_error(E.ErrorCode.UNSUPPORTED_CAPABILITY, E.Operation.CANCEL,
+                                identity=entry[0].identity, operation_id=entry[0].inference_id)
         if provider_request_id not in self.cancellations:
             self.cancellations[provider_request_id] = X.CancellationReceipt(
                 identity=entry[0].identity, request_status=E.CancelStatus.REQUEST_ACKNOWLEDGED,

@@ -178,6 +178,12 @@ def _page_invariants(page, kind: E.StreamKind) -> None:
                 require(envelope.status is E.EventStatus.COMMITTED
                         and envelope.journal_id.value == before.stream_id,
                         "Journal pages require committed events from the exact journal.")
+            elif kind is E.StreamKind.RUNNER:
+                require(envelope.invocation_id == before.stream_id,
+                        "Runner page event belongs to another invocation stream.")
+            elif kind is E.StreamKind.PROVIDER:
+                require(item.inference_id == before.stream_id,
+                        "Provider page event belongs to another inference stream.")
             expected += 1
         last = page.events[-1] if kind is E.StreamKind.JOURNAL else page.events[-1].envelope
         require(after.after_sequence == expected - 1 and after.last_event_id == last.event_id,

@@ -172,6 +172,12 @@ class ErrorEnvelope(DTO):
             "Recovery description is inconsistent with the error.")
         if self.operation_id is not None:
             identifier(self.operation_id)
+        # A parent Agent invocation is not a single Provider inference. When
+        # that parent is known, these errors must also name the frozen local
+        # inference in operation_id. It is never a fabricated remote request ID.
+        if self.identity is not None and self.operation in (E.Operation.STREAM, E.Operation.VALIDATE_REQUEST):
+            require(self.operation_id is not None,
+                    "Known inference errors require a local inference operation identity.")
         if self.code is E.ErrorCode.NOT_SENT:
             require(bool(self.raw_evidence_refs), "NOT_SENT needs confirmation evidence.")
         if self.identity is not None:
