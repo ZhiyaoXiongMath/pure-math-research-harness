@@ -300,7 +300,7 @@ def layer(path: str) -> str | None:
     return None
 
 
-def manifest_sources(root: Path):
+def manifest_sources(root: Path, changed_paths=()):
     filename = root / "docs/reference/PMRS-Next_Phase1/source-inventory.json"
     if not filename.exists():
         return {}, ["source-inventory.json missing"]
@@ -311,11 +311,11 @@ def manifest_sources(root: Path):
         file = root / name
         if not file.is_file():
             discrepancies.append("missing:" + name)
-        elif file.stat().st_size != item["bytes"]:
+        elif file.stat().st_size != item["bytes"] and name not in changed_paths:
             discrepancies.append("size_mismatch:" + name)
     unexpected = sorted(set(p.relative_to(root).as_posix()
                             for p in (root / "research_studio").rglob("*.py"))
-                        - set(mapping))
+                        - set(mapping) - set(changed_paths))
     discrepancies.extend("unregistered:" + name for name in unexpected)
     return mapping, discrepancies
 
@@ -359,8 +359,25 @@ def run(root: Path, policy: dict) -> dict:
         adjacency[edge["source"]].add(edge["target"])
     transitive = closure(nodes, adjacency)
     scc = components(nodes, adjacency)
-    inventory, discrepancies = manifest_sources(root)
+    bridge = policy.get('devpr03_read_bridge', {})
+    approved_paths = {
+        'research_studio/store.py', 'research_studio/host_pool.py', 'research_studio/views.py',
+        'research_studio/workspace.py', 'research_studio/main_session.py', 'research_studio/readonly_query.py'}
+    paths_valid = bool(bridge) and set(bridge.get('changed_paths', ())) == approved_paths
+    inventory, discrepancies = manifest_sources(root, approved_paths if paths_valid else ())
     violations, legacy_blocks = [], []
+    bridge_edges = {(row['source'], row['target']) for row in bridge.get('direct_edges', ())
+                    if all(row.get(k) for k in ('consumer', 'reason', 'owner', 'remove_by'))}
+    approved_bridge_edges = {
+        ('pmrh/cli.py', 'research_studio/readonly_query.py'),
+        ('research_studio/readonly_query.py', 'pmrh/ports/dto/core.py'),
+        ('research_studio/readonly_query.py', 'pmrh/ports/dto/enums.py'),
+        ('research_studio/readonly_query.py', 'pmrh/ports/dto/__init__.py')}
+    if bridge and not paths_valid:
+        violations.append({'reason': 'invalid_devpr03_path_allowlist'})
+    if bridge and (bridge_edges != approved_bridge_edges or
+                   set(bridge.get('legacy_reachability', {})) != {'pmrh/cli.py', 'pmrh/__main__.py'}):
+        violations.append({'reason': 'invalid_devpr03_bridge_allowlist'})
     violation_keys = set()
     for filename in source_nodes:
         if layer(filename) == "unclassified":
@@ -381,9 +398,9 @@ def run(root: Path, policy: dict) -> dict:
                 violation_keys.add(key)
                 violations.append({**edge, "reason": "forbidden_new_layer_direction",
                                    "source_layer": a, "target_layer": b})
-        if source.startswith("pmrh/") and target.startswith("research_studio/"):
+        if source.startswith("pmrh/") and target.startswith("research_studio/") and (source, target) not in bridge_edges:
             violations.append({**edge, "reason": "new_package_may_not_depend_on_legacy"})
-        if source.startswith("research_studio/") and target.startswith("pmrh/"):
+        if source.startswith("research_studio/") and target.startswith("pmrh/") and (source, target) not in bridge_edges:
             violations.append({**edge, "reason": "legacy_may_not_depend_on_new_package"})
         if source in inventory and target in inventory and not target.endswith("/__init__.py"):
             a = migrated_layer(inventory[source]["target"])
@@ -398,6 +415,21 @@ def run(root: Path, policy: dict) -> dict:
     # Do not allow a classified layer to reach a forbidden implementation
     # indirectly through an otherwise plausible module/bridge.
     direct_pairs = {(e["source"], e["target"]) for e in edges}
+    # DEV03 does not suppress transitive checks. Every reachable legacy target
+    # for the two CLI consumers is an exact frozen name with removal ownership.
+    allowed_reach = bridge.get('legacy_reachability', {})
+    for source in source_nodes:
+        if source.startswith('pmrh/'):
+            for target in transitive[source]:
+                if target.startswith('research_studio/') and target not in allowed_reach.get(source, ()):
+                    violations.append({'source': source, 'target': target,
+                                       'reason': 'unapproved_transitive_legacy_dependency'})
+    if bridge:
+        actual_query_edges = {e['target'] for e in edges if e['source'] == 'research_studio/readonly_query.py'}
+        if actual_query_edges != set(bridge.get('query_import_targets', ())):
+            violations.append({'reason': 'query_compatibility_imports_changed'})
+        if not bridge_edges <= direct_pairs:
+            violations.append({'reason': 'missing_named_query_bridge_edge'})
     for source in source_nodes:
         a = layer(source)
         if a not in ALLOWED:
@@ -411,12 +443,18 @@ def run(root: Path, policy: dict) -> dict:
     # Unresolved new package imports need review; never report clean merely
     # because a static target cannot be identified.
     for item in dynamic:
-        if item["source"].startswith("pmrh/"):
+        if item["source"].startswith("pmrh/") or item['source'] == 'research_studio/readonly_query.py':
             violations.append({**item, "reason": "unresolved_dynamic_import",
                                "review_required": True})
     for edge in external:
         source, imported = edge["source"], edge["import"].split(".", 1)[0]
         a = layer(source)
+        if source == 'research_studio/readonly_query.py' and imported not in {
+                'contextlib', 'datetime', 'errno', 'os', 'pathlib', 'stat'} and edge['import'] not in {
+                'pmrh.ports.dto.core.StateAxes', 'pmrh.ports.dto.core.port_error',
+                'research_studio.util.PMRSError', 'research_studio.util.canonical',
+                'research_studio.store.Store'}:
+            violations.append({**edge, 'reason': 'unapproved_query_capability_import'})
         if a in FORBIDDEN_IMPORTS and imported in FORBIDDEN_IMPORTS[a]:
             violations.append({**edge, "reason": "prohibited_capability_import",
                                "source_layer": a})
@@ -472,6 +510,7 @@ def run(root: Path, policy: dict) -> dict:
         "named_architectural_couplings": named_couplings,
         "legacy_policy": policy,
         "legacy_inventory_discrepancies": discrepancies,
+        "authorized_legacy_read_paths": sorted(approved_paths) if paths_valid else [],
         "test_entrypoint_review": review_entrypoints(root, external),
     }
     return report
@@ -519,7 +558,7 @@ def markdown(report: dict) -> str:
                   "", "## Limitations", "",
                   "- AST detects literal imports, not all runtime dynamic imports, plugin hooks, native code or side effects.",
                   "- Transitive graph is static reachability, not runtime load-order proof.",
-                  "- Legacy exemptions apply ONLY to an unchanged historical source tree; CI checks its diff.",
+                  "- Legacy exemptions retain the original baseline; exact DEV03 read-section exceptions are separately checked by CI.",
                   "- This report certifies neither OS isolation nor execution safety of historical tests.",
                   ""])
     return "\n".join(lines)

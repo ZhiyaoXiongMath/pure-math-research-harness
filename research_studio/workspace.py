@@ -116,7 +116,7 @@ class Workspace:
         grants=[g for g in s['budget_grants'].values() if g.get('budget_domain','SCIENCE')=='SCIENCE'
                 and (not instance or g.get('instance_id')==instance)]
         remaining=sum(budget_remaining(s,g['budget_grant_id']) for g in grants);total=project_remaining(s)
-        from .host_pool import status as pool_status
+        from .host_pool import read_status as pool_status
         pool=pool_status()
         v['host_pool']=pool
         stage_requests=[r for r in requests if s['tasks'].get(r['task_id'],{}).get('actor_kind')!='MAIN']
@@ -158,7 +158,7 @@ class Workspace:
         v['project_execution']['running_coordinators']=int(native_coordinator['active'])
         v['execution']['running_processes']=None  # Active native requests are not a process census.
         v['usage']=usage_ledger.summary(s,instance_id=instance)
-        v['main']=main_session.view(store,instance) if instance and selected.get('kind')!='SURVEY' else None
+        v['main']=main_session.view(store,instance,snapshot=s) if instance and selected.get('kind')!='SURVEY' else None
         v['round_result']=rounds.describe(s,instance) if instance else None
         v['last_delivery']=s.get('round_deliveries',{}).get(mission.get('delivery_ref'))
         v['round_deliveries']=[{'delivery_id':did,**deepcopy(row)} for did,row in s.get('round_deliveries',{}).items()
@@ -166,7 +166,8 @@ class Workspace:
         from .incidents import project as incident_projection
         v['incidents']=[incident_projection(s,row) for row in s.get('incidents',{}).values() if not instance or row['instance_id']==instance]
         from . import communication
-        v['communication']=communication.view(store,instance_id=instance)
+        from types import SimpleNamespace
+        v['communication']=communication.view(SimpleNamespace(read_snapshot=lambda:s,read_blob=store.read_blob),instance_id=instance)
 
         v['corrections']=corrections.pending(s,instance) if instance else []
         v['correctable_work']=[{'binding_id':c['binding_id'],'stage_id':c['stage_id'],'role':c['role'],

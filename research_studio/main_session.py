@@ -22,8 +22,9 @@ def submit_direction(store,instance_id,text,*,client_action_id,refs=None,kind='G
     result=store.commit_strategy(strategy.event('HUMAN_DIRECTION_SUBMITTED',{'instance_id':instance_id,'mission_id':mid,'direction':d}))
     return {**result,'direction_id':did,'status':store.read_snapshot()['human_directions'][did]['status'],'model_calls':0}
 
-def view(store,instance_id,*,cursor=0):
-    s=store.read_snapshot();require(instance_id in s['instances'],'INSTANCE_UNKNOWN',instance_id)
+def view(store,instance_id,*,cursor=0,snapshot=None):
+    s=store.read_snapshot() if snapshot is None else snapshot
+    require(instance_id in s['instances'],'INSTANCE_UNKNOWN',instance_id)
     require(s['instances'][instance_id]['kind'] in {'TRH','FDH'},'MAIN_NOT_APPLICABLE','SURVEY has a sequential workflow and no MAIN session')
     st=strategy.current(s,instance_id);instance=s['instances'][instance_id];mid=instance.get('current_mission_id')
     mission=s['missions'].get(mid,{})

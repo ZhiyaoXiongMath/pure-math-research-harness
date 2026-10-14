@@ -115,8 +115,15 @@ def _apply_delta(state, delta):
 
 
 class Store:
-    def __init__(self, root):
-        self.root = safe_path(Path(root))
+    def __init__(self, root, *, reader=None):
+        # DEV03's query supplies an already confined, read-only directory
+        # context. Ordinary callers retain the original path/I/O behavior.
+        self.root = safe_path(Path(root)) if reader is None else Path(root).absolute()
+        self._reader = reader
+        if reader is not None:
+            require(self.root == reader.root, 'PATH_INVALID', 'Reader root differs')
+        self._read_head = None
+        self._read_marker = None
 
     @classmethod
     def create(cls, root, title, *, language=None, initial=None, synthetic=False):
@@ -132,19 +139,36 @@ class Store:
         return store
 
     def _marker(self):
-        marker = loads(read(self.root/'project.json'))
+        if self._reader is not None and self._read_marker is not None:
+            return deepcopy(self._read_marker)
+        marker = loads(read(self.root/'project.json') if self._reader is None else
+                       self._reader.read('project.json', 65536))
         require(marker.get('schema') == SCHEMA_VERSION, 'NATIVE_SCHEMA_REQUIRED',
                 'Only the current native project format is supported; no format conversion is available')
+        if self._reader is not None:
+            self._read_marker = deepcopy(marker)
         return marker
 
     def _head(self):
         self._marker()
-        head = loads(read(self.root/'HEAD'))
+        if self._reader is not None and self._read_head is not None:
+            return deepcopy(self._read_head)
+        head = loads(read(self.root/'HEAD') if self._reader is None else
+                     self._reader.read('HEAD', 16384))
         require(set(head) == {'sequence', 'commit', 'path'}, 'JOURNAL_INVALID', 'Invalid HEAD fields')
+        if self._reader is not None:
+            self._read_head = deepcopy(head)
         return head
 
     def _commit_record(self, head):
-        raw = read(safe_path(self.root, head['path']))
+        if self._reader is not None:
+            require(isinstance(head, dict) and set(head) == {'sequence', 'commit', 'path'} and
+                    type(head['sequence']) is int and head['sequence'] >= 1 and
+                    isinstance(head['commit'], str) and len(head['commit']) == 64 and
+                    all(c in '0123456789abcdef' for c in head['commit']),
+                    'JOURNAL_INVALID', 'Invalid read boundary')
+        raw = (read(safe_path(self.root, head['path'])) if self._reader is None else
+               self._reader.read(head['path']))
         require(sha(raw) == head['commit'], 'COMMIT_CHANGED', 'Journal commit digest differs')
         entry = loads(raw)
         required = {'schema', 'sequence', 'previous_commit', 'base_knowledge_commit',
@@ -173,9 +197,17 @@ class Store:
             # A checkpoint is a disposable reference projection, bound to the
             # verified commit and state digest in its immutable wrapper.
             path = self.root/'checkpoints'/f"{head['commit']}.json"
-            if path.exists():
+            checkpoint = None
+            have_checkpoint = False
+            if self._reader is not None:
+                raw = self._reader.read(f"checkpoints/{head['commit']}.json", missing_ok=True)
+                if raw is not None:
+                    checkpoint = loads(raw)
+                    have_checkpoint = True
+            elif path.exists():
                 try:
                     checkpoint = loads(read(path))
+                    have_checkpoint = True
                 except PMRSError as exc:
                     # Another writer may have pruned this disposable projection
                     # after exists(). The immutable journal remains authoritative.
@@ -184,6 +216,7 @@ class Store:
                     pending.append(entry)
                     head = entry['previous_commit']
                     continue
+            if have_checkpoint:
                 require(set(checkpoint) == {'commit', 'state', 'state_sha256'}, 'CHECKPOINT_INVALID', 'Unknown checkpoint')
                 require(checkpoint['commit'] == head['commit'] and sha(canonical(checkpoint['state'])) == checkpoint['state_sha256'],
                         'CHECKPOINT_CHANGED', 'Checkpoint digest differs')
@@ -440,7 +473,8 @@ class Store:
     def read_blob(self, digest):
         require(isinstance(digest, str) and len(digest) == 64 and all(c in '0123456789abcdef' for c in digest),
                 'BLOB_ID_INVALID', 'Expected SHA-256 digest')
-        data = read(safe_path(self.root, 'blobs/'+digest), 256*1024*1024)
+        data = (read(safe_path(self.root, 'blobs/'+digest), 256*1024*1024) if self._reader is None else
+                self._reader.read('blobs/'+digest, 256*1024*1024))
         require(sha(data) == digest, 'BLOB_CHANGED', digest)
         return data
 
@@ -448,7 +482,8 @@ class Store:
         require(isinstance(ref, str) and ref.startswith('KR-') and len(ref) == 67,
                 'RECORD_REF_INVALID', 'Exact KR revision required')
         from .knowledge import identify
-        record = loads(read(safe_path(self.root, 'records/'+ref+'.json')))
+        record = loads(read(safe_path(self.root, 'records/'+ref+'.json')) if self._reader is None else
+                       self._reader.read('records/'+ref+'.json'))
         body = self.read_blob(record['body_sha256'])
         require(identify(record, body) == ref, 'RECORD_CHANGED', ref)
         return record

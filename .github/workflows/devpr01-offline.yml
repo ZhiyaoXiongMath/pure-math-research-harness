@@ -24,13 +24,13 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Fail closed if original legacy implementation changed
+      - name: Enforce original baseline and exact DEV03 read-section allowance
         shell: bash
         run: |
           set -euo pipefail
           BASE=e4de0210f9985224e030ac4cfd2f7e2904005b37
           test "$(git rev-parse "$BASE^{tree}")" = c17a592ff0a4906afa7a6423535f41c67c926128
-          git diff --exit-code "$BASE" -- research_studio/
+          python3 -B scripts/check_legacy_scope.py
           test -z "$(git status --porcelain)"
           echo "LEGACY_FROZEN_SOURCE_CHECK=PASS"
 

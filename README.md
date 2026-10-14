@@ -1,10 +1,20 @@
 # Pure Math Research Harness (PMRH)
 
-**Current status: Phase 0 repository bootstrap — NOT a released research CLI.** This repository preserves the original Pure Math Research Studio 4.2.2-preview history and compatibility code. The new `pmrh` command can only display help/version; all research and control commands are deliberately unsupported. Do not run existing legacy product entrypoints on formal research projects under the Phase 0 test authorization.
+**Current development: a read-only status MVP; not a released research runtime.** PMRH preserves the Pure Math Research Studio 4.2.2-preview history and compatibility code. The new command reads existing native project facts without starting research, reconciling resources, refreshing authentication or rebuilding indexes. Help/version remain inert; control commands remain unsupported. [简体中文](README.zh-CN.md)
+
+From this checkout, use Python 3.11+ on POSIX/Linux with bytecode writes disabled; no native binary, model credentials or additional Python dependencies are needed for status:
+
+```sh
+python3 -B -m pmrh status ./existing-project --instance INSTANCE --json
+```
+
+For an installed entrypoint, use `PYTHONDONTWRITEBYTECODE=1 pmrh status ./existing-project --instance INSTANCE --json`. `PROJECT` is the native project directory containing `project.json` and `HEAD`, not a workspace directory. Optional `--as-of COMMIT` selects an existing full journal SHA-256. Exit codes are 0 for readable project status, 1 for unavailable project data and 2 for invalid arguments. For example, querying an absent `./missing-project` returns JSON containing `"available": false, "unavailable_reason": "NOT_FOUND"` and leaves it absent.
+
+Project projections share one commit. The global pool has an independent observation time and byte digest; missing pool counts are null. Runtime/authentication/configuration are unobserved, and report files are not verified by this command. PAUSED, UNKNOWN and exact scientific scope are preserved. See the [DEV03 contract and limits](docs/development/DEV-PR-03-CONTRACT.md).
 
 Development controls: [AGENTS.md](AGENTS.md) · [CONTRIBUTING.md](CONTRIBUTING.md) · [Phase 0 provenance](docs/development/PHASE0-PROVENANCE.md) · [18 planned work packages](docs/development/ROADMAP.md) · [reference audit documents](docs/reference/PMRS-Next_Phase1/README.md).
 
-The following text is the original historical **PMRS 4.2.2-preview README** retained for provenance. Its legacy runtime claims are not Phase 0 PMRH acceptance claims.
+The following text is the original historical **PMRS 4.2.2-preview README** retained for provenance. Its legacy runtime claims are not PMRH acceptance claims.
 
 ---
 

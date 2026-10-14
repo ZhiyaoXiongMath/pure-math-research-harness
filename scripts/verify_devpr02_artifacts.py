@@ -28,7 +28,7 @@ def source_fingerprints(root: Path) -> dict[str, str]:
     return dict(sorted(result.items()))
 
 
-def expected_test_ids(source_root: Path) -> tuple[str, ...]:
+def expected_test_ids(source_root: Path, *, suite="devpr02") -> tuple[str, ...]:
     """Read the frozen synthetic suite without importing or executing tests.
 
     Approved shape: top-level, undecorated, direct unittest.TestCase classes,
@@ -37,7 +37,9 @@ def expected_test_ids(source_root: Path) -> tuple[str, ...]:
     New source-defined methods are discovered automatically; no fixed count.
     The caller must authenticate source_root against the frozen Git tree.
     """
-    directory = source_root / "tests/devpr02"
+    if suite not in ("devpr02", "devpr03"):
+        raise ValueError("Unsupported contract test inventory")
+    directory = source_root / "tests" / suite
     ids = []
     for path in sorted(directory.rglob("test_*.py")):
         if path.is_symlink() or not path.is_file():
