@@ -1,0 +1,106 @@
+PMRH DEV-PR-03 — MAIN 正式验收记录
+
+决定：MAIN ACCEPTED
+时间：2026-10-14T02:59:30.462866+00:00（UTC）
+当前流程状态：WAITING_FOR_USER_MERGE。软件尚未合并；归档 PR 尚未启动；HANDOFF NOT COMPLETE。
+
+一、验收对象与人类授权
+
+PR #6：https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/6
+冻结基线：507ea4baca2782ab0da13ab949bc4424fc707694
+接受 HEAD：c4ea8bc93b2018f30f04a5c5df7d1a8b1a653525
+接受 tree：7a079828c351af4dce6f645da6e5d53a44c75010
+正常父提交/R1 审核 HEAD：32bfced663e50cd69f418b21ed9af5f2faef0502
+专用分支：feat/dev-pr-03-readonly-query。
+
+用户已授权按阶段 A 报告推进开发、限定 CI/测试调整、独立审核、最多两轮定向返工、MAIN 验收及软件合并后的独立归档 PR；软件与文档合并均保留给用户。用户随后明确“批准这一限定例外，继续DEV-PR-03，恢复goal”，批准既有 Store 的构造/读路径限定例外。授权原文与时间保存在 control/authorization.json 和 control/store-read-exception-authorization.json。
+
+本决定由 Development MAIN 独立作出：gpt-6-astra/high；真实执行配置见 control/main-acceptance-execution-config.json。开发者使用 Astra/xhigh 的受控可写工作区；通用与安全审核分别使用独立 CLI 上下文、Astra/xhigh 与 Astra/ultra 的只读环境。审核建议不是本验收决定，验收也不授予合并或科研权限。
+
+二、接受的最小交付与边界
+
+支持 POSIX/Linux、Python 3.11+：
+  python3 -B -m pmrh status PROJECT --instance INSTANCE --json [--as-of JOURNAL_COMMIT]
+
+新查询读取已存在项目，不创建目录、锁、配置、索引或池文件，不触发 reconciliation、认证刷新、进程/线程启动、native 同步或模型调用。项目固定一次 journal 快照，各投影复用同一边界；全局池单独标记来源、观测时点与非原子性。缺失/损坏/无权限明确 unavailable；不可观测计数为 null，不能冒充健康零。PAUSED、UNKNOWN、原接纳状态和科研资格均保持原义。
+
+read_status 与 reconcile_pool 显式分开；旧 status 是明确标注的可写兼容别名。Store 仅注入受限读取上下文并固定 marker/HEAD，继续使用原始摘要、checkpoint 校验和 replay。默认读者仍读取最新 HEAD，原写者/reducer/schema/index 未改。目录描述符逐组件 no-follow 防护覆盖本次新查询，而非宣称所有旧 Store 使用方式都已安全隔离。
+
+StateAxes 和 ErrorEnvelope 均有真实消费者。无新 Store 实现、Runner/Provider 适配器、UI 替换、schema 迁移或 DEV04 工作。允许的六个 legacy 路径、四条直接兼容依赖边和精确传递依赖清单有定向负例约束，未刷新原历史基线、放开目录通配或关闭传递检查。
+
+三、验收矩阵与 MAIN 判断
+
+Q01：缺失项目、池和配置保持缺失；已有项目无需后台配置即可读取。PASS（定义的 DEV03 合成用例）。
+Q02：内容、目录结构、权限、mtime/ctime/link-count 前后相同；权限拒绝、损坏/超限输入明确失败；查询不清理 stale/UNKNOWN。PASS，排除 OS 维护的 atime。
+Q03 / GUIDE:C03：实际 CLI/查询与受影响旧投影，禁止网络/进程/线程/native/reconcile 路径的正例仍成功；PAUSED/UNKNOWN 与科学范围保留。PASS（本包范围）；没有把软件测试升级为科研证明。
+Q04 本包部分：并发 HEAD 发布、正文分页、显式 as-of 与 MAIN/communication 固定快照；池独立观测。PASS；完整流式事件与未来产品验收仍 NOT_EXECUTED。
+Q05 邻近回归：后台未查询仍能读已有事实并标 UNOBSERVED。接受该 MVP 行为；完整 Supervisor/后续产品 Q05 未验收。
+路径与写侧：父目录替换、symlink、traversal、特殊文件、hardlink、读限额及默认 Store 相容性有定向覆盖；原 reconciliation body 不变，合成显式 reconciliation 保留 UNKNOWN。PASS（定义的覆盖，不是 hostile-native 隔离认证）。
+
+MAIN 复核了实际源代码的读路径、Store 注入、查询/协调分离和修复差异；以自行下载并核验的 GitHub 源码、原始 CI、独立审核和九个隔离 CLI 执行结果作综合判断。全部必需范围已覆盖，两个缺陷在最终 HEAD 上获得定向关闭，没有剩余 DEV03 BLOCKER/MAJOR，进一步扩大实现没有验收需要。因此正式接受限定 MVP。
+
+四、独立审核与有界返工
+
+R1 HEAD 32bfced：通用审核 REQUEST_CHANGES（两项 MAJOR）；安全审核 REQUEST_CHANGES（一项 MAJOR、一项 MINOR）。MAIN 映射为两个问题并要求都修复：
+- MAIN-03-01 / GEN-01 / SEC-01：typed mapping 不可用时丢失原始 acceptance_state。最终按请求保留原值，缺失为 null + NOT_RECORDED；SETTLED 不伪造为终止。CLOSED。
+- MAIN-03-02 / GEN-02 / SEC-02：坏 Unicode 池数据可能导致整个 JSON 输出失败。最终先规范 UTF-8 校验，再发布池 availability/计数；坏键/值使池 unavailable、计数 null，但保留健康项目 JSON。CLOSED。保留原审核严重级别差异，MAIN 按 MVP 可用性要求两者关闭。
+
+仅实施第 1/2 轮定向返工：四文件、117 行新增/3 行删除。R2 的 Astra/xhigh 通用审核与 Astra/ultra 安全审核均 APPROVE，无新增问题或范围扩张。R2 复用身份不变的 R1 全包审核，不重复审核全部 DEV02。
+
+两个 R2 新 turn 均由 Controller 先核验模型/档位/cwd/read-only/受限网络，再开放检查门；单次合成 append 均被 EROFS(30) 拒绝，前后哈希不变。377 个源文件/输入清单项在复审后仍全部相同，源码 Git 状态干净。没有 Desktop 恢复、开发完整对话继承、网络/凭据访问或源代码写入。角色各自报告由 CLI 监督端保存，报告内容不是 reviewer 写文件。
+
+R1 启动时 Controller 对 network 枚举的校验误判，以及 R2 首次等待配置门超时均保留为启动失败/NOT_EXECUTED；不把它们当审核通过，也不计为产品返工轮。实际通过的后续 turn 均另行核验。原父目录替换失败、初次 AST 失败、修复前回归失败和 R1 REQUEST_CHANGES 均保留历史，不重标 PASS。
+
+原始审核文件与 SHA-256：
+  reviews/dev03-r1/general/report.txt
+    6c0e10a653157ffa4a968abc46ee51455490db950b3f6e3ce3b19e7186727ce7
+  reviews/dev03-r1/security/report.txt
+    e49085d415a360e0559fba098c1e3659185e58deeb18e2bebf3a252330fb9a64
+  reviews/dev03-r2/general/report.txt
+    bfc802acb062ca33fb3ab9acd715d1a9fd74e1ad18dc7b51d74eb714f0f9d7c6
+  reviews/dev03-r2/security/report.txt
+    f077193aaca968f1ab4794c5b9c7b46b646d452b383ff7c7be417c4dc8795ae3
+
+五、CI、Artifact 与测试身份
+
+最终 GitHub 复查：四个 pull_request workflow、六个 job 全部 completed/success，均指向接受 HEAD；PR Open/unmerged、auto_merge=null、mergeable=true/clean；main 仍为冻结基线。GitHub-native Review 为零；本轮独立审核是有单独执行与隔离证据的 CLI 审核，不能声称 GitHub 已提交审批。
+
+devpr02 / Python 3.11.17：119 个唯一测试 PASS；run 38502114198，artifact 11866247348。
+  https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38502114198
+devpr02 / Python 3.13.16：119 个唯一测试 PASS；run 38502114198，artifact 11865528650。
+  https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38502114198
+devpr03 / Python 3.11.17：36 个唯一测试 PASS；run 38502114213，artifact 11866406934。
+  https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38502114213
+devpr03 / Python 3.13.16：36 个唯一测试 PASS；run 38502114213，artifact 11866073337。
+  https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38502114213
+devpr01 / Python 3.12.3：48 个唯一测试 PASS；run 38502114175，artifact 11866411891。
+  https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38502114175
+Phase 0：6 个测试 PASS；run 38502114254，job 115651255735，无 ZIP。
+  https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38502114254
+
+Controller 独立核验五个 ZIP 的 GitHub digest、CRC、原始日志哈希、唯一测试身份与源代码 AST 清单；四个 source archive 中 292 个 Git blob/文件模式均匹配远端树。未用仓库 helper 或 Developer 报告作为唯一证据。明细在 evidence/headc4ea/controller-ci-verification.json 与各 run 原件。
+
+Phase 0 实际测试的是临时合并 6378ea468987aff13a6e939d4441869dce49a7c4；原始 job 日志与 GitHub commit 对象一致，父提交为 base507 和接受 HEAD，tree 与接受 tree 完全一致。这不是软件 PR 真正合并，也不是合并后 main CI。R1 临时合并 35f5d83… 的同类证据缺口也已补齐，原 R1 报告保持不变。
+
+MAIN 自行执行九个严格 UTF-8 实际 CLI 子进程检查：四种 SETTLED 接纳结果、NOT_SUBMITTED 值、缺失接纳、坏池字段、坏池键、有效 Unicode。全部 exit0/有效 JSON/无 traceback/夹具未改。NOT_SUBMITTED 的 MAIN 探针使用 SETTLED；普通 PREPARED/NOT_SUBMITTED 配对由 CI 的新回归测试覆盖，不混同两者。原始脚本、隔离命令、输出和结果在 workspaces/controller-validation/headc4ea/。
+
+Reviewer 自己执行的是只读源码/对象/hash/AST/日志验证；其产品测试和夹具运行仍 NOT_EXECUTED。测试执行归属于实际 CI、Developer 或 MAIN，不把离线读取的测试结果写成 Reviewer 亲自执行。
+
+六、接受的限制、责任与触发条件
+
+1. 保持 -B/PYTHONDONTWRITEBYTECODE；OS atime 排除；项目与池非原子。当前 MAIN 接受为文档明确的 MVP 边界。若新增调用入口、平台或一致性要求，由对应后续授权包重新验收。
+2. query 的 128MiB/4096 次读取、pool 4MiB/4096 项限额超出时 unavailable，不扩大或修复持久数据。大规模数据支持需要另行授权，不以本验收作通用规模承诺。
+3. 原生敌对进程/特权 mount/解释器篡改隔离、真实科研、Provider/native/付费调用、browser/PDF 产品门、完整旧套件、未来 58+46 产品验收均 NOT_EXECUTED。新旧 Python guard 是预防控制，不是 OS 隔离证明；查询调用计量 NOT_INSTRUMENTED/null，不宣称已测零。未来相应包负责在获得授权后补证。
+4. 继承 REV02-HELPER-01：仍 INCONCLUSIVE / NOT_EXECUTED，继续按前任 MAIN 已接受的非阻断 MINOR 管理；任何后续唯一完整性门依赖该 helper 前必须补证。本轮没有此依赖。
+5. PR5 历史独立文档审核正文 NOT_RETRIEVED 保留；当前基线有另一次 Astra/xhigh 限定独立核查和本 MAIN 的 baseline-acceptance.json，不倒填旧历史 REVIEWED/HANDOFF COMPLETE。DEV02 未变化的 Ports/DTO/测试身份与适用条件已复核，可复用。
+6. 平台强制 branch protection 未证实，合并授权依靠明确人类门。任何 HEAD/base 漂移须重新作影响判断及必要定向审核，不静默扩大本验收。
+
+以上为明确接受的限制；本次没有新 DEV03 MINOR 被搁置。科研原始数据、replay 身份、PAUSED/UNKNOWN 与人类授权标准未降低。
+
+七、合并门与后续归档
+
+现在等待用户决定并执行软件 PR #6 合并。Controller 不执行 merge、不设 auto-merge、不提前启动 DEV04。
+
+用户合并后重新查询实际 PR/main/merge commit/父提交/tree/CI 触发身份，再开展已获授权的 GOV-01 独立文档 PR：归档原始 R1/R2 审核、本 MAIN 验收、PROJECT-STATE 和 DEV03 Handoff，适当独立审核，等待用户决定并执行文档合并，最后读回核验。只有该流程完成后才能 HANDOFF COMPLETE 并交付下一任 DEV04 启动提示词；不能自行启动。
+
+当前 Goal 未完成。根据用户要求，暂停在 WAITING_FOR_USER_MERGE；验收内容已持久化本地，但 GitHub 正式文档归档尚未发生。
