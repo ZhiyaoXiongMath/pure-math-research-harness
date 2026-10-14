@@ -36,6 +36,9 @@ has null counts and an unavailable reason. Existing zero is reported only after
 reading a valid empty ledger. Recorded stale owners and UNKNOWN reservations
 remain visible; owner/process liveness is UNOBSERVED and no registered project
 root is traversed. Slot output excludes registered filesystem roots.
+Pool projection keys and values must serialize as valid UTF-8 before it becomes
+available. Invalid Unicode yields `INVALID_POOL_DATA` with null pool counts;
+the healthy project projection remains available and ledger bytes stay untouched.
 
 Backend/runtime, authentication and configuration are explicitly unobserved;
 status does not inspect or refresh them. Stored usage remains stored usage, not
@@ -50,6 +53,10 @@ UNOBSERVED with no invented scope reference. Otherwise the original values
 remain and `state_axes` is null with an explicit reason. Safe `ErrorEnvelope`
 values are real error consumers. No EvidenceRepository/EventRepository adapter,
 fake ExactRef, visibility policy, event cursor or new public Port is introduced.
+Every request row preserves raw `acceptance_state` independently of that mapping.
+An absent field is null with `acceptance_state_unavailable_reason=NOT_RECORDED`;
+a present raw value has no unavailable reason. `SETTLED` remains unmapped and
+does not imply process termination or scientific qualification.
 
 ## Implementation and compatibility
 

@@ -167,10 +167,13 @@ def read_status():
                 type(row.get('demand')) is not int or not 0<=row['demand']<=HOST_LIMIT):
                 raise _Unavailable('INVALID_POOL_DATA')
         # Registered roots are data, not filesystem authority. Never follow them.
-        result.update(_view(data),available=True,slots=[{k:r.get(k) for k in
-            ('project','instance','instance_id','request_id','pid','start','state')} for r in data['slots'].values()])
+        projection={**_view(data),'slots':[{k:r.get(k) for k in
+            ('project','instance','instance_id','request_id','pid','start','state')} for r in data['slots'].values()]}
+        # Validate projected keys and values before publishing any pool counts.
+        canonical(projection)
+        result.update(projection,available=True)
     except (_Unavailable,PMRSError,OSError,ValueError,TypeError,KeyError,RecursionError) as exc:
-        result['unavailable_reason']=_reason(exc) if not isinstance(exc,PMRSError) else 'INVALID_POOL_DATA'
+        result['unavailable_reason']=_reason(exc) if not isinstance(exc,(PMRSError,UnicodeError)) else 'INVALID_POOL_DATA'
     result['observed_at']=_observed_at()
     return result
 

@@ -310,6 +310,107 @@ class QueryTests(unittest.TestCase):
         self.assertEqual(row['execution_state'], 'SETTLED')
         self.assertIsNone(row['state_axes'])
 
+    def test_R1_raw_admission_survives_unavailable_typed_mapping_per_request(self):
+        cases = [('ACCEPTED', 'SETTLED'), ('REJECTED_STALE', 'SETTLED'),
+                 ('REJECTED_CONTRACT', 'SETTLED'), ('EXACT_DUPLICATE', 'SETTLED'),
+                 ('NOT_SUBMITTED', 'PREPARED'), (None, 'SETTLED')]
+        expected = {RID: ('PENDING', 'UNKNOWN')}
+        for admission, execution in cases:
+            rid = 'R-' + (admission or 'missing-admission')
+            tid = 'T-' + rid
+            self.s['tasks'][tid] = {**self.s['tasks']['T-synthetic'],
+                                    'task_id': tid, 'request_id': rid}
+            request = {**self.s['requests'][RID], 'request_id': rid, 'task_id': tid,
+                       'execution_state': execution}
+            if admission is None:
+                request.pop('acceptance_state')
+            else:
+                request['acceptance_state'] = admission
+            self.s['requests'][rid] = request
+            expected[rid] = (admission, execution)
+        self.existing()
+        before = footprint(self.root)
+        result = status(self.project, IID)
+        self.assertTrue(result['available'], result)
+        rows = result['execution']['requests']
+        self.assertEqual(len(rows), len(expected))
+        self.assertEqual({r['request_id'] for r in rows}, set(expected))
+        for row in rows:
+            admission, execution = expected[row['request_id']]
+            self.assertEqual(row['acceptance_state'], admission)
+            self.assertEqual(row['acceptance_state_unavailable_reason'],
+                             'NOT_RECORDED' if admission is None else None)
+            self.assertEqual(row['execution_state'], execution)
+            if row['request_id'] != RID:
+                self.assertIsNone(row['state_axes'])
+                self.assertEqual(row['state_axes_unavailable_reason'], 'LEGACY_VALUES_NOT_REPRESENTABLE')
+        self.assertEqual(result['workflow']['instances'][0]['status'], 'PAUSED')
+        self.assertEqual(result['mathematical']['formal_proof'], 'NOT_GRANTED')
+        self.assertEqual(before, footprint(self.root))
+
+    def cli_utf8(self):
+        # The real CLI print path must encode bytes, not only write to StringIO.
+        raw = io.BytesIO()
+        with io.TextIOWrapper(raw, encoding='utf-8', errors='strict', write_through=True) as output:
+            with redirect_stdout(output):
+                code = main(['status', str(self.project), '--instance', IID, '--json'])
+            return code, raw.getvalue()
+
+    def test_R1_pool_surrogate_values_and_keys_keep_project_cli_json_available(self):
+        head = self.existing()
+        for field in ('slot-start', 'demand-key'):
+            for surrogate in ('\ud800', '\udfff'):
+                with self.subTest(field=field, surrogate=ascii(surrogate)):
+                    root, data = pool(self.home, self.project)
+                    if field == 'slot-start':
+                        next(iter(data['slots'].values()))['start'] = surrogate
+                    else:
+                        data['demands'][surrogate] = {'demand': 1}
+                    raw = json.dumps(data, ensure_ascii=True).encode('utf-8')
+                    (root/'model-pool.json').write_bytes(raw)
+                    before = footprint(self.root)
+                    code, output = self.cli_utf8()
+                    result = json.loads(output.decode('utf-8'))
+                    self.assertEqual(code, 0)
+                    self.assertTrue(result['available'], result)
+                    self.assertEqual(result['commit'], head['commit'])
+                    self.assertEqual(result['workflow']['instances'][0]['status'], 'PAUSED')
+                    self.assertEqual(result['execution']['requests'][0]['execution_state'], 'UNKNOWN')
+                    observed = result['host_pool']
+                    self.assertFalse(observed['available'])
+                    self.assertEqual(observed['unavailable_reason'], 'INVALID_POOL_DATA')
+                    for name in ('active', 'slots', 'occupied', 'instance_occupied', 'demand', 'shares'):
+                        self.assertIsNone(observed[name], name)
+                    self.assertEqual(observed['source']['sha256'], sha(raw))
+                    self.assertFalse(observed['reconciled'])
+                    self.assertEqual(before, footprint(self.root))
+
+    def test_R1_valid_unicode_pool_values_and_keys_reach_utf8_cli_unchanged(self):
+        self.existing()
+        root, data = pool(self.home, self.project)
+        owner = '所有者-é-🧮'
+        demand = '需求-é-🧮'
+        next(iter(data['slots'].values()))['start'] = owner
+        data['demands'][demand] = {'demand': 1}
+        raw = canonical(data)
+        (root/'model-pool.json').write_bytes(raw)
+        before = footprint(self.root)
+        code, output = self.cli_utf8()
+        self.assertEqual(code, 0)
+        self.assertIn(owner.encode('utf-8'), output)
+        self.assertIn(demand.encode('utf-8'), output)
+        result = json.loads(output.decode('utf-8'))
+        self.assertTrue(result['available'], result)
+        observed = result['host_pool']
+        self.assertTrue(observed['available'], observed)
+        self.assertEqual(observed['active'], 1)
+        self.assertEqual(observed['slots'][0]['start'], owner)
+        self.assertEqual(observed['slots'][0]['state'], 'UNKNOWN')
+        self.assertEqual(observed['shares'][demand], 1)
+        self.assertEqual(observed['owner_observation'], 'UNOBSERVED')
+        self.assertEqual(observed['source']['sha256'], sha(raw))
+        self.assertEqual(before, footprint(self.root))
+
     def test_actual_cli_json_exit_codes_and_as_of(self):
         head = self.existing()
         output = io.StringIO()

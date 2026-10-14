@@ -178,6 +178,9 @@ def status(project, instance_id, *, as_of=None):
                 main.pop('model_calls', None)
             for row in value['execution']['requests']:
                 original = snapshot['requests'][row['request_id']]
+                row['acceptance_state'] = original.get('acceptance_state')
+                row['acceptance_state_unavailable_reason'] = (
+                    None if 'acceptance_state' in original else 'NOT_RECORDED')
                 row['state_axes'] = _state_axes(instance, original)
                 row['state_axes_unavailable_reason'] = (
                     None if row['state_axes'] is not None else 'LEGACY_VALUES_NOT_REPRESENTABLE')
