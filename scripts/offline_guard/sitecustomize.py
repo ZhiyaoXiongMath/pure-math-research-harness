@@ -14,6 +14,12 @@ import socket
 import subprocess
 import sys
 
+# The query regression imports the legacy workspace's HTTP module definitions,
+# but never starts a server. Load stdlib ssl before replacing socket.socket so
+# its type declarations cannot fail due to the preventive socket sentinel.
+if os.environ.get('PMRH_QUERY_TEST_GUARD') == '1':
+    import ssl
+
 if os.environ.get("PMRH_OFFLINE_GUARD") != "1":
     raise RuntimeError("offline sitecustomize loaded without an explicit guard request")
 
@@ -88,17 +94,23 @@ def path_with_dirfd(path, dir_fd=None):
 def guarded_os_open(path, flags, *args, **kwargs):
     writing = bool(flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT |
                             os.O_TRUNC | os.O_APPEND))
-    guard_path(path_with_dirfd(path, kwargs.get("dir_fd")), write=writing)
+    location = path_with_dirfd(path, kwargs.get("dir_fd"))
+    # DEV03 walks ancestors using directory descriptors. Permit traversal only:
+    # no listing, file reads, writes, or descriptors outside allowed ancestors.
+    traversal = (not writing and flags == (os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                 and Path(location).absolute() in (*SANDBOX.parents, *ROOT.parents))
+    if not traversal:
+        guard_path(location, write=writing)
     return real_os_open(path, flags, *args, **kwargs)
 
 
 def guarded_listdir(path="."):
-    guard_path(path)
+    guard_path(path_with_dirfd('.', path) if isinstance(path, int) else path)
     return real_listdir(path)
 
 
 def guarded_scandir(path="."):
-    guard_path(path)
+    guard_path(path_with_dirfd('.', path) if isinstance(path, int) else path)
     return real_scandir(path)
 
 
@@ -117,6 +129,11 @@ socket.socketpair = denied
 if hasattr(socket, "fromfd"):
     socket.fromfd = denied
 subprocess.Popen = denied
+if os.environ.get('PMRH_QUERY_TEST_GUARD') == '1':
+    import threading
+    import _thread
+    threading.Thread.start = denied
+    _thread.start_new_thread = denied
 os.system = denied
 os.popen = denied
 for name in ("fork", "forkpty", "posix_spawn", "posix_spawnp", "spawnl", "spawnle",

@@ -34,14 +34,19 @@ class Phase0StaticChecks(unittest.TestCase):
         self.assertIn("pmrs-desktop", config["project"]["scripts"])
         self.assertTrue((ROOT / "research_studio").is_dir())
 
-    def test_new_cli_statically_does_not_import_runtime(self):
+    def test_help_version_imports_are_inert_and_status_bridge_is_explicit(self):
         for name in ("__init__.py", "cli.py", "__main__.py"):
             parsed = ast.parse((ROOT / "pmrh" / name).read_text(encoding="utf-8"))
             for node in ast.walk(parsed):
                 if isinstance(node, ast.Import):
                     names = [entry.name for entry in node.names]
-                    self.assertTrue(all(x in ("argparse", "sys") for x in names), names)
+                    self.assertTrue(all(x in ("argparse", "sys", "json") for x in names), names)
                 elif isinstance(node, ast.ImportFrom):
+                    if name == 'cli.py' and node.module == 'research_studio.readonly_query':
+                        self.assertEqual([(x.name, x.asname) for x in node.names], [('status', None)])
+                        # It must be inside the status branch, never top-level.
+                        self.assertNotIn(node, parsed.body)
+                        continue
                     self.assertTrue(node.level > 0 and node.module in ("cli", None),
                                     f"Unexpected import in {name}: {ast.dump(node)}")
                 elif isinstance(node, (ast.Call,)) and isinstance(node.func, ast.Name):
@@ -111,9 +116,10 @@ class Phase0StaticChecks(unittest.TestCase):
                                     for p in folder.rglob("*")))
             before = footprint()
             for args, expected_code, expected_text in (
-                (["--help"], 0, "Phase 0 bootstrap only"),
+                (["--help"], 0, "read-only project status"),
                 (["--version"], 0, "pmrh 0.0.0"),
-                (["status"], 2, "unsupported/not implemented"),
+                (["resume"], 2, "unsupported/not implemented"),
+                (["status"], 2, "required"),
             ):
                 result = subprocess.run([sys.executable, "-B", "-m", "pmrh", *args],
                                         cwd=ROOT, env=env, capture_output=True,

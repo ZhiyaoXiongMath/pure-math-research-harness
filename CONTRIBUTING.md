@@ -8,7 +8,7 @@ Phase 0 creates a safe package identity and governance baseline, not a functiona
 
 - Python >=3.11. The Phase 0 test suite uses only the standard library; no paid models, network probes, browsers, or native Codex binaries are required.
 - From an isolated checkout, run `python3 -B -m unittest discover -s tests/phase0 -p 'test_*.py' -v` with temporary `HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` and `TMPDIR`, `PYTHONDONTWRITEBYTECODE=1`, `PYTHONNOUSERSITE=1`, and `PIP_NO_INDEX=1`.
-- Read-only CLI smoke: `python3 -B -m pmrh --help`, `python3 -B -m pmrh --version`. Other command names must report unsupported and return nonzero.
+- Inert CLI smoke: `python3 -B -m pmrh --help`, `python3 -B -m pmrh --version`. DEV03 adds only `status PROJECT --instance INSTANCE --json [--as-of COMMIT]`; other command names remain unsupported. Use synthetic fixtures and the [DEV03 contract](docs/development/DEV-PR-03-CONTRACT.md) for its separate guarded suite.
 - Do not run `research-studio`, `pure-math-research-studio`, `pmrs-desktop`, the historical test runner, `doctor`, native builds, or model integration tests under the Phase 0 gate.
 - The historical `.github/workflows/final-candidate.yml` is a manual, self-hosted Ubuntu 26.04/browser product gate and is **not** equivalent to the new Phase 0 offline CI.
 

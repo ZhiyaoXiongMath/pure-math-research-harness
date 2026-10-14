@@ -129,6 +129,56 @@ def release(store,request_id,*,before_send=False):
     require(safe or (before_send and r.get('execution_state')=='PREPARED'),'EXISTING_REQUEST','Uncertain sends retain original stage reservation.')
     with ledger('model-pool') as data:
         if data.setdefault('slots',{}).pop(project_key(store)+':'+request_id,None) is not None:data['cursor']=data.get('cursor',0)+1
-def status():
+def read_status():
+    """Observe existing ledger bytes only; retain stale and UNKNOWN rows.
+
+    No runtime_root(), lock, reconciliation, process check or project traversal.
+    Limits are policy constants; unavailable counts are null, never healthy zero.
+    """
+    from .readonly_query import _ConfinedReader, _Unavailable, _reason, _observed_at
+    from .util import loads
+    root=Path.home()/'.local/state/pmrs/host-runtime-4.2.2'
+    source={'kind':'GLOBAL_POOL_LEDGER','path_sha256':sha(str(root/'model-pool.json').encode()),'sha256':None}
+    result={'available':False,'unavailable_reason':None,'observed_at':None,'source':source,
+            'cross_store_atomicity':False,'reconciled':False,'owner_observation':'UNOBSERVED',
+            'limit':HOST_LIMIT,'instance_limit':PROJECT_LIMIT,'survey_instance_limit':1,
+            'active':None,'slots':None,'occupied':None,'instance_occupied':None,
+            'demand':None,'shares':None,'main_excluded':True,'internal_delegation_excluded':True}
+    try:
+        with _ConfinedReader(root,max_bytes=4*1024**2,max_files=1) as reader:
+            if os.fstat(reader.fd).st_uid!=os.geteuid():raise _Unavailable('POOL_OWNER_MISMATCH')
+            raw=reader.read('model-pool.json',4*1024**2)
+        source['sha256']=sha(raw);data=loads(raw,maximum=4*1024**2)
+        def valid_text(value):return isinstance(value,str) and 0<len(value)<=512
+        if not isinstance(data,dict) or not all(isinstance(data.get(k),dict) and len(data[k])<=4096 for k in ('slots','demands','projects')):
+            raise _Unavailable('INVALID_POOL_DATA')
+        if type(data.get('cursor',0)) is not int or not 0<=data.get('cursor',0)<2**63:
+            raise _Unavailable('INVALID_POOL_DATA')
+        for key,row in data['slots'].items():
+            if (not valid_text(key) or not isinstance(row,dict) or
+                not all(valid_text(row.get(k)) for k in ('project','instance','instance_id','request_id')) or
+                row['instance']!=instance_key(row['project'],row['instance_id']) or
+                row.get('state') not in {'ACQUIRED',*INFLIGHT} or
+                type(row.get('pid')) is not int or row['pid']<0 or
+                row.get('start') is not None and not valid_text(row['start'])):
+                raise _Unavailable('INVALID_POOL_DATA')
+        for key,row in data['demands'].items():
+            if (not valid_text(key) or not isinstance(row,dict) or
+                type(row.get('demand')) is not int or not 0<=row['demand']<=HOST_LIMIT):
+                raise _Unavailable('INVALID_POOL_DATA')
+        # Registered roots are data, not filesystem authority. Never follow them.
+        result.update(_view(data),available=True,slots=[{k:r.get(k) for k in
+            ('project','instance','instance_id','request_id','pid','start','state')} for r in data['slots'].values()])
+    except (_Unavailable,PMRSError,OSError,ValueError,TypeError,KeyError,RecursionError) as exc:
+        result['unavailable_reason']=_reason(exc) if not isinstance(exc,PMRSError) else 'INVALID_POOL_DATA'
+    result['observed_at']=_observed_at()
+    return result
+
+def reconcile_pool():
+    """MUTATING: reconcile global reservations under the existing writer lock."""
     with ledger('model-pool') as data:
         _clean(data);return {**_view(data),'slots':list(data['slots'].values())}
+
+def status():
+    """MUTATING compatibility alias for scheduler/writer callers; use read_status for queries."""
+    return reconcile_pool()

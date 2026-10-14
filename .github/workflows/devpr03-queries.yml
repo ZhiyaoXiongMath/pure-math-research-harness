@@ -1,0 +1,76 @@
+name: PMRH DEV-PR-03 confined read-only queries
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  queries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.13']
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONNOUSERSITE: '1'
+      PIP_NO_INDEX: '1'
+      PMRH_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact head without retained credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select Python without product dependencies
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Verify original baseline, permitted read sections and exact checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PMRH_SOURCE_SHA"
+          mkdir -p "$RUNNER_TEMP/pmrh-devpr03"
+          python -B scripts/check_legacy_scope.py | tee "$RUNNER_TEMP/pmrh-devpr03/legacy-scope.log"
+          echo "PMRH_CHECKOUT_TREE=$(git rev-parse HEAD^{tree})" >> "$GITHUB_ENV"
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/pmrh-devpr03/source.tar.gz"
+      - name: Check exact dependency edges and transitive reachability
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B scripts/architecture_deps.py --check \
+            --json "$RUNNER_TEMP/pmrh-devpr03/dependency-graph.json" \
+            --markdown "$RUNNER_TEMP/pmrh-devpr03/architecture-audit.md"
+      - name: Execute every DEV03 test under the isolated query guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARTIFACT_DIR="$(mktemp -d /tmp/pmrh-devpr01-artifacts-XXXXXXXX)"
+          trap 'rm -rf "$ARTIFACT_DIR"' EXIT
+          mkdir "$ARTIFACT_DIR/offline"
+          TEST_EXIT=0
+          PMRH_TEST_ARTIFACT_ROOT="$ARTIFACT_DIR" \
+            python -B scripts/offline_queries.py --out "$ARTIFACT_DIR/offline" || TEST_EXIT=$?
+          for f in unittest.log receipt.json; do
+            if test -f "$ARTIFACT_DIR/offline/$f"; then
+              cp -- "$ARTIFACT_DIR/offline/$f" "$RUNNER_TEMP/pmrh-devpr03/$f"
+            fi
+          done
+          if test "$TEST_EXIT" -ne 0; then exit "$TEST_EXIT"; fi
+          test -s "$RUNNER_TEMP/pmrh-devpr03/unittest.log"
+          test -s "$RUNNER_TEMP/pmrh-devpr03/receipt.json"
+          test -z "$(git status --porcelain)"
+      - name: Upload exact source, test identities and raw results including failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pmrh-devpr03-${{ env.PMRH_SOURCE_SHA }}-py${{ matrix.python }}
+          path: ${{ runner.temp }}/pmrh-devpr03/
+          if-no-files-found: error
+          retention-days: 30

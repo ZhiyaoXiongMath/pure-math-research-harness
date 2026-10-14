@@ -128,11 +128,21 @@ def sources(snapshot,blob_get,*,instance_id=None):
     return {'commit':snapshot['knowledge_commit'],'sources':rows}
 
 
-def status(snapshot,store,*,instance_id=None):
-    from .report_catalog import catalog
+def status(snapshot,store,*,instance_id=None,verify_report_files=True):
     instances={k:v for k,v in snapshot['instances'].items() if instance_id is None or k==instance_id}
     require(instance_id is None or instance_id in instances,'INSTANCE_UNKNOWN','Unknown workflow selector')
     requests=[r for r in snapshot.get('requests',{}).values() if instance_id is None or r['instance_id']==instance_id]
+    if verify_report_files:
+        from .report_catalog import catalog
+        report=catalog(store,snapshot,instance_id)
+    else:
+        # The minimal status query reads journal facts only. It neither opens
+        # report artifact paths nor upgrades stored reports to verified output.
+        report=[{'report_id':rid,'state':r.get('status'),
+                 'instance_ids':deepcopy(r.get('scope',{}).get('instance_ids',[])),
+                 'file_verification':'UNOBSERVED'}
+                for rid,r in snapshot.get('reports',{}).items()
+                if instance_id is None or instance_id in r.get('scope',{}).get('instance_ids',[])]
     return {'commit':snapshot['knowledge_commit'],'project_id':snapshot['project_id'],'title':snapshot['title'],
             'mathematical':{'target_refs':[i['target_ref'] for i in instances.values() if i.get('target_ref')],
                 'records':len(scope_refs(snapshot,instance_id)&set(snapshot['records'])),'qualification':'EXACT_CONSUMER_SCOPE_ONLY','formal_proof':'NOT_GRANTED'},
@@ -142,7 +152,7 @@ def status(snapshot,store,*,instance_id=None):
                 'running_processes':'NOT_INFERRED_FROM_WORKFLOW_STATUS','unknown':sum(r['execution_state']=='UNKNOWN' for r in requests)},
             'acceptance':{'pending_captures':sum(r['execution_state']=='CAPTURED' for r in requests),
                 'accepted':sum(r.get('acceptance_state')=='ACCEPTED' for r in requests)},
-            'report':catalog(store,snapshot,instance_id),'language_policy':snapshot['language_policy'],
+            'report':report,'language_policy':snapshot['language_policy'],
             'native_usage':deepcopy(snapshot.get('usage',{})),
             'read_only':True,'model_calls':0}
 
