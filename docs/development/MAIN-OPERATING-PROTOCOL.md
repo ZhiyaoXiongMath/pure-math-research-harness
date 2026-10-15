@@ -57,3 +57,12 @@ Sequential Development MAIN stewardship is the default. Any concurrent developme
 ## 7. Source precedence and historical states
 
 New explicit human instructions and formal decisions govern authorization and scope; original repository code, Git commits, GitHub PR/CI are factual evidence; approved ADRs govern architecture. Snapshot conflicts are logged, not silently “repaired.” Historical Phase 0 and DEV-PR-01 documents contain point-in-time statements; preserve them while referring to [PROJECT-STATE](PROJECT-STATE.md) for the versioned index and to GitHub for today's real state. The 58+46 future product acceptance entries remain `NOT_EXECUTED` until separately demonstrated and accepted.
+
+## 8. Research MAIN specification intake and minimum-complexity governance (candidate addendum)
+
+The *scientific* behavior of a per-instance Research MAIN belongs to the separate [Research MAIN product specification](../architecture/RESEARCH-MAIN-STRATEGY.md) and [04/11/12 acceptance map](ACCEPTANCE-ADDENDUM-04-11-12.md), **not** inside the Development MAIN management method. A document-only PR first requires independent review, separately recorded Development MAIN acceptance, and user-authorized merge; until then this added material is not effective.
+
+For an authorized successor work package, preflight the available GitHub/tools/CI capabilities before promising a commit or validation, reconcile the effective text against live main and the current ADR, and freeze the smallest valuable **MVP**, its direct consumers, inherited acceptance IDs, positive/rejection examples, non-goals and bounded evidence plan. Reuse already verified unaffected software receipts and mathematically qualified support in their exact scope; do targeted re-review for changed assumptions, dependencies, proof directions, exposure or interfaces instead of automatically re-auditing unrelated material. Document genuinely nonblocking MINOR findings without concealing them; once scope-relevant gates and substantive findings close, stop repeated audit loops. None of these efficiency rules relaxes authorization, PAUSED/UNKNOWN, budget, scientific independence or raw-evidence preservation.
+
+An approved *specification* does not authorize DEV-PR-04/11/12 implementation, a new Agent, Lean mandate, backend/runtime mutation or real-model scientific evaluation. A new explicit user grant is still required for each work package.
+
