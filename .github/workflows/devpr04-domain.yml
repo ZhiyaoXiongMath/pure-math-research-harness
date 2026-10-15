@@ -1,0 +1,72 @@
+name: PMRH DEV-PR-04 pure domain extraction
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  domain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.13']
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONNOUSERSITE: '1'
+      PIP_NO_INDEX: '1'
+      PMRH_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact head without retained credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select Python without product dependencies
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Verify original baseline and exact extraction boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PMRH_SOURCE_SHA"
+          mkdir -p "$RUNNER_TEMP/pmrh-devpr04"
+          python -B scripts/check_legacy_scope.py | tee "$RUNNER_TEMP/pmrh-devpr04/legacy-scope.log"
+          python -B scripts/architecture_deps.py --check \
+            --json "$RUNNER_TEMP/pmrh-devpr04/dependency-graph.json" \
+            --markdown "$RUNNER_TEMP/pmrh-devpr04/architecture-audit.md"
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/pmrh-devpr04/source.tar.gz"
+      - name: Compare frozen baseline, facades and standalone domain under offline guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARTIFACT_DIR="$(mktemp -d /tmp/pmrh-devpr01-artifacts-XXXXXXXX)"
+          ORACLE_DIR="$(mktemp -d /tmp/pmrh-devpr04-oracle-XXXXXXXX)"
+          trap 'chmod -R u+w "$ORACLE_DIR"; rm -rf "$ARTIFACT_DIR" "$ORACLE_DIR"' EXIT
+          git archive f724c06b54b157abe580cdf046f4fc08bb01c144 | tar -xf - -C "$ORACLE_DIR"
+          chmod -R a-w "$ORACLE_DIR"
+          mkdir "$ARTIFACT_DIR/offline"
+          TEST_EXIT=0
+          PMRH_TEST_ARTIFACT_ROOT="$ARTIFACT_DIR" \
+            python -B scripts/offline_domain.py --out "$ARTIFACT_DIR/offline" \
+            --oracle "$ORACLE_DIR" || TEST_EXIT=$?
+          cp -a "$ARTIFACT_DIR/offline/." "$RUNNER_TEMP/pmrh-devpr04/"
+          if test "$TEST_EXIT" -ne 0; then exit "$TEST_EXIT"; fi
+          test -s "$RUNNER_TEMP/pmrh-devpr04/receipt.json"
+          test -s "$RUNNER_TEMP/pmrh-devpr04/baseline-trace.log"
+          test -s "$RUNNER_TEMP/pmrh-devpr04/domain-trace.log"
+          test -z "$(git status --porcelain)"
+      - name: Upload exact source, identities and raw results including failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pmrh-devpr04-${{ env.PMRH_SOURCE_SHA }}-py${{ matrix.python }}
+          path: ${{ runner.temp }}/pmrh-devpr04/
+          if-no-files-found: error
+          retention-days: 30

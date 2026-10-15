@@ -1,4 +1,9 @@
 """Complete scoped input packets, independent isolation and token preflight."""
+from pmrh.domain.assurance import (
+    aggregate_coverage,
+    validate_budget,
+    validate_coverage_plan,
+)
 from copy import deepcopy
 from .util import require, canonical, sha
 from . import contracts as C, relations
@@ -221,50 +226,6 @@ def token_preflight(serialized_request,capacity,*,reserved_output_tokens,prompt_
     validate_budget(value)
     return value
 
-def validate_budget(value):
-    C.fields(value,C.CONTEXT_BUDGET_FIELDS,'ContextBudget')
-    for k in ('context_window_tokens','model_max_output_tokens','reserved_output_tokens','prompt_overhead_tokens','safety_margin_tokens','input_tokens'):
-        require(type(value[k]) is int and 0<=value[k]<=C.MAX_INT,'CONTEXT_LIMIT','Invalid token count: '+k)
-    require(0<value['reserved_output_tokens']<=value['model_max_output_tokens'],'CONTEXT_LIMIT','Output reserve outside model capacity')
-    require(value['input_tokens']+value['prompt_overhead_tokens']+value['reserved_output_tokens']+value['safety_margin_tokens']<=value['context_window_tokens'],'CONTEXT_LIMIT','Full request plus output reserve exceeds model context')
-    C.enum(value['token_count_method'],('EXACT','CONSERVATIVE_BOUND'),'token count method')
-    require(all(isinstance(value[k],str) and value[k] for k in ('model_id','capacity_source','capacity_revision','tokenizer_revision')),'CONTEXT_LIMIT','Missing capacity/counter provenance')
-    return value
-
-def validate_coverage_plan(plan,requirement,*,part_packets=None):
-    C.fields(plan,{'plan_id','target_revision_refs','required_scope','parts','integration_scope'},'CoveragePlan')
-    validate_requirement(requirement);validate_scope(plan['required_scope'])
-    require(plan['required_scope']==requirement['required_scope'],'RESPONSE_SCHEMA_INVALID','Coverage plan changed consumer scope')
-    C.refs(plan['target_revision_refs'],'coverage targets',nonempty=True)
-    slots={s['slot_id']:s for s in requirement['review_slots']};seen=set()
-    for part in C.sequence(plan['parts'],'coverage parts'):
-        C.fields(part,{'part_id','review_slot_id','checked_scope','required_input_refs','declared_boundary_refs','task_ref'},'coverage part')
-        require(part['part_id'] not in seen and part['review_slot_id'] in slots,'RESPONSE_SCHEMA_INVALID','Unknown or duplicate coverage part/slot');seen.add(part['part_id'])
-        validate_scope(part['checked_scope']);C.refs(part['required_input_refs'],'required inputs',nonempty=True);C.refs(part['declared_boundary_refs'],'boundaries')
-        require(coverage(slots[part['review_slot_id']]['required_scope'],part['checked_scope'])['has_coverage'],'RESPONSE_SCHEMA_INVALID','Part outside requested scope')
-        if part_packets is not None:
-            packet=part_packets.get(part['part_id']);require(packet is not None,'INCOMPLETE_CONTEXT','Missing full part packet')
-            require(set(part['required_input_refs'])<=set(packet['records'])|set(packet['sources']),'INCOMPLETE_CONTEXT','Part premises were omitted')
-            validate_budget(packet['context_budget'])
-    if plan['integration_scope']:validate_scope(plan['integration_scope'])
-    return plan
-
-def aggregate_coverage(plan,requirement,part_results,integration_result=None,*,empty_integration_attestation=None):
-    validate_coverage_plan(plan,requirement);results={};complete=True
-    for slot in requirement['review_slots']:
-        checked=[]
-        for part in plan['parts']:
-            if part['review_slot_id']!=slot['slot_id']:continue
-            result=part_results.get(part['part_id'],{})
-            if result.get('result')=='QUALIFIED':checked+=result.get('checked_scope',[])
-        result=coverage(slot['required_scope'],checked);results[slot['slot_id']]=result;complete &= result['complete']
-    if plan['integration_scope']:
-        integration_ok=bool(integration_result and integration_result.get('result')=='QUALIFIED' and integration_result.get('independent') and coverage(plan['integration_scope'],integration_result.get('checked_scope',[]))['complete'])
-    else:
-        integration_ok=bool(empty_integration_attestation and empty_integration_attestation.get('scope_reviewed') and empty_integration_attestation.get('reason'))
-    complete &= integration_ok
-    return {'result':'QUALIFIED' if complete else 'PARTIAL','slot_results':results,'integration_satisfied':integration_ok,
-        'not_checked':[] if complete else [{'slot_id':sid,**r} for sid,res in results.items() for r in res['not_checked']]+([] if integration_ok else [{'integration_scope':plan['integration_scope'],'reason':'Independent interface review or explicit no-interface attestation missing'}])}
 
 def freeze(obligation_binding,role,snapshot,*,blob_get,capacity=None,reserved_output_tokens=None,token_counter=None,independent=False):
     roots=obligation_binding.get('target_refs',[])

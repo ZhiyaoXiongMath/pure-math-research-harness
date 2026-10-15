@@ -15,6 +15,10 @@ import json
 from pathlib import Path
 import re
 import sys
+try:
+    from scripts import domain_scope
+except ModuleNotFoundError:
+    import domain_scope
 
 IGNORED_DIRS = {".git", ".venv", "venv", "__pycache__", ".tox", "build", "dist"}
 LAYERS = {"domain", "ports", "application", "orchestration", "adapters",
@@ -42,7 +46,7 @@ ROOT_MODULE_LAYERS = {
     "cli.py": "interfaces",
 }
 FORBIDDEN_IMPORTS = {
-    "domain": {"subprocess", "socket", "sqlite3", "http", "urllib", "requests",
+    "domain": {"os", "pathlib", "io", "tempfile", "shutil", "threading", "multiprocessing", "ctypes", "subprocess", "socket", "sqlite3", "http", "urllib", "requests",
                "openai", "anthropic", "codex", "langgraph", "deepagents",
                "fastapi", "flask", "boto3"},
     "ports": {"subprocess", "socket", "sqlite3", "http", "urllib", "requests",
@@ -364,7 +368,11 @@ def run(root: Path, policy: dict) -> dict:
         'research_studio/store.py', 'research_studio/host_pool.py', 'research_studio/views.py',
         'research_studio/workspace.py', 'research_studio/main_session.py', 'research_studio/readonly_query.py'}
     paths_valid = bool(bridge) and set(bridge.get('changed_paths', ())) == approved_paths
-    inventory, discrepancies = manifest_sources(root, approved_paths if paths_valid else ())
+    extraction = policy.get('devpr04_domain_bridge', {})
+    extraction_valid = (set(extraction.get('changed_paths', ())) == set(domain_scope.SYMBOLS)
+                        and extraction.get('symbols') == domain_scope.SYMBOLS)
+    permitted = (approved_paths if paths_valid else set()) | (set(domain_scope.SYMBOLS) if extraction_valid else set())
+    inventory, discrepancies = manifest_sources(root, permitted)
     violations, legacy_blocks = [], []
     bridge_edges = {(row['source'], row['target']) for row in bridge.get('direct_edges', ())
                     if all(row.get(k) for k in ('consumer', 'reason', 'owner', 'remove_by'))}
@@ -378,6 +386,13 @@ def run(root: Path, policy: dict) -> dict:
     if bridge and (bridge_edges != approved_bridge_edges or
                    set(bridge.get('legacy_reachability', {})) != {'pmrh/cli.py', 'pmrh/__main__.py'}):
         violations.append({'reason': 'invalid_devpr03_bridge_allowlist'})
+    extraction_edges = {(row['source'], row['target']) for row in extraction.get('direct_edges', ())
+                        if all(row.get(k) for k in ('consumer', 'reason', 'owner', 'remove_by'))
+                        and row.get('owner') == 'DEV-PR-04'}
+    if extraction and (not extraction_valid or extraction_edges != domain_scope.EDGES):
+        violations.append({'reason': 'invalid_devpr04_extraction_allowlist'})
+    if extraction_valid and extraction_edges == domain_scope.EDGES:
+        bridge_edges |= extraction_edges
     violation_keys = set()
     for filename in source_nodes:
         if layer(filename) == "unclassified":
@@ -446,6 +461,18 @@ def run(root: Path, policy: dict) -> dict:
         if item["source"].startswith("pmrh/") or item['source'] == 'research_studio/readonly_query.py':
             violations.append({**item, "reason": "unresolved_dynamic_import",
                                "review_required": True})
+    for path in paths:
+        if layer(path.relative_to(root).as_posix()) != 'domain':
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding='utf-8'))
+        except (SyntaxError, UnicodeError):
+            # graph_from already records malformed source as a failed check.
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in {'open', 'exec', 'eval', 'compile', '__import__'}:
+                violations.append({'source': path.relative_to(root).as_posix(), 'line': node.lineno,
+                                   'reason': 'domain_io_or_dynamic_execution'})
     for edge in external:
         source, imported = edge["source"], edge["import"].split(".", 1)[0]
         a = layer(source)
