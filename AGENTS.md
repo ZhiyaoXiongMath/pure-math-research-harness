@@ -35,3 +35,8 @@ Use `DEV-PR-01` through `DEV-PR-18` for **planned software work**, not actual Gi
 Every actual PR records base/head SHA, changed paths, preserved and changed behaviors, local and GitHub tests with exact run links, work not tested, commands/subprocesses/network/write scope, risks, security and rollback. Require independent Review Chat evidence and a separate Development MAIN decision; `REVIEWED`, `MAIN ACCEPTED` and GitHub `MERGED` are distinct. After an authorized merge, verify real `main` and preserve a Handoff. Never merge on the developer's own initiative.
 
 Reference evidence: [audit package](docs/reference/PMRS-Next_Phase1/README.md), [architecture invariants](docs/architecture/ADR-0002-constraints.md), and [development roadmap](docs/development/ROADMAP.md).
+
+## Research MAIN documentation inheritance — candidate 2026-10-15
+
+Before authoring the next **explicitly authorized** DEV-PR-04/11/12/13 task, the relevant Development MAIN must identify the **effective, approved** revision of [Research MAIN strategy](docs/architecture/RESEARCH-MAIN-STRATEGY.md) and its [acceptance/work-package mapping](docs/development/ACCEPTANCE-ADDENDUM-04-11-12.md). While the documentation PR remains unreviewed/unmerged, both texts are *candidates*, not approved implementation authority. Future task prompts must name the applicable RMAIN-REQ clauses, inherited K/O/S/GUIDE cases, actual software responsibility and non-goals; merely linking a draft is insufficient. Do **not** modify the original 58+46 test definitions or presume a document merge authorizes DEV04/11/12, real research, a new MAIN/Goal or a budget. Preserve all existing scientific and human-control invariants.
+
