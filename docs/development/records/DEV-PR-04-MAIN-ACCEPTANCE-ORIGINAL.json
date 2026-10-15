@@ -1,0 +1,64 @@
+{
+  "status": "MAIN ACCEPTED",
+  "accepted_at_utc": "2026-10-15T08:30:34.642650+00:00",
+  "scope": "DEV-PR-04 implementation, offline synthetic tests, independent review and Open PR submission only",
+  "base": "f724c06b54b157abe580cdf046f4fc08bb01c144",
+  "head": "acf7cd6e6b3c093459564487a44dbeb56845cc79",
+  "tree": "d7c5604b9752f984806125ceebc8414e0599d222",
+  "pr": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/9",
+  "independent_review": {
+    "head": "acf7cd6e6b3c093459564487a44dbeb56845cc79",
+    "tree": "d7c5604b9752f984806125ceebc8414e0599d222",
+    "verdict": "APPROVE_FOR_MAIN_ACCEPTANCE",
+    "blocker": 0,
+    "major": 0,
+    "minor": 0,
+    "report_sha256": "623c6fc8b5192e6addce7667a3d2639d1674da8ab5b4d1d805d3218471f0c949",
+    "remaining_condition": "Exact-head Python3.11/3.13 CI success before final Controller acceptance"
+  },
+  "review_ci_condition": "FULFILLED",
+  "workflows": [
+    {
+      "id": 38705408373,
+      "name": "PMRH Phase 0 safe offline checks",
+      "head_sha": "acf7cd6e6b3c093459564487a44dbeb56845cc79",
+      "conclusion": "success",
+      "html_url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38705408373"
+    },
+    {
+      "id": 38705408388,
+      "name": "PMRH DEV-PR-01 AST and synthetic offline guard",
+      "head_sha": "acf7cd6e6b3c093459564487a44dbeb56845cc79",
+      "conclusion": "success",
+      "html_url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38705408388"
+    },
+    {
+      "id": 38705408361,
+      "name": "PMRH DEV-PR-03 confined read-only queries",
+      "head_sha": "acf7cd6e6b3c093459564487a44dbeb56845cc79",
+      "conclusion": "success",
+      "html_url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38705408361"
+    },
+    {
+      "id": 38705408437,
+      "name": "PMRH DEV-PR-02 versioned contracts",
+      "head_sha": "acf7cd6e6b3c093459564487a44dbeb56845cc79",
+      "conclusion": "success",
+      "html_url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38705408437"
+    },
+    {
+      "id": 38705408611,
+      "name": "PMRH DEV-PR-04 pure domain extraction",
+      "head_sha": "acf7cd6e6b3c093459564487a44dbeb56845cc79",
+      "conclusion": "success",
+      "html_url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38705408611"
+    }
+  ],
+  "merge": "NOT_AUTHORIZED_NOT_PERFORMED",
+  "successor_packages": "NOT_STARTED",
+  "limitations": [
+    "No mathematical certification",
+    "No real research/runtime/Store publication or full58+46 acceptance",
+    "Historical three fixture/guard failures preserved; bounded replacements only"
+  ]
+}
