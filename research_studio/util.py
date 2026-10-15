@@ -1,5 +1,16 @@
 """Bounded deterministic encodings and file operations; no execution helpers."""
 from __future__ import annotations
+from pmrh.domain.primitives import (
+    MAX_JSON,
+    PMRSError,
+    ResearchStudioError,
+    canonical,
+    identity,
+    loads,
+    require,
+    sha,
+    sha256_bytes,
+)
 import hashlib
 import errno
 import json
@@ -9,46 +20,10 @@ import stat
 import tempfile
 from datetime import datetime, timezone
 
-MAX_JSON = 64 * 1024 * 1024
-class PMRSError(ValueError):
-    def __init__(self, code: str, message: str):
-        self.code, self.message = code, message
-        super().__init__(f"{code}: {message}")
-ResearchStudioError = PMRSError
-
-def require(condition, code, message):
-    if not condition:
-        raise PMRSError(code, message)
-
-def canonical(value) -> bytes:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True,
-                      separators=(",", ":"), allow_nan=False).encode("utf-8")
-
-def sha(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-sha256_bytes = sha
-
-def identity(value, prefix="") -> str:
-    return prefix + sha(canonical(value))
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
-def loads(data: bytes | str, *, maximum=MAX_JSON):
-    require(len(data) <= maximum, "JSON_LIMIT", "JSON exceeds the bounded parser size")
-    def pairs(items):
-        result = {}
-        for key, value in items:
-            require(key not in result, "JSON_DUPLICATE_KEY", key)
-            result[key] = value
-        return result
-    try:
-        return json.loads(data, object_pairs_hook=pairs,
-                          parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)))
-    except (UnicodeError, ValueError, RecursionError) as exc:
-        if isinstance(exc, PMRSError):
-            raise
-        raise PMRSError("JSON_INVALID", str(exc)) from exc
 
 def safe_path(root: Path, relative: str = "") -> Path:
     root = Path(root).absolute()

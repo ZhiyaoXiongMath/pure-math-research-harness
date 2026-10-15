@@ -1,5 +1,10 @@
 """Language is a frozen policy, never a translation of authoritative inputs."""
 from __future__ import annotations
+from pmrh.domain.primitives import (
+    authored_english,
+    authored_with_quotes,
+    research_data,
+)
 import re
 from .util import require, sha, canonical
 
@@ -32,24 +37,6 @@ def tokens(text: str) -> set[str]:
             terms.update(group)
     return terms
 
-def authored_english(text: str, field="body"):
-    require(isinstance(text, str) and text.strip(), "ENGLISH_TEXT_REQUIRED", field)
-    require(not re.search(r"[\u3400-\u9fff]", text), "LANGUAGE_MISMATCH",
-            field + ": new prose must be English; retain Chinese quotations as source-bound inputs")
-
-def authored_with_quotes(text, source_quotes=(), field='body'):
-    """Screen authored prose while preserving explicitly verified source quotes.
-
-    The caller supplies already byte-verified quotations. This is a syntax
-    policy, never a claim of semantic equivalence or accurate translation.
-    """
-    require(isinstance(text,str) and text.strip(),'ENGLISH_TEXT_REQUIRED',field)
-    screened=text
-    for quote in source_quotes:
-        require(isinstance(quote,str) and quote,'SOURCE_QUOTE_INVALID','Nonempty verified quotation required')
-        screened=screened.replace(quote,'[SOURCE_BOUND quotation]')
-    authored_english(screened,field)
-    return text
 
 def search_bodies(snapshot, query, blob_get):
     """A read-only bilingual index over exact source and scientific body ranges."""
@@ -96,20 +83,6 @@ def search(entries, query):
             for e in entries if q & set(e["terms"])]
     return sorted(rows, key=lambda e: (-len(e["matched_terms"]), e["ref"]))
 
-
-def research_data(value):
-    """Reject clearly non-English newly authored metadata, never rewrite it.
-
-    This syntactic screen cannot prove natural-language correctness. Independent
-    review still checks meaning. Original quotations remain in bound sources.
-    """
-    if isinstance(value, str):
-        if value: authored_english(value, 'data')
-    elif isinstance(value, dict):
-        for key, item in value.items():
-            authored_english(key, 'data key'); research_data(item)
-    elif isinstance(value, list):
-        for item in value: research_data(item)
 
 REPORT_LABELS = {'OPEN':'Open', 'CONDITIONAL':'Conditional',
                  'CANDIDATE':'Candidate; not formally certified',

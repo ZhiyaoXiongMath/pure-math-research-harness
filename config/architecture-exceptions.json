@@ -3,8 +3,8 @@
   "legacy_exception_id": "LEGACY-4.2.2-FROZEN-IMPORTS",
   "legacy_baseline_commit": "e4de0210f9985224e030ac4cfd2f7e2904005b37",
   "legacy_baseline_tree": "c17a592ff0a4906afa7a6423535f41c67c926128",
-  "scope": "Original intra-legacy dependencies remain frozen except exact DEV03 read sections. Only the named status compatibility edges may cross the package boundary.",
-  "enforcement": "CI compares all legacy paths with the fixed original commit; only six named DEV03 paths may differ. Unchanged functions outside authorized read sections and the original reconciliation body are independently checked. No baseline refresh is performed in CI.",
+  "scope": "Original intra-legacy dependencies remain frozen except exact DEV03 read sections and DEV04 extraction symbols. Cross-package edges are individually named.",
+  "enforcement": "CI retains the original audit baseline, DEV03 read checks and reconciliation comparison; DEV04 permits only named extraction symbols, exact facade imports and validator_identity.",
   "reason": "Original 4.2.2 research runtime predates the ports/adapters split; moving it is outside DEV-PR-01. The destination mapping is provisional for mixed-responsibility files.",
   "legacy_owners": {
     "domain": "DEV-PR-04",
@@ -249,5 +249,290 @@
     "reachability_reason": "Exact file-level transitive closure includes unused writer/runtime function imports in inherited mixed-duty modules. Their non-query bytes remain frozen; the query invokes only its tested confined read path. No whole-layer or transitive suppression.",
     "reachability_owner": "DEV-PR-05",
     "reachability_remove_by": "DEV-PR-09"
+  },
+  "devpr04_domain_bridge": {
+    "authorization": "Explicit DEV04 implementation authorization, 2026-10-15; no merge or successor authorization",
+    "changed_paths": [
+      "research_studio/assurance.py",
+      "research_studio/changes.py",
+      "research_studio/communication.py",
+      "research_studio/context.py",
+      "research_studio/contracts.py",
+      "research_studio/knowledge.py",
+      "research_studio/language.py",
+      "research_studio/relations.py",
+      "research_studio/util.py",
+      "research_studio/workflow_instances.py",
+      "research_studio/workflows/fdh.py",
+      "research_studio/workflows/registry.py",
+      "research_studio/workflows/survey.py",
+      "research_studio/workflows/trh.py"
+    ],
+    "symbols": {
+      "research_studio/contracts.py": [
+        "ASSURANCE_FIELDS",
+        "AUTHORING_REVISION",
+        "CHANGE_SCHEMA",
+        "CONTEXT_BUDGET_FIELDS",
+        "DATA_FIELDS",
+        "ENVELOPE_FIELDS",
+        "HASH",
+        "INFERENCE_FIELDS",
+        "KCS_FIELDS",
+        "KCS_OPTIONAL_FIELDS",
+        "KINDS",
+        "LOCAL_KEY",
+        "LOCATOR_FIELDS",
+        "MAX_BODY",
+        "MAX_DEPTH",
+        "MAX_INT",
+        "MAX_PAYLOAD",
+        "OBLIGATION_TYPES",
+        "OP_FIELDS",
+        "PREMISE_ENDPOINTS",
+        "PREMISE_FIELDS",
+        "RECORD_FIELDS",
+        "RECORD_SCHEMA",
+        "SCIENCE_PROJECTION_REVISION",
+        "SCOPE_FIELDS",
+        "SLOT_FIELDS",
+        "SOURCE_MODES",
+        "SOURCE_USE_FIELDS",
+        "bounded_json",
+        "digest",
+        "enum",
+        "fields",
+        "inference_identity",
+        "optional_fields",
+        "refs",
+        "scientific_identity",
+        "sequence",
+        "validate_tree"
+      ],
+      "research_studio/knowledge.py": [
+        "_locs",
+        "_ref",
+        "derive_inference",
+        "identify",
+        "locator",
+        "make_record",
+        "result_family",
+        "source_use",
+        "validate_locator",
+        "validate_mode_payload",
+        "validate_record"
+      ],
+      "research_studio/relations.py": [
+        "FIELDS",
+        "PREMISES",
+        "REGISTRY",
+        "TYPES",
+        "_acyclic",
+        "acyclic",
+        "affected_supports",
+        "closure",
+        "edges",
+        "is_premise",
+        "kind_of",
+        "premise_closure",
+        "relation",
+        "validate_relation",
+        "validate_support_graph"
+      ],
+      "research_studio/assurance.py": [
+        "ASSUMPTION_POLICY",
+        "CONDITION_ROLES",
+        "PATHS",
+        "PURPOSES",
+        "SCOPE_META",
+        "SCOPE_VERSION",
+        "STAGE_ROLES",
+        "_assumption_evaluation",
+        "_credential",
+        "_execution",
+        "_intervals",
+        "_part_consumable",
+        "_scope_regions",
+        "_structural_support_conditions",
+        "checked_scope",
+        "condition_evidence",
+        "coverage",
+        "coverage_plan_evidence",
+        "declared_assumption_policy",
+        "evaluate",
+        "evaluate_requirement",
+        "normalize_requirement",
+        "normalize_scope",
+        "requirement",
+        "scope_overlaps",
+        "validate_assumption_policy",
+        "validate_requirement",
+        "validate_scope"
+      ],
+      "research_studio/util.py": [
+        "MAX_JSON",
+        "PMRSError",
+        "ResearchStudioError",
+        "canonical",
+        "identity",
+        "loads",
+        "require",
+        "sha",
+        "sha256_bytes"
+      ],
+      "research_studio/language.py": [
+        "authored_english",
+        "authored_with_quotes",
+        "research_data"
+      ],
+      "research_studio/communication.py": [
+        "independence_status"
+      ],
+      "research_studio/context.py": [
+        "aggregate_coverage",
+        "validate_budget",
+        "validate_coverage_plan"
+      ],
+      "research_studio/workflow_instances.py": [
+        "DISCOVERY_FIELDS",
+        "completion_evidence",
+        "validate_discovery_scope"
+      ],
+      "research_studio/workflows/trh.py": [
+        "STAGES",
+        "activity_for_obligation"
+      ],
+      "research_studio/workflows/fdh.py": [
+        "STAGES",
+        "activity_for_obligation"
+      ],
+      "research_studio/workflows/survey.py": [
+        "STAGES",
+        "activity_for_obligation"
+      ],
+      "research_studio/workflows/registry.py": [
+        "INDEPENDENT",
+        "REGISTRY",
+        "REQUIRED",
+        "ROUTES",
+        "_main_capabilities",
+        "compile_registry",
+        "definition",
+        "exit_allowed",
+        "role_contract",
+        "spec",
+        "validate_assignment",
+        "validate_exit"
+      ],
+      "research_studio/changes.py": [
+        "validator_identity"
+      ]
+    },
+    "direct_edges": [
+      {
+        "source": "research_studio/contracts.py",
+        "target": "pmrh/domain/contracts.py",
+        "consumer": "Legacy contracts.py callers",
+        "reason": "Single extracted native scientific implementation with compatible reexports",
+        "owner": "DEV-PR-04",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/knowledge.py",
+        "target": "pmrh/domain/knowledge.py",
+        "consumer": "Legacy knowledge.py callers",
+        "reason": "Single extracted native scientific implementation with compatible reexports",
+        "owner": "DEV-PR-04",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/relations.py",
+        "target": "pmrh/domain/relations.py",
+        "consumer": "Legacy relations.py callers",
+        "reason": "Single extracted native scientific implementation with compatible reexports",
+        "owner": "DEV-PR-04",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/assurance.py",
+        "target": "pmrh/domain/assurance.py",
+        "consumer": "Legacy assurance.py callers",
+        "reason": "Single extracted native scientific implementation with compatible reexports",
+        "owner": "DEV-PR-04",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/util.py",
+        "target": "pmrh/domain/primitives.py",
+        "consumer": "Legacy util.py callers",
+        "reason": "Single extracted native scientific implementation with compatible reexports",
+        "owner": "DEV-PR-04",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/language.py",
+        "target": "pmrh/domain/primitives.py",
+        "consumer": "Legacy language.py callers",
+        "reason": "Single extracted native scientific implementation with compatible reexports",
+        "owner": "DEV-PR-04",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/communication.py",
+        "target": "pmrh/domain/assurance.py",
+        "consumer": "Legacy communication.py callers",
+        "reason": "Single extracted native scientific implementation with compatible reexports",
+        "owner": "DEV-PR-04",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/context.py",
+        "target": "pmrh/domain/assurance.py",
+        "consumer": "Legacy context.py callers",
+        "reason": "Single extracted native scientific implementation with compatible reexports",
+        "owner": "DEV-PR-04",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/workflow_instances.py",
+        "target": "pmrh/domain/protocols.py",
+        "consumer": "Legacy workflow_instances.py callers",
+        "reason": "Single extracted native scientific implementation with compatible reexports",
+        "owner": "DEV-PR-04",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/workflows/trh.py",
+        "target": "pmrh/domain/stages.py",
+        "consumer": "Legacy workflows/trh.py callers",
+        "reason": "Single extracted native scientific implementation with compatible reexports",
+        "owner": "DEV-PR-04",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/workflows/fdh.py",
+        "target": "pmrh/domain/stages.py",
+        "consumer": "Legacy workflows/fdh.py callers",
+        "reason": "Single extracted native scientific implementation with compatible reexports",
+        "owner": "DEV-PR-04",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/workflows/survey.py",
+        "target": "pmrh/domain/stages.py",
+        "consumer": "Legacy workflows/survey.py callers",
+        "reason": "Single extracted native scientific implementation with compatible reexports",
+        "owner": "DEV-PR-04",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/workflows/registry.py",
+        "target": "pmrh/domain/protocols.py",
+        "consumer": "Legacy workflows/registry.py callers",
+        "reason": "Single extracted native scientific implementation with compatible reexports",
+        "owner": "DEV-PR-04",
+        "remove_by": "DEV-PR-18"
+      }
+    ]
   }
 }

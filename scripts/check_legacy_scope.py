@@ -4,6 +4,10 @@ import ast
 import json
 from pathlib import Path
 import subprocess
+try:
+    from scripts import domain_scope
+except ModuleNotFoundError:
+    import domain_scope
 
 BASE = 'e4de0210f9985224e030ac4cfd2f7e2904005b37'
 TREE = 'c17a592ff0a4906afa7a6423535f41c67c926128'
@@ -55,15 +59,19 @@ def main():
     if git('rev-parse', BASE+'^{tree}').decode().strip() != TREE:
         raise ValueError('Original baseline tree changed')
     changed = set(filter(None, git('diff', '--name-only', '--no-renames', BASE, '--', 'research_studio/').decode().splitlines()))
-    if changed - ALLOWED_PATHS:
-        raise ValueError('Legacy change outside the exact DEV03 allowlist: ' + ', '.join(sorted(changed-ALLOWED_PATHS)))
+    if changed - ALLOWED_PATHS - domain_scope.SYMBOLS.keys():
+        raise ValueError('Legacy change outside the exact DEV03 allowlist: ' + ', '.join(sorted(changed-ALLOWED_PATHS-domain_scope.SYMBOLS.keys())))
     policy = json.loads((root/'config/architecture-exceptions.json').read_bytes())
     if set(policy['devpr03_read_bridge']['changed_paths']) != ALLOWED_PATHS:
         raise ValueError('DEV03 policy path allowlist differs from the fixed authorized scope')
+    if policy['devpr04_domain_bridge']['symbols'] != domain_scope.SYMBOLS or set(policy['devpr04_domain_bridge']['changed_paths']) != set(domain_scope.SYMBOLS):
+        raise ValueError('DEV04 extraction scope differs from its exact authorization')
+    for path in domain_scope.SYMBOLS:
+        domain_scope.verify_sections(path, git('show', BASE+':'+path), (root/path).read_bytes())
     for path in READ_SECTIONS:
         verify_sections(path, git('show', BASE+':'+path), (root/path).read_bytes())
     print(json.dumps({'baseline': BASE, 'baseline_tree': TREE, 'changed_paths': sorted(changed),
-                      'other_legacy_bytes': 'UNCHANGED', 'non_query_sections': 'UNCHANGED',
+                      'other_legacy_bytes': 'UNCHANGED', 'outside_authorized_sections': 'UNCHANGED', 'domain_extraction': 'EXACT_SYMBOLS_AND_FACADES',
                       'reconciliation_body': 'UNCHANGED'}))
 
 

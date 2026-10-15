@@ -3,6 +3,9 @@
 Messages are candidate information, never scientific support.  In particular,
 main's routing privilege does not allow its mixed context into independent work.
 """
+from pmrh.domain.assurance import (
+    independence_status,
+)
 from copy import deepcopy
 from .util import canonical, identity, require, sha
 
@@ -340,17 +343,6 @@ def validate_dispositions(snapshot,task,items,resolved_refs=None,*,require_seal=
         unresolved={x['message_id'] for x in snapshot.get('communication_impacts',{}).values() if x['request_id']==request_id}
         handled={x['message_id'] for x in items if x['disposition'] in {'REJECTED','NEEDS_CLARIFICATION'}}
         require(unresolved<=handled,'WITHDRAWN_MESSAGE_UNRESOLVED','The final response must explicitly dispose of withdrawn possible inputs.')
-
-
-def independence_status(snapshot,task_id):
-    task=snapshot['tasks'][task_id];rid=task['request_id'];shared=set()
-    for delivery in snapshot.get('input_deliveries',{}).values():
-        if delivery['request_id']!=rid:continue
-        for mid in delivery.get('message_ids',[]):
-            message=snapshot.get('research_messages',{}).get(mid,{})
-            if message and not message.get('host_sanitized'):shared.add(message['sender_request_id'])
-    return {'independent':not shared,'shared_request_ids':sorted(shared),
-            'delivery_manifest_hash':snapshot.get('input_windows',{}).get(rid,{}).get('delivery_manifest_hash')}
 
 
 def view(store,instance_id=None):

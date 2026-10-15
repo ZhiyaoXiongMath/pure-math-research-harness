@@ -1,4 +1,9 @@
 """Independent workflow controls; human decisions never assert mathematical truth."""
+from pmrh.domain.protocols import (
+    DISCOVERY_FIELDS,
+    completion_evidence,
+    validate_discovery_scope,
+)
 from copy import deepcopy
 from .util import identity, require, canonical, now
 from .workflows.registry import REGISTRY, spec, validate_exit
@@ -27,22 +32,6 @@ def select_instance(snapshot,instance_id):
     require(instance_id in snapshot.get('instances',{}),'INSTANCE_UNKNOWN',str(instance_id))
     return snapshot['instances'][instance_id]
 
-DISCOVERY_FIELDS={'phenomenon_ref':'现象','immutable_background_ref':'不可改变的背景','allowed_axes_ref':'允许探索的范围'}
-
-def validate_discovery_scope(snapshot,instance,*,required=True):
-    if instance['kind']!='FDH':return {}
-    scope=instance.get('discovery_scope') or {}
-    require(isinstance(scope,dict) and not set(scope)-set(DISCOVERY_FIELDS),'DISCOVERY_SCOPE_INVALID','Unknown discovery scope field')
-    for key,label in DISCOVERY_FIELDS.items():
-        ref=scope.get(key)
-        require(not required or ref,'DISCOVERY_SCOPE_REQUIRED','请补齐'+label+'；若无附加限制，请由用户明确说明。')
-        if ref:
-            source=snapshot.get('sources',{}).get(ref)
-            require(source is not None and source.get('access_class','SCIENTIFIC_SOURCE')=='SCIENTIFIC_SOURCE'
-                    and source.get('bytes',0)>0,'DISCOVERY_SCOPE_INVALID',label+'必须引用完整保存的用户原文。')
-    if scope.get('phenomenon_ref'):
-        require(scope['phenomenon_ref']==instance.get('discovery_brief_ref'),'DISCOVERY_SCOPE_INVALID','Phenomenon and discovery brief must bind the same original source')
-    return deepcopy(scope)
 
 def new_instance(snapshot,kind,*,target_ref=None,discovery_brief_ref=None,created_by_decision=None,instance_id=None,name=None,discovery_scope=None,survey_scope=None):
     require(kind in {'TRH','FDH','SURVEY'},'WORKFLOW_KIND_INVALID',str(kind))
@@ -412,40 +401,6 @@ def configure_p14(store, instance_id, *, mode=None, stop_next=None):
         store.commit_control(event(s,'REQUEST_STOP_AT_P14' if stop_next else 'CANCEL_STOP_AT_P14',
                                    {'requested_at':now()} if stop_next else {},instance_id=instance_id))
     return {'instance_id':instance_id,'run_control':deepcopy(store.read_snapshot()['instances'][instance_id]['run_control']),'model_calls':0}
-
-
-def completion_evidence(snapshot, instance_id, refs):
-    """Exact original-target dual checks and global integration, never MAIN confidence."""
-    from . import assurance
-    target=snapshot['instances'][instance_id]['target_ref'];qualified=[]
-    for sid,support in snapshot.get('supports',{}).items():
-        argument=support.get('argument_ref')
-        if support.get('statement_ref')!=target or argument not in refs:continue
-        scope=[]
-        for ref,aspect in ((target,'original_target'),(argument,'full_argument')):
-            match=None
-            for record in snapshot.get('records',{}).values():
-                if record.get('kind')!='Assessment':continue
-                for row in assurance.checked_scope(record):
-                    if (row['target_ref']==ref and aspect in row['aspects'] and row.get('extent')=='WHOLE_TARGET'
-                        and row.get('target_body_sha256')==snapshot['records'][ref]['body_sha256']):
-                        match={**deepcopy(row),'aspects':[aspect]};break
-                if match:break
-            if match:scope.append(match)
-        if len(scope)!=2:continue
-        mode=snapshot['records'][argument]['data'].get('mode')
-        req=assurance.requirement('REFUTATION_SUPPORT' if mode=='REFUTATION' else 'PROOF_SUPPORT',scope,
-            review_mode='TARGET_DUAL',assumption_policy=assurance.declared_assumption_policy(snapshot,target,argument))
-        evaluation=assurance.evaluate_requirement(snapshot,sid,req)
-        if evaluation['result']!='QUALIFIED' or evaluation.get('open_conditions'):continue
-        # A newly integrated global argument retains its extra integration duty.
-        integration_needed=any(v.get('argument_ref')==argument and v.get('kind') in {'AND_INTEGRATION','GLOBAL_ASSEMBLY'}
-                               for v in snapshot.get('inferences',{}).values())
-        if integration_needed:
-            integrated=assurance.evaluate_requirement(snapshot,sid,assurance.requirement('INTEGRATION',scope))
-            if integrated['result']!='QUALIFIED':continue
-        qualified.append({'support_id':sid,'argument_ref':argument,'target_ref':target,'assurance':evaluation})
-    return qualified
 
 
 def preserve_main_report(snapshot, task, request, proposal, proposal_id, *, report_body=None):

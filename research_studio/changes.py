@@ -639,7 +639,10 @@ def validator_identity():
     from pathlib import Path
     root=Path(__file__).parent
     modules=('contracts.py','changes.py','knowledge.py','relations.py','assurance.py','language.py','reports.py','survey.py','strategy.py','communication.py','input_delivery.py','execution.py','store.py')
-    return {'revision':'pmrs.admission-validator/3','modules':{name:sha((root/name).read_bytes()) for name in modules if (root/name).is_file()}}
+    fingerprints={name:sha((root/name).read_bytes()) for name in modules if (root/name).is_file()}
+    domain=root.parent/'pmrh'/'domain'
+    fingerprints.update({'pmrh/domain/'+path.name:sha(path.read_bytes()) for path in sorted(domain.glob('*.py'))})
+    return {'revision':'pmrs.admission-validator/3','modules':fingerprints}
 
 
 def _error_diagnostic(exc):
