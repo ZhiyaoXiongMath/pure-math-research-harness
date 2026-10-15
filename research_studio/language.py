@@ -8,8 +8,7 @@ from pmrh.domain.primitives import (
 import re
 from .util import require, sha, canonical
 
-DEFAULT = {"input_languages": ["zh-CN", "en"], "interaction_language": "zh-CN",
-           "research_language": "en", "report_language": "en", "preserve_original_sources": True}
+from pmrh.adapters.storage.native_format import DEFAULT as DEFAULT
 # Symmetric lexical expansion only. No claim of semantic equivalence of proofs.
 TERM_GROUPS = (
     ("removability", "removable", "可去性", "可去"),
@@ -23,11 +22,7 @@ TERM_GROUPS = (
 )
 INDEX_POLICY = "pmrs.lexical-bilingual/2"
 
-def policy(value=None):
-    result = dict(DEFAULT if value is None else value)
-    require(set(result) == set(DEFAULT), "LANGUAGE_POLICY_INVALID", "All language fields are required")
-    require(result == DEFAULT, "LANGUAGE_POLICY_UNSUPPORTED", "Bilingual input, English research/report and Chinese interaction are required")
-    return result
+from pmrh.adapters.storage.native_format import policy as policy
 
 def tokens(text: str) -> set[str]:
     text = text.lower()

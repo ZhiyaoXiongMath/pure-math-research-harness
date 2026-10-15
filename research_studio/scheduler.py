@@ -5,29 +5,13 @@ from . import obligations
 from .workflows.registry import validate_assignment, spec
 
 
-def _cost(snapshot,request):
-    # Unknown usage retains the full authorization reservation, never zero.
-    if request['execution_state']=='CANCELLED_BEFORE_SEND':return 0
-    return request.get('reserved_calls',1)
+from pmrh.application.read_projections import _cost as _cost
 
-def budget_remaining(snapshot,grant_id):
-    grant=snapshot.get('budget_grants',{}).get(grant_id,{})
-    if grant.get('explicit_unlimited') is True:return float('inf')
-    maximum=grant.get('max_calls',0)
-    used=sum(_cost(snapshot,r) for r in snapshot.get('requests',{}).values() if r.get('budget_grant_id')==grant_id)
-    return max(0,maximum-used)
+from pmrh.application.read_projections import budget_remaining as budget_remaining
 
-def project_remaining(snapshot):
-    budget=snapshot.get('project_budget',{'max_calls':0})
-    if budget.get('explicit_unlimited') is True:return aggregate_project_remaining(snapshot)
-    return min(aggregate_project_remaining(snapshot),max(0,budget.get('max_calls',0)-sum(_cost(snapshot,r) for r in snapshot.get('requests',{}).values()
-        if r.get('budget_domain','SCIENCE')=='SCIENCE')))
+from pmrh.application.read_projections import project_remaining as project_remaining
 
-def aggregate_project_remaining(snapshot):
-    """An optional explicitly configured total includes every request domain."""
-    budget=snapshot.get('project_total_budget')
-    if not budget or budget.get('explicit_unlimited') is True:return float('inf')
-    return max(0,budget.get('max_calls',0)-sum(_cost(snapshot,r) for r in snapshot.get('requests',{}).values()))
+from pmrh.application.read_projections import aggregate_project_remaining as aggregate_project_remaining
 
 
 def ordinary_preparations_since_account(snapshot):

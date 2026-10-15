@@ -15,13 +15,13 @@ MIB = 1024 * 1024
 CHUNK_BYTES = 256 * 1024
 CONTEXT_BYTES = 32 * MIB
 METADATA_BYTES = 8 * MIB
-SERIALIZED_BYTES = 64 * MIB
+from pmrh.adapters.storage.io import SERIALIZED_BYTES as SERIALIZED_BYTES
 MAX_PREPARATIONS = 2
 MAX_PREPARATION_MEMORY = 256 * MIB
 TOTAL_PREPARATION_MEMORY = 512 * MIB
 MAX_TEMPORARY_BYTES = 512 * MIB
 TOTAL_TEMPORARY_BYTES = 1024 * MIB
-DISK_MARGIN_BYTES = 512 * MIB
+from pmrh.adapters.storage.io import DISK_MARGIN_BYTES as DISK_MARGIN_BYTES
 
 
 def file_info(path):
@@ -103,47 +103,13 @@ def copy_blob(store, digest, destination, max_bytes=SERIALIZED_BYTES):
     return copy_file(store.root / 'blobs' / digest, destination, max_bytes, digest)
 
 
-def json_bytes(value, max_bytes, *, code='RESOURCE_LIMIT'):
-    """Count canonical JSON before creating its full str/bytes representations."""
-    total = 0
-    def add(n):
-        nonlocal total
-        total += n
-        require(total <= max_bytes, code, 'Complete task metadata or serialization exceeds its byte budget; narrow the explicit scope or use a CoveragePlan.')
-    def visit(item):
-        if isinstance(item, str):
-            add(2)
-            for pos in range(0, len(item), 16384):
-                add(len(json.dumps(item[pos:pos + 16384], ensure_ascii=False).encode('utf-8')) - 2)
-        elif isinstance(item, dict):
-            add(2 + max(0, len(item) - 1))
-            for key, child in item.items():
-                require(isinstance(key, str), code, 'JSON metadata keys must be text.')
-                visit(key); add(1); visit(child)
-        elif isinstance(item, (list, tuple)):
-            add(2 + max(0, len(item) - 1))
-            for child in item: visit(child)
-        else: add(len(canonical(item)))
-    visit(value)
-    return total
+from pmrh.adapters.storage.io import json_bytes as json_bytes
 
 
-def bounded_canonical(value, max_bytes=SERIALIZED_BYTES, *, code='RESOURCE_LIMIT'):
-    expected = json_bytes(value, max_bytes, code=code)
-    result = canonical(value)
-    require(len(result) == expected, code, 'Canonical serialization size differs from its preflight.')
-    return result
+from pmrh.adapters.storage.io import bounded_canonical as bounded_canonical
 
 
-def disk_preflight(path, temporary_bytes):
-    require(type(temporary_bytes) is int and 0 <= temporary_bytes,
-            'RESOURCE_LIMIT', 'Temporary preparation budget is outside the supported range.')
-    path = Path(path)
-    while not path.exists(): path = path.parent
-    free = shutil.disk_usage(path).free
-    require(free >= temporary_bytes + DISK_MARGIN_BYTES, 'RESOURCE_DISK_LOW',
-            'Preparation needs more free disk space, including its safety margin. Prior work is preserved; free space and resume the original request.')
-    return {'free_bytes': free, 'temporary_bytes': temporary_bytes, 'margin_bytes': DISK_MARGIN_BYTES}
+from pmrh.adapters.storage.io import disk_preflight as disk_preflight
 
 
 def memory_available():

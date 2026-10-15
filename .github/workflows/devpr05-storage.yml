@@ -1,0 +1,59 @@
+name: PMRH DEV-PR-05 bounded disk storage
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  storage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.13']
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONNOUSERSITE: '1'
+      PIP_NO_INDEX: '1'
+      PMRH_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact head without retained credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install OS isolation tool
+        run: sudo apt-get update && sudo apt-get install -y bubblewrap
+      - name: Check exact scope and run isolated real disk tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PMRH_SOURCE_SHA"
+          mkdir -p "$RUNNER_TEMP/pmrh-devpr05"
+          python -B scripts/check_legacy_scope.py > "$RUNNER_TEMP/pmrh-devpr05/legacy-scope.log"
+          python -B scripts/architecture_deps.py --check \
+            --json "$RUNNER_TEMP/pmrh-devpr05/dependencies.json" \
+            --markdown "$RUNNER_TEMP/pmrh-devpr05/architecture.md"
+          git archive HEAD > "$RUNNER_TEMP/pmrh-devpr05/source.tar"
+          ORACLE_DIR="$(mktemp -d "$RUNNER_TEMP/dev05-oracle-XXXXXXXX")"
+          git archive 2c65af1a407c159d6768867bf25c03566c4657c1 | tar -xf - -C "$ORACLE_DIR"
+          chmod -R a-w "$ORACLE_DIR"
+          python -B scripts/offline_storage.py --out "$RUNNER_TEMP/pmrh-devpr05/s2" --oracle "$ORACLE_DIR"
+          test -z "$(git status --porcelain)"
+      - name: Upload source and all available receipts including failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pmrh-devpr05-${{ env.PMRH_SOURCE_SHA }}-py${{ matrix.python }}
+          path: ${{ runner.temp }}/pmrh-devpr05/
+          if-no-files-found: error
+          retention-days: 30

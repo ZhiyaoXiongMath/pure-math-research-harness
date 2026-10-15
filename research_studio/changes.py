@@ -642,6 +642,10 @@ def validator_identity():
     fingerprints={name:sha((root/name).read_bytes()) for name in modules if (root/name).is_file()}
     domain=root.parent/'pmrh'/'domain'
     fingerprints.update({'pmrh/domain/'+path.name:sha(path.read_bytes()) for path in sorted(domain.glob('*.py'))})
+    moved = [root/'storage_compat.py', root/'util.py', root/'resources.py',
+             root.parent/'pmrh/application/unit_of_work.py', root.parent/'pmrh/application/read_projections.py']
+    moved += sorted((root.parent/'pmrh/adapters/storage').glob('*.py'))
+    fingerprints.update({str(path.relative_to(root.parent)):sha(path.read_bytes()) for path in moved})
     return {'revision':'pmrs.admission-validator/3','modules':fingerprints}
 
 

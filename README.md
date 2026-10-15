@@ -108,3 +108,9 @@ The existing examples, fixtures and normal test sources are retained. They do no
 ## License
 
 PMRS is distributed under [Apache-2.0](LICENSE). Bundled source resources retain their licenses, including MathJax and the native client patch's upstream attribution. The native binaries and private experiment evidence are not included in this branch.
+
+DEV05 development checks use `python3 -B scripts/offline_storage.py --out <new-artifact-directory> --oracle <frozen-DEV05-baseline>`.
+The runner requires verified bwrap isolation and fails closed without it; see the
+[DEV05 contract](docs/development/DEV-PR-05-CONTRACT.md) for execution status and scope.
+Legacy-only projects retain their journal format. Explicit synthetic fixtures may
+opt into `pmrh.commit/1`; older binaries reject that format. No production activation or migration is provided.

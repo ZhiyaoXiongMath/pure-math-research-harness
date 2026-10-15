@@ -16,9 +16,9 @@ from pathlib import Path
 import re
 import sys
 try:
-    from scripts import domain_scope
+    from scripts import domain_scope, storage_scope
 except ModuleNotFoundError:
-    import domain_scope
+    import domain_scope, storage_scope
 
 IGNORED_DIRS = {".git", ".venv", "venv", "__pycache__", ".tox", "build", "dist"}
 LAYERS = {"domain", "ports", "application", "orchestration", "adapters",
@@ -42,8 +42,8 @@ for _allow in ALLOWED.values():
     _allow.add("root_initializer")
 ROOT_MODULE_LAYERS = {
     "__init__.py": "root_initializer",
-    "__main__.py": "interfaces",
-    "cli.py": "interfaces",
+    "__main__.py": "bootstrap",
+    "cli.py": "bootstrap",
 }
 FORBIDDEN_IMPORTS = {
     "domain": {"os", "pathlib", "io", "tempfile", "shutil", "threading", "multiprocessing", "ctypes", "subprocess", "socket", "sqlite3", "http", "urllib", "requests",
@@ -372,6 +372,12 @@ def run(root: Path, policy: dict) -> dict:
     extraction_valid = (set(extraction.get('changed_paths', ())) == set(domain_scope.SYMBOLS)
                         and extraction.get('symbols') == domain_scope.SYMBOLS)
     permitted = (approved_paths if paths_valid else set()) | (set(domain_scope.SYMBOLS) if extraction_valid else set())
+    storage = policy.get('devpr05_storage_bridge', {})
+    storage_valid = (set(storage.get('changed_paths', ())) == storage_scope.PATHS
+                     and storage.get('symbols') == storage_scope.SYMBOLS
+                     and storage.get('baseline') == storage_scope.BASE)
+    if storage_valid:
+        permitted |= storage_scope.PATHS
     inventory, discrepancies = manifest_sources(root, permitted)
     violations, legacy_blocks = [], []
     bridge_edges = {(row['source'], row['target']) for row in bridge.get('direct_edges', ())
@@ -393,6 +399,15 @@ def run(root: Path, policy: dict) -> dict:
         violations.append({'reason': 'invalid_devpr04_extraction_allowlist'})
     if extraction_valid and extraction_edges == domain_scope.EDGES:
         bridge_edges |= extraction_edges
+    storage_edges = {(r['source'], r['target']) for r in storage.get('direct_edges', ())
+                     if all(r.get(k) for k in ('consumer', 'reason', 'owner', 'remove_by'))
+                     and r.get('owner') == 'DEV-PR-05'}
+    if storage and (not storage_valid or storage_edges != storage_scope.EDGES
+                    or storage.get('query_import_targets') != storage_scope.QUERY_TARGETS
+                    or storage.get('legacy_reachability') != storage_scope.QUERY_LEGACY_REACH):
+        violations.append({'reason': 'invalid_devpr05_storage_allowlist'})
+    if storage_valid and storage_edges == storage_scope.EDGES:
+        bridge_edges |= storage_edges
     violation_keys = set()
     for filename in source_nodes:
         if layer(filename) == "unclassified":
@@ -432,7 +447,7 @@ def run(root: Path, policy: dict) -> dict:
     direct_pairs = {(e["source"], e["target"]) for e in edges}
     # DEV03 does not suppress transitive checks. Every reachable legacy target
     # for the two CLI consumers is an exact frozen name with removal ownership.
-    allowed_reach = bridge.get('legacy_reachability', {})
+    allowed_reach = storage_scope.QUERY_LEGACY_REACH if storage_valid else bridge.get('legacy_reachability', {})
     for source in source_nodes:
         if source.startswith('pmrh/'):
             for target in transitive[source]:
@@ -441,10 +456,19 @@ def run(root: Path, policy: dict) -> dict:
                                        'reason': 'unapproved_transitive_legacy_dependency'})
     if bridge:
         actual_query_edges = {e['target'] for e in edges if e['source'] == 'research_studio/readonly_query.py'}
-        if actual_query_edges != set(bridge.get('query_import_targets', ())):
+        if actual_query_edges != set(storage_scope.QUERY_TARGETS if storage_valid else bridge.get('query_import_targets', ())):
             violations.append({'reason': 'query_compatibility_imports_changed'})
         if not bridge_edges <= direct_pairs:
             violations.append({'reason': 'missing_named_query_bridge_edge'})
+    query_roots = ('pmrh/cli.py', 'pmrh/__main__.py', 'research_studio/readonly_query.py')
+    forbidden_query = {'research_studio/native_main.py', 'research_studio/runner.py',
+                       'research_studio/codex_client.py', 'research_studio/harness_runtime.py',
+                       'research_studio/storage_compat.py', 'research_studio/report_catalog.py',
+                       'research_studio/host_pool.py', 'research_studio/main_session.py',
+                       'research_studio/scheduler.py', 'research_studio/engine.py'}
+    for source in query_roots:
+        for target in set(transitive.get(source, ())) & forbidden_query:
+            violations.append({'source': source, 'target': target, 'reason': 'query_reaches_runtime'})
     for source in source_nodes:
         a = layer(source)
         if a not in ALLOWED:
@@ -480,7 +504,9 @@ def run(root: Path, policy: dict) -> dict:
                 'contextlib', 'datetime', 'errno', 'os', 'pathlib', 'stat'} and edge['import'] not in {
                 'pmrh.ports.dto.core.StateAxes', 'pmrh.ports.dto.core.port_error',
                 'research_studio.util.PMRSError', 'research_studio.util.canonical',
-                'research_studio.store.Store'}:
+                'research_studio.store.Store', 'pmrh.adapters.storage.io._Unavailable',
+                'pmrh.adapters.storage.io._reason', 'pmrh.adapters.storage.io._observed_at',
+                'pmrh.adapters.storage.io._ConfinedReader', 'pmrh.adapters.storage.journal.Journal'}:
             violations.append({**edge, 'reason': 'unapproved_query_capability_import'})
         if a in FORBIDDEN_IMPORTS and imported in FORBIDDEN_IMPORTS[a]:
             violations.append({**edge, "reason": "prohibited_capability_import",
@@ -497,7 +523,13 @@ def run(root: Path, policy: dict) -> dict:
                                 "cross_layer_occurrences": cross,
                                 "classification": ("CROSS_LAYER_AND_NAMED" if cross
                                                    else "NAMED_COUPLING_OUTSIDE_PROVISIONAL_CROSS_LAYER")})
-        if not matches:
+        relocated = (storage_valid and named['source'] == 'research_studio/store.py'
+                     and named['target'] == 'research_studio/native_main.py'
+                     and ('research_studio/storage_compat.py', named['target']) in direct_pairs)
+        if relocated and not matches:
+            named_couplings[-1].update(status='RELOCATED_TO_TRUSTED_WRITER_ASSEMBLY',
+                                      current_source='research_studio/storage_compat.py', owner='DEV-PR-05')
+        if not matches and not relocated:
             violations.append({"reason": "missing_named_legacy_coupling",
                                "source": named["source"], "target": named["target"]})
     if policy.get("legacy_baseline_commit") != "e4de0210f9985224e030ac4cfd2f7e2904005b37":

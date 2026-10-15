@@ -95,14 +95,15 @@ class QueryTests(unittest.TestCase):
         self.assertEqual(before, footprint(self.root))
 
     def test_Q04_head_publication_during_query_keeps_main_on_selected_commit(self):
+        from pmrh.application import read_projections
         head = self.existing()
-        original = main_session.view
-        def publish_before_main(store, iid, **kwargs):
+        original = read_projections.main_view
+        def publish_before_main(snapshot, iid, **kwargs):
             newer = deepcopy(self.s)
             newer['instances'][IID]['status'] = 'ACTIVE'
             publish(self.project, newer, previous=head, before=self.s)
-            return original(store, iid, **kwargs)
-        with changed(main_session, 'view', publish_before_main):
+            return original(snapshot, iid, **kwargs)
+        with changed(read_projections, 'main_view', publish_before_main):
             result = status(self.project, IID)
         self.assertTrue(result['available'], result)
         self.assertEqual(result['commit'], head['commit'])

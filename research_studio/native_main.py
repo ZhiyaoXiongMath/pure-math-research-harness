@@ -9,8 +9,8 @@ from pathlib import Path
 import fcntl,json,os,queue,secrets,signal,socket,subprocess,tempfile,threading,time
 from .util import canonical,identity,immutable,now,read,require,sha,PMRSError
 
-SCHEMA='pmrs.native-main/1'
-GATE_REVISION='pmrs.native-admission/1'
+from pmrh.application.read_projections import NATIVE_SCHEMA as SCHEMA
+from pmrh.application.read_projections import GATE_REVISION as GATE_REVISION
 MAPS=frozenset({'native_main_bindings','native_main_events','native_main_turns'})
 EVENT_TYPES={'NATIVE_MAIN_BOUND','NATIVE_GOAL_SYNCED','NATIVE_GOAL_ERROR','NATIVE_TURN_BOUND','NATIVE_CONTINUATION_BLOCKED','NATIVE_USAGE_SNAPSHOT'}
 _SERVICES={}
@@ -23,19 +23,7 @@ def event(kind,payload):
     e['event_id']=identity(e,'NATIVE-MAIN-EVENT-');return e
 
 
-def desired(snapshot,iid):
-    i=snapshot['instances'][iid];c=i.get('run_control',{});mid=i.get('current_mission_id')
-    mission=snapshot.get('missions',{}).get(mid)
-    from .scheduler import budget_remaining,project_remaining
-    remaining=min(budget_remaining(snapshot,mission['budget_grant_id']),project_remaining(snapshot)) if mission else 0
-    reason=(c.get('waiting_reason') or c.get('pause_reason') or i.get('pause_reason') or i.get('status'))
-    if i.get('status')=='COMPLETE':
-        decision=snapshot.get('main_decisions',{}).get(c.get('last_decision_ref'),{})
-        if decision.get('action')=='COMPLETE' and decision.get('qualified_evidence'):return 'complete','QUALIFIED_SCIENTIFIC_COMPLETION'
-    if i.get('status')!='ACTIVE' or not mission:return 'paused',str(reason or 'NO_ACTIVE_AUTHORIZATION')
-    prepaid=any(r['instance_id']==iid and r.get('mission_id')==mid and r['execution_state'] in {'RESERVED','SENT'} and not r.get('fenced') and snapshot['tasks'][r['task_id']].get('actor_kind')=='MAIN' for r in snapshot.get('requests',{}).values())
-    if remaining<=0 and not prepaid:return 'paused','BUDGET_EXHAUSTED'
-    return 'active',None
+from pmrh.application.read_projections import native_desired as desired
 
 
 def apply_event(snapshot,e):
@@ -84,20 +72,7 @@ def apply_event(snapshot,e):
     s.setdefault('native_main_events',{})[e['event_id']]=deepcopy(e);return s
 
 
-def view(snapshot,iid):
-    b=deepcopy(snapshot.get('native_main_bindings',{}).get(iid));want,reason=desired(snapshot,iid)
-    g=(b or {}).get('observed_goal') or {}
-    last_sync=(b or {}).get('last_sync')
-    if not last_sync:
-        observations=[e['payload'] for e in snapshot.get('native_main_events',{}).values() if e['payload'].get('instance_id')==iid and e['event_type']=='NATIVE_GOAL_ERROR']
-        last_sync=max(observations,key=lambda x:x.get('observed_at',''),default=None)
-    return {'schema':SCHEMA,'binding':b,'thread_id':(b or {}).get('thread_id'),'goal_id':None,
-        'goal_identity':{'thread_id':g.get('threadId'),'created_at':g.get('createdAt'),'objective_sha256':(b or {}).get('objective_sha256')} if g else None,
-        'desired_status':want,'observed_status':g.get('status','UNOBSERVED'),'observed_goal':g or None,
-        'last_sync':last_sync,'last_observation':(b or {}).get('last_observation'),'control_revision':snapshot['instances'][iid].get('run_control',{}).get('control_version',0),
-        'wait_reason':reason,'continuation_gate':{'revision':GATE_REVISION,'required':True,'scope':'ROOT_MAIN_ONLY','native_internal_limits':None},
-        'goal_id_semantics':'Native API exposes threadId and createdAt, not an opaque Goal ID.',
-        'turns':[deepcopy(t) for t in snapshot.get('native_main_turns',{}).values() if t['instance_id']==iid]}
+from pmrh.application.read_projections import native_view as view
 
 
 def native_binary():

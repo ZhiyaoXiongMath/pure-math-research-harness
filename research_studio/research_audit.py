@@ -187,27 +187,7 @@ def apply_event(s,e):
             clock['pending_event_id']=eid
     return s
 
-def effective_guidance(s,iid):
-    rows=[d for d in s.get('human_directions',{}).values() if d['instance_id']==iid]
-    rows.sort(key=lambda d:(d.get('created_at',''),d['direction_id']))
-    replaced={old for d in rows for old in d.get('supersedes',[])+d.get('revokes',[])}
-    active=[d for d in rows if d['direction_id'] not in replaced and d.get('status') not in {'REVOKED','SUPERSEDED'}]
-    original=[{k:deepcopy(d.get(k)) for k in ('direction_id','text','refs','created_at','kind','source','supersedes','revokes','status','request_id','reply_ref')} for d in active]
-    version=identity([[d['direction_id'],d['text'],d['refs'],d.get('kind')] for d in active],'GUIDANCE-')
-    summaries=[g for g in s.get('research_guidance',{}).values() if g['instance_id']==iid and g['guidance_version']==version]
-    deliveries=[]
-    for task in s.get('tasks',{}).values():
-        context=task.get('guidance_context',{})
-        if task.get('instance_id')!=iid or not context.get('direction_ids'):continue
-        request=s['requests'][task['request_id']]
-        sent=request['execution_state'] in {'SENT','UNKNOWN','CAPTURED','SETTLED'}
-        deliveries.append({'task_id':task['task_id'],'request_id':task['request_id'],
-            'direction_ids':context['direction_ids'],'guidance_version':context['version'],
-            'delivery_state':'FROZEN_INPUT_SENT' if sent else 'FROZEN_NOT_SENT',
-            'actual_read_state':'NOT_INFERRED_FROM_DELIVERY','capture_ref':request.get('capture_ref')})
-    return {'version':version,'original_directions':original,'current_summary':deepcopy(summaries[-1]) if summaries else None,
-        'task_deliveries':deliveries,
-        'interpretation':'Original human wording governs; discussion or suggestions do not grant execution authority.'}
+from pmrh.application.read_projections import effective_guidance as effective_guidance
 
 def context(s,iid,blob_get=None):
     checkpoints=[c for c in s.get('research_checkpoints',{}).values() if c['instance_id']==iid and c['status']=='PUBLISHED']
@@ -363,9 +343,4 @@ def apply_validated(s,task,prepared,proposal_id):
             deadline_effective_seconds=clock['effective_seconds']+clock['policy']['full_audit_seconds'],
             interval_number=clock['interval_number']+1,pending_event_id=None)
 
-def view(s,iid):
-    return {'clock':deepcopy(s.get('research_clocks',{}).get(iid)),
-        'events':[deepcopy(r) for r in s.get('research_audit_events',{}).values() if r['instance_id']==iid],
-        'audits':[deepcopy(r) for r in s.get('research_audits',{}).values() if r['instance_id']==iid],
-        'checkpoints':[deepcopy(r) for r in s.get('research_checkpoints',{}).values() if r['instance_id']==iid],
-        'guidance':effective_guidance(s,iid)}
+from pmrh.application.read_projections import audit_view as view

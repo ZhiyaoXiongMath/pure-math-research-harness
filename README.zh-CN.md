@@ -106,3 +106,8 @@ python3 -B ../pmrs-unpacked/Pure-Math-Research-Studio-4.2.2/scripts/install-loca
 ## 许可证
 
 PMRS 采用 [Apache-2.0](LICENSE)。源码资源保留相应许可和归属，包括 MathJax 与原生客户端补丁的上游许可。本分支不包含原生二进制或私人实验记录。
+
+DEV05 开发检查入口：`python3 -B scripts/offline_storage.py --out <新建证据目录> --oracle <冻结的DEV05基线>`。
+入口必须先验证 bwrap 隔离；无法隔离时停止，不回退到裸执行。执行状态和范围见
+[DEV05 合同](docs/development/DEV-PR-05-CONTRACT.md)。仅使用旧接口的项目保持原 journal 格式；
+显式合成测试项目可由可信装配启用 `pmrh.commit/1`，旧版本会拒绝读取。未提供正式项目激活或迁移。

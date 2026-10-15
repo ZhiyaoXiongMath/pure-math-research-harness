@@ -5,27 +5,7 @@ from .relations import premise_closure, edges
 from .language import tokens
 
 
-def scope_refs(snapshot,instance_id=None):
-    if instance_id is None:return set(snapshot['records'])
-    require(instance_id in snapshot['instances'],'INSTANCE_UNKNOWN','Select an existing workflow')
-    instance=snapshot['instances'][instance_id];roots=set()
-    if instance.get('target_ref'):roots.add(instance['target_ref'])
-    if instance.get('discovery_brief_ref'):roots.add(instance['discovery_brief_ref'])
-    roots.update(instance.get('discovery_scope',{}).values())
-    roots.update(instance.get('survey_scope',{}).get('selected_refs',[]))
-    roots.update(instance.get('survey_scope',{}).get('source_refs',[]))
-    for event in snapshot.get('production_events',{}).values():
-        task=snapshot.get('tasks',{}).get(event.get('task_id'),{})
-        if task.get('instance_id')==instance_id and event.get('record_ref') in snapshot['records']:
-            roots.add(event['record_ref'])
-    roots.update(c['statement_ref'] for c in snapshot.get('candidates',{}).values() if c['instance_id']==instance_id)
-    for o in snapshot.get('obligations',{}).values():
-        if any(c['instance_id']==instance_id for c in o['definition']['consumer_bindings']):
-            roots.update(o['definition']['target_refs']);roots.update(o['projection'].get('evidence_refs',[]))
-    for ref,r in snapshot['records'].items():
-        if r['kind']=='Argument' and r['data']['conclusion_ref'] in roots:roots.add(ref)
-        if r['kind']=='Example' and set(r['data']['target_refs'])&roots:roots.add(ref)
-    return premise_closure(roots,snapshot,include_method_sources=True)
+from pmrh.application.read_projections import scope_refs as scope_refs
 
 
 def boundaries(snapshot,ref):
@@ -129,32 +109,13 @@ def sources(snapshot,blob_get,*,instance_id=None):
 
 
 def status(snapshot,store,*,instance_id=None,verify_report_files=True):
-    instances={k:v for k,v in snapshot['instances'].items() if instance_id is None or k==instance_id}
-    require(instance_id is None or instance_id in instances,'INSTANCE_UNKNOWN','Unknown workflow selector')
-    requests=[r for r in snapshot.get('requests',{}).values() if instance_id is None or r['instance_id']==instance_id]
+    from pmrh.application.read_projections import status as project_status
+    require(instance_id is None or instance_id in snapshot['instances'],'INSTANCE_UNKNOWN','Unknown workflow selector')
+    report = None
     if verify_report_files:
         from .report_catalog import catalog
-        report=catalog(store,snapshot,instance_id)
-    else:
-        # The minimal status query reads journal facts only. It neither opens
-        # report artifact paths nor upgrades stored reports to verified output.
-        report=[{'report_id':rid,'state':r.get('status'),
-                 'instance_ids':deepcopy(r.get('scope',{}).get('instance_ids',[])),
-                 'file_verification':'UNOBSERVED'}
-                for rid,r in snapshot.get('reports',{}).items()
-                if instance_id is None or instance_id in r.get('scope',{}).get('instance_ids',[])]
-    return {'commit':snapshot['knowledge_commit'],'project_id':snapshot['project_id'],'title':snapshot['title'],
-            'mathematical':{'target_refs':[i['target_ref'] for i in instances.values() if i.get('target_ref')],
-                'records':len(scope_refs(snapshot,instance_id)&set(snapshot['records'])),'qualification':'EXACT_CONSUMER_SCOPE_ONLY','formal_proof':'NOT_GRANTED'},
-            'workflow':{'instances':deepcopy(list(instances.values())),
-                'automatic_next_round':any(i.get('run_control',{}).get('mode')=='AUTO_P14' for i in instances.values())},
-            'execution':{'requests':[{k:r.get(k) for k in ('request_id','execution_state','capture_ref','usage','fenced')} for r in requests],
-                'running_processes':'NOT_INFERRED_FROM_WORKFLOW_STATUS','unknown':sum(r['execution_state']=='UNKNOWN' for r in requests)},
-            'acceptance':{'pending_captures':sum(r['execution_state']=='CAPTURED' for r in requests),
-                'accepted':sum(r.get('acceptance_state')=='ACCEPTED' for r in requests)},
-            'report':report,'language_policy':snapshot['language_policy'],
-            'native_usage':deepcopy(snapshot.get('usage',{})),
-            'read_only':True,'model_calls':0}
+        report = catalog(store,snapshot,instance_id)
+    return project_status(snapshot,instance_id=instance_id,report=report)
 
 
 def task_artifacts(snapshot,store,task_id,*,instance_id=None):
