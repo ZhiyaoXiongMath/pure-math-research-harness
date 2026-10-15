@@ -114,16 +114,34 @@ class Extraction(unittest.TestCase):
         moved=[ROOT/'research_studio/storage_compat.py',ROOT/'research_studio/util.py',ROOT/'research_studio/resources.py',
                ROOT/'pmrh/application/unit_of_work.py',ROOT/'pmrh/application/read_projections.py']
         moved+=sorted((ROOT/'pmrh/adapters/storage').glob('*.py'))
+        # Include package initialization and the complete statically registered
+        # DTO closure, including authorization types, not just direct storage imports.
+        port_paths=['pmrh/ports/__init__.py','pmrh/ports/interfaces.py']
+        port_paths+=['pmrh/ports/dto/'+name+'.py' for name in
+                    ('__init__','wire','core','enums','events','storage','control',
+                     'capability','execution','orchestration','specs')]
+        moved += [ROOT/path for path in port_paths]
         for path in moved:
             with self.subTest(path=path):
                 key=str(path.relative_to(ROOT))
                 self.assertIn(key,diagnostic['validator_revision']['modules'])
+                self.assertEqual(diagnostic['validator_revision']['modules'][key],sha(real(path)))
                 def changed(p):return real(p)+(b'\n# simulated changed implementation\n' if p==path else b'')
                 with patch.object(Path,'read_bytes',changed):
                     with self.assertRaisesRegex(PMRSError,'ORIGINAL_BYTES_MISMATCH'):
                         execution.verify_format_proof(fixture.f.s,rid,proof,fixture.f.get)
                     self.assertTrue(execution.verify_format_proof(fixture.f.s,rid,proof,fixture.f.get,historical=True))
                 self.assertEqual(proof,saved)
+        # A previously recorded module-map shape without this closure remains
+        # historical evidence; it cannot authorize live FORMAT under new code.
+        prior=deepcopy(proof)
+        for key in port_paths:prior['diagnostic']['validator_revision']['modules'].pop(key)
+        recorded=deepcopy(prior)
+        self.assertTrue(execution.verify_format_proof(fixture.f.s,rid,prior,fixture.f.get,historical=True))
+        with self.assertRaisesRegex(PMRSError,'ORIGINAL_BYTES_MISMATCH'):
+            execution.verify_format_proof(fixture.f.s,rid,prior,fixture.f.get)
+        self.assertEqual(prior,recorded)
+        self.assertEqual(proof,saved)
 
     def test_scope_02_only_migrates_the_concurrent_publication_hook(self):
         original=(BASE/storage_scope.TEST_SEAM_PATH).read_bytes()
@@ -138,6 +156,58 @@ class Extraction(unittest.TestCase):
                             b'class ChangedPoolTests(unittest.TestCase):',1)]
         for changed in mutations:
             with self.assertRaises(ValueError):storage_scope.verify_test_seam(original,changed)
+
+    def test_ci_artifact_gates_allow_only_the_exact_dev05_relocation(self):
+        from tests.devpr01.test_review_closure import CIArtifactReviewClosure
+        from tests.devpr02.test_ci_contracts import ArtifactGateTests
+        report=deps.run(ROOT,json.loads((ROOT/'config/architecture-exceptions.json').read_text()))
+        self.assertEqual(report['architecture_violations'],[])
+        old='research_studio/store.py';current='research_studio/storage_compat.py'
+        target='research_studio/native_main.py'
+        rows=report['named_architectural_couplings']
+        index=next(i for i,row in enumerate(rows) if row['source']==old and row['target']==target)
+        self.assertEqual(rows[index]['status'],'RELOCATED_TO_TRUSTED_WRITER_ASSEMBLY')
+        for fixture in (CIArtifactReviewClosure,ArtifactGateTests):
+            case=fixture();case.setUp();self.addCleanup(case.doCleanups)
+            graph=deepcopy(case.graph)
+            for key in ('direct_graph','direct_imports','named_architectural_couplings'):
+                graph[key]=deepcopy(report[key])
+            artifact=case.root/'ast/dependency-graph.json'
+            artifact.write_text(json.dumps(graph))
+            self.assertEqual(case.validate()['status'],'PASS')
+            negatives=[]
+            for field,value in [('source','research_studio/other.py'),('target','research_studio/runner.py'),
+                                ('owner','DEV-PR-07'),('current_source','research_studio/other.py'),
+                                ('status','MISSING_DIRECT_EDGE'),('status','MATCHED_DIRECT_EDGE'),
+                                ('direct_occurrences',1)]:
+                bad=deepcopy(graph);bad['named_architectural_couplings'][index][field]=value
+                negatives.append((field+':'+str(value),bad))
+            bad=deepcopy(graph);bad['direct_graph'][old].append(target)
+            negatives.append(('old edge restored',bad))
+            bad=deepcopy(graph);bad['direct_imports'].append({'source':old,'target':target})
+            negatives.append(('old import restored',bad))
+            bad=deepcopy(graph);bad['direct_graph'][current].remove(target)
+            negatives.append(('new direct edge absent',bad))
+            bad=deepcopy(graph);bad['direct_imports']=[e for e in bad['direct_imports']
+                if (e['source'],e['target'])!=(current,target)]
+            negatives.append(('new import absent',bad))
+            for node in (old,current):
+                bad=deepcopy(graph);del bad['direct_graph'][node]
+                negatives.append(('node absent:'+node,bad))
+            bad=deepcopy(graph);del bad['named_architectural_couplings'][index]
+            negatives.append(('named original absent',bad))
+            bad=deepcopy(graph);bad['named_architectural_couplings'].append(deepcopy(rows[index]))
+            negatives.append(('duplicate relocation',bad))
+            bad=deepcopy(graph);duplicate=deepcopy(rows[index]);duplicate['status']='MATCHED_DIRECT_EDGE'
+            bad['named_architectural_couplings'].append(duplicate)
+            negatives.append(('contradictory original tuple',bad))
+            bad=deepcopy(graph)
+            next(row for row in bad['named_architectural_couplings'] if row['source']!=old)['status']='MISSING_DIRECT_EDGE'
+            negatives.append(('unrelated missing coupling',bad))
+            for label,bad in negatives:
+                with self.subTest(gate=fixture.__name__,mutation=label):
+                    artifact.write_text(json.dumps(bad))
+                    with self.assertRaises(ValueError):case.validate()
 
     def test_original_admission_and_initializer_bodies_are_unchanged(self):
         original=ast.parse((BASE/'research_studio/store.py').read_text())

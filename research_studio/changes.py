@@ -645,6 +645,11 @@ def validator_identity():
     moved = [root/'storage_compat.py', root/'util.py', root/'resources.py',
              root.parent/'pmrh/application/unit_of_work.py', root.parent/'pmrh/application/read_projections.py']
     moved += sorted((root.parent/'pmrh/adapters/storage').glob('*.py'))
+    # Storage replay and UoW use DTO decoding, validation and wire budgets.
+    # The ports initializer imports interfaces, registering every DTO module.
+    ports = root.parent/'pmrh/ports'
+    moved += [ports/'__init__.py', ports/'interfaces.py']
+    moved += sorted((ports/'dto').glob('*.py'))
     fingerprints.update({str(path.relative_to(root.parent)):sha(path.read_bytes()) for path in moved})
     return {'revision':'pmrs.admission-validator/3','modules':fingerprints}
 

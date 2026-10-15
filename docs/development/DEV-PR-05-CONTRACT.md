@@ -238,3 +238,89 @@ headers remain verified for sticky-format integrity without a mutable cache.
 Static syntax, exact scope and architecture checks pass. Revised product tests
 are NOT_EXECUTED by Developer in round two; Controller must rerun S2 and the
 accepted regressions on the complete frozen candidate before review/publication.
+
+## SCOPE-03: CI artifact compatibility
+
+Controller authorizes `verify_devpr01_artifacts.py` and
+`verify_devpr02_artifacts.py` to recognize only the existing named coupling
+`research_studio/store.py` → `research_studio/native_main.py`, owned by DEV-PR-05,
+as relocated to `research_studio/storage_compat.py`. The shared static verifier
+requires that exact tuple, owner, current source and relocation status, zero
+original direct occurrences, an absent old edge, and the actual new edge in both
+the direct graph and import occurrences. Forged, duplicated, missing or unrelated
+relocations reject. All other receipt, source, raw-log and test-identity gates
+remain unchanged. The original audit baseline and original scientific tests,
+domain/ports, SEC-01 and old offline runners are unchanged.
+
+First CI at PR11 head `4613438fa847bac8e1b833e9bff0b449de0743b3` remains failed:
+DEV01/02 test suites passed, but their old artifact gates rejected the relocation.
+DEV05 Python 3.11/3.13 S2 was NOT_EXECUTED: bwrap failed before product imports
+with `loopback: Failed RTM_NEWADDR: Operation not permitted`. The recorded command
+retained `--unshare-all`, readonly source/oracle, tmpfs scratch and cleared env.
+The supplied logs do not establish which kernel security mechanism denied it.
+
+The DEV05 workflow conditionally clears only
+`kernel.apparmor_restrict_unprivileged_userns` on its ephemeral GitHub-hosted Linux
+job, where Ubuntu's AppArmor restriction can block this namespace setup. It logs
+the original value and adjustment and restores the value in an always-run step.
+It does not disable AppArmor globally, change this development host, alter S2
+mounts/network namespace/probes, run product tests as root or provide a bare-test
+fallback. This is a targeted mitigation, pending actual hosted-runner validation;
+remaining setup failures stay fail-closed. Original failed CI evidence is retained.
+
+## Review correction: publication read budget
+
+Independent review of head `4613438fa847bac8e1b833e9bff0b449de0743b3`
+found that one valid evidence-only batch of 4096 references (1,354,816 wire
+bytes) published a HEAD whose closure exceeded the ordinary confined reader's
+file budget. Controller reproduced this in verified S2: HEAD advanced, commit,
+reopen and retry returned UNOBSERVED, and legacy reopen raised QUERY_READ_LIMIT.
+This is an executed failure of that head; it remains part of the evidence.
+
+The shared publisher now verifies each candidate `pmrh.commit/1` snapshot and
+full extension closure from its immutable on-disk files before replacing HEAD.
+It uses the ordinary confined reader's unchanged limits, charges the future
+HEAD read, replays all native deltas and validates present checkpoints without
+using them to skip replay. Publication safety therefore does not depend on a
+particular disposable checkpoint remaining available. This applies to scope
+activation, UoW batches and every later legacy publication on an extended
+project, including checkpoints. Legacy-only publication is unchanged.
+
+A file or byte limit rejects before HEAD with native `RESOURCE_LIMIT`; the
+frozen v1 Port error vocabulary continues to map this to UNOBSERVED with
+read-only recovery and no automatic retry. The previous readable boundary and
+all immutable facts remain; unpublished candidate files are orphans. A valid
+individual DTO does not promise unlimited cumulative project capacity. No
+read limit, DTO, persisted schema, authorization or scientific admission rule
+has changed, and no public arbitrary-head read or durable index was added.
+
+Four new real-disk regression methods cover the maximum valid batch, cumulative
+normal batches under reduced real file/byte budgets, later legacy/checkpoint
+rejection, and successful publication plus durable duplicate recovery after
+all checkpoints are discarded. Existing process-exit crash/reopen, lock/CAS and
+publication-fault tests exercise the same publisher. The revised product suite
+is NOT_EXECUTED by Developer because nested S2 is unavailable; Controller must
+run the complete frozen candidate in S2. Prior executed results above are
+historical and are not replaced by this status.
+
+## Review correction: FORMAT dependency fingerprints
+
+Finding F2 identified omitted DTO verification dependencies in the live FORMAT
+implementation identity. `validator_identity` now also hashes the ports
+initializer, interfaces and all 11 DTO source modules: package initialization,
+wire registry/decoding/serialization/budgets, core identities, enums, events,
+storage, authorization/control, capability, execution, orchestration and specs.
+The interfaces import path registers this complete DTO set; no DTO or Port
+source bytes, schema, validation behavior or persisted format change.
+
+The existing end-to-end FORMAT test now mutates each of these 13 source
+fingerprints independently: live verification must reject, historical
+verification must succeed, and recorded evidence must remain unchanged. It also
+pairs historical acceptance of the prior module-map shape with live rejection.
+Recorded identities are not rewritten and the validator revision is unchanged.
+
+Controller candidate 06 passed all 43 methods in verified S2, including F1's
+publication-budget regressions. That result belongs to its recorded source
+manifest; F1 is unchanged here. F2's extended test is NOT_EXECUTED by Developer
+and awaits Controller S2. Required exact-head CI and independent re-review
+remain pending; earlier failed CI and review evidence are retained.

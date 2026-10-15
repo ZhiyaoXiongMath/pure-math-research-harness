@@ -192,8 +192,9 @@ class Journal:
                 evidence = [e for e in entry['events'] if e.get('type') == 'CHECKPOINT']
                 require(len(evidence) == 1 and evidence[0]['state_sha256'] == checkpoint['state_sha256'],
                         'CHECKPOINT_CHANGED', 'Checkpoint is not bound to its commit')
-                state = checkpoint['state']
-                break
+                if not getattr(self, '_replay_without_checkpoint', False):
+                    state = checkpoint['state']
+                    break
             pending.append(entry)
             head = entry['previous_commit']
         if state is None:
@@ -222,7 +223,7 @@ class Journal:
 
     def _publish(self, previous, before, after, *, actor, events, base=None, accepted=None,
                  at=None, checkpoint_interval=None):
-        from .format import publication_schema
+        from .format import publication_schema, EXTENDED_SCHEMA
         schema = publication_schema(self, previous, events)
         before, after = _persistent(before), _persistent(after)
         delta = _diff(before, after)
@@ -261,13 +262,42 @@ class Journal:
             # do not serialize the same complete projection three times.
             wrapper = b'{"commit":' + canonical(digest) + b',"state":' + state_raw + b',"state_sha256":' + canonical(sha(state_raw)) + b'}'
             immutable(self.root/'checkpoints'/f'{digest}.json', wrapper)
-        self._fault('before_head')
         head = {'sequence': sequence, 'commit': digest, 'path': path}
+        if schema == EXTENDED_SCHEMA:
+            self._preflight_extended_head(head)
+        self._fault('before_head')
         atomic(self.root/'HEAD', canonical(head))
         self._fault('after_head')
         if checkpoint:
             self._prune_checkpoints(digest)
         return {'commit': digest, 'sequence': sequence, 'outcome': 'COMMITTED', 'events': events}
+
+    def _preflight_extended_head(self, head):
+        """Trusted publisher only: verify the on-disk candidate before HEAD.
+
+        Replay all native deltas and validate every present checkpoint as well
+        as the full extension closure. This bounds later reads even if any/all
+        disposable checkpoints disappear. No candidate is exposed to ports.
+        """
+        from .io import _ConfinedReader, _Unavailable
+        try:
+            with _ConfinedReader(self.root) as reader:
+                # HEAD is not published yet. Charge its exact future read using
+                # the same per-file/aggregate limits, then pin this local reader.
+                size = len(canonical(head))
+                require(reader.remaining_files > 0 and size <= min(16384, reader.remaining_bytes),
+                        'RESOURCE_LIMIT', 'Candidate HEAD exceeds the confined read budget; HEAD unchanged')
+                reader.remaining_files -= 1
+                reader.remaining_bytes -= size
+                candidate = Journal(reader.root, reader=reader)
+                candidate._read_head = deepcopy(head)
+                candidate._replay_without_checkpoint = True
+                candidate.read_snapshot()
+        except _Unavailable as exc:
+            if exc.reason != 'QUERY_READ_LIMIT':
+                raise
+            raise PMRSError('RESOURCE_LIMIT',
+                'Candidate snapshot and closure exceed the confined read budget; HEAD unchanged') from exc
 
     def _prune_checkpoints(self, current):
         """Bound only the native disposable checkpoint directory, never evidence.

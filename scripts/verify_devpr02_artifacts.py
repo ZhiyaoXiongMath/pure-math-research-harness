@@ -15,6 +15,35 @@ SOURCE_SCRIPTS = ("scripts/offline_contracts.py", "scripts/verify_devpr02_artifa
                   "scripts/offline_test.py", "scripts/offline_guard/sitecustomize.py", "scripts/architecture_deps.py")
 
 
+def validate_named_couplings(graph: dict) -> None:
+    """SCOPE-03: recognize only the verified DEV05 writer-assembly relocation."""
+    old = 'research_studio/store.py'
+    current = 'research_studio/storage_compat.py'
+    target = 'research_studio/native_main.py'
+    direct = graph['direct_graph']
+    imports = graph.get('direct_imports', [])
+    relocated = 0
+    for item in graph['named_architectural_couplings']:
+        if item.get('status') == 'MATCHED_DIRECT_EDGE':
+            continue
+        if (item.get('status'), item.get('source'), item.get('target'),
+                item.get('owner'), item.get('current_source')) != (
+                'RELOCATED_TO_TRUSTED_WRITER_ASSEMBLY', old, target, 'DEV-PR-05', current):
+            raise ValueError('Unapproved or missing named legacy coupling')
+        relocated += 1
+        if (relocated != 1 or item.get('direct_occurrences') != 0 or
+                sum((row.get('source'), row.get('target')) == (old, target)
+                    for row in graph['named_architectural_couplings']) != 1 or
+                not isinstance(direct.get(old), list) or target in direct[old] or
+                not isinstance(direct.get(current), list) or target not in direct[current] or
+                any(e.get('source') == old and e.get('target') == target for e in imports) or
+                not any(e.get('source') == current and e.get('target') == target for e in imports)):
+            raise ValueError('DEV05 relocation does not match the actual direct edges')
+    if (target in direct.get(current, []) or
+            any(e.get('source') == current and e.get('target') == target for e in imports)) and relocated != 1:
+        raise ValueError('DEV05 direct edge lacks its exact original named coupling')
+
+
 def source_fingerprints(root: Path) -> dict[str, str]:
     paths = [*sorted((root / "pmrh/ports").rglob("*.py")), *sorted((root / "tests/devpr02").rglob("*.py")),
              *(root / path for path in SOURCE_SCRIPTS), root / "pmrh/__init__.py"]
@@ -174,8 +203,7 @@ def validate(root: Path, expected_sha: str, expected_tree: str, source_root: Pat
         raise ValueError("New package contains unresolved imports")
     if any(graph["source_sha256"].get(name) != value for name, value in actual_sources.items()):
         raise ValueError("AST graph and tested source fingerprints differ")
-    if any(item.get("status") != "MATCHED_DIRECT_EDGE" for item in graph["named_architectural_couplings"]):
-        raise ValueError("A legacy named coupling vanished")
+    validate_named_couplings(graph)
     if b"DEV-PR-01" not in payloads["ast/architecture-audit.md"]:
         raise ValueError("Inherited architecture report identity missing")
     raw_log = payloads["offline/unittest.log"]
