@@ -1,3 +1,68 @@
+# PMRH development project state — latest versioned snapshot
+
+## Latest snapshot — DEV05 software merged; archive pending (2026-10-16)
+
+**Observed main:** `25176107f552cbec2abe1b05c03b87a38d610f39`.
+**Tree:** `59f2777d9cb736eb3c445f29f7dfb6e8a92a0647`.
+**DEV05 software:** IMPLEMENTED / TESTED / REVIEWED / MAIN ACCEPTED / GITHUB MERGED.
+This snapshot records supplied evidence, not live status, human consent or mathematical authority.
+
+Controller post-merge verification is dated `2026-10-16T02:15:42.152590+00:00`.
+The archive Developer independently compared local Git parents/trees and all 349
+baseline tracked file hashes/blob identities/modes with the supplied manifest and
+fresh Controller GitHub records. **It made no live GitHub queries.**
+The original state below is preserved byte-for-byte as a historical suffix.
+
+| Event / status | Evidence and reconciliation |
+|---|---|
+| DEV04 archive merged | [PR #10](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/10), `2026-10-15T09:58:11Z`, merge `2c65af1a407c159d6768867bf25c03566c4657c1`. The older DEV04 archive-pending snapshot is historical. |
+| DEV05 separate grant | The user separately authorized implementation/offline tests/review/Open PR and the restricted synthetic persistence extension in the [contract](DEV-PR-05-CONTRACT.md). Earlier NOT_AUTHORIZED text remains true of its original cycle; it does not prohibit this later authorized work. |
+| Independent software review | [CLI re-review](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/11#issuecomment-6193171124), APPROVE_FOR_MAIN_ACCEPTANCE at `68de9fa7db55c51ffad27e498e928ab6788cb817`; F1/P1, F2/P2 closed and final CI satisfied. Native GitHub Reviews are separately empty. |
+| Separate software MAIN decision | [Acceptance](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/11#issuecomment-6193187147), `2026-10-15T13:25:42.124887+00:00`. Its immutable OPEN/unmerged/no-merge-authorization state is preserved; later user merge is distinct. |
+| User software merge | [PR #11](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/11), merged by `ZhiyaoXiongMath` at `2026-10-16T02:10:14Z` (10:10:14 Asia/Shanghai). Actual merge is observed main above; parents are `2c65af1a407c159d6768867bf25c03566c4657c1` and accepted head `68de9fa7db55c51ffad27e498e928ab6788cb817`; merge and accepted trees are identical. |
+| Archive only, pending | [DEV05 Handoff](handoffs/DEV-PR-05.md) records scope/API, exact CI links, hashes, failures, limits and rollback. Keep archive PR **Open** pending independent exact-head review, separate Controller disposition, user merge and readback. No archive SHA/PR number is predicted; later review/acceptance belongs in its PR body. **HANDOFF COMPLETE is not declared.** |
+
+Six PR workflows / ten jobs passed: DEV01 48; DEV02 119 each; DEV03 36 each;
+DEV04 34 baseline + 34 facade + 10 boundaries and 55 equal trace keys each;
+DEV05 43 S2 methods each; Phase0 6. Hosted S2 uses Python 3.11.17/3.13.16;
+final local S2 is 43 PASS on 3.14.4. Controller/reviewer evidence binds eight
+complete source archives to 349 files; this archive reuses those receipts.
+DEV01–05 explicitly checked accepted head. Phase0 used temporary merge
+`738a1c99d28cc25949a2a8ef1804c10446fb382b`, same tree/parents, **not actual merge**.
+Fresh merge-runs is empty: **no separate merge-SHA CI observed**, not CI failure.
+No product suites were rerun by this archive Developer.
+
+Inherited storage has one journal/lock/HEAD authority, pure core/repository dependencies,
+unchanged domain/v1 DTOs, fixed trusted legacy reducers and pure/confined queries.
+Scope-bound committed-prefix reads exclude staged data; authority precedes duplicate
+lookup under lock; persistent full-batch idempotency, port CAS, legacy relevant-dependency
+revalidation, original envelopes and exact GAP semantics remain. No arbitrary callbacks
+or HUMAN claims. Synthetic-only two-event/policy/batch/envelope extension uses sticky
+`pmrh.commit/1`; legacy-only stays `pmrs.commit/4.2.2`; old readers reject extended HEAD.
+No production activation/migration. F1 capacity preflight preserves old readable HEAD
+under unchanged limits, leaving invisible orphans; F2 covers 13 FORMAT dependency files.
+SCOPE-01/02/03 are the exact contract exceptions; original failure history is retained.
+
+Original target/D0, six records, qualification, candidate/formal distinction, independent
+review, failure scope/dependency invalidation, single MAIN, budgets and PAUSED/UNKNOWN
+remain protected. No full DEV11/12 objects/strategy loop or mathematical proof claim.
+Original 58+46 definitions are unchanged and not globally PASS. Full legacy/native/provider/
+browser/PDF, 10,000/1,000 stress, production migration, real research and DEV06 recovery
+remain NOT_EXECUTED; no universal power-loss certification. Management inference is
+NOT_MEASURED. REV02-HELPER-01 remains nonblocking INCONCLUSIVE / NOT_EXECUTED,
+never sole authority. Rollback requires authorized review/revert, preserving journals,
+compatible format readers and UNKNOWN; no deletion, downgrade or automatic retry.
+
+**DEV-PR-06 through DEV-PR-18: NOT_AUTHORIZED / NOT_STARTED by this cycle.**
+Controller retains Git/publication/acceptance; the Developer does not self-accept.
+No successor startup prompt, dispatch, new MAIN/Goal, budget or research is authorized.
+
+## Historical content — entire original state retained below
+
+All following headings and restrictions describe their dated checkpoints, including
+old “latest”, archive-pending and successor-authorization labels. The snapshot above
+reconciles subsequent events without rewriting any historical decision or granting new work.
+
 # PMRH development project state — versioned evidence snapshot
 
 ## Latest authoritative snapshot — DEV04 software merged; archive pending (2026-10-15)
