@@ -27,8 +27,12 @@ DEV04 34 baseline + 34 facade + 10 boundaries and 55 equal trace keys each;
 DEV05 43 S2 methods each; Phase0 6. Hosted S2 uses Python 3.11.17/3.13.16;
 final local S2 is 43 PASS on 3.14.4. Controller/reviewer evidence binds eight
 complete source archives to 349 files; this archive reuses those receipts.
-DEV01–05 explicitly checked accepted head. Phase0 used temporary merge
+DEV02–05 explicitly checked accepted head. DEV01/Phase0 used temporary merge
 `738a1c99d28cc25949a2a8ef1804c10446fb382b`, same tree/parents, **not actual merge**.
+ARCHIVE-CI-01: DEV01's original checkout log identifies this temporary merge;
+`PMRH_SOURCE_SHA=68de9fa7db55c51ffad27e498e928ab6788cb817` is its logical receipt
+label, not actual checkout. Original receipts, software results and tree equality
+remain unchanged; the [handoff](handoffs/DEV-PR-05.md) records this provenance correction.
 Fresh merge-runs is empty: **no separate merge-SHA CI observed**, not CI failure.
 No product suites were rerun by this archive Developer.
 

@@ -138,17 +138,22 @@ or claim to re-download/reconstruct those archives.
 
 | Workflow / exact run | Checkout and scoped result |
 |---|---|
-| [DEV01 38740632997](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38740632997) | Explicit accepted head; 48 PASS. |
+| [DEV01 38740632997](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38740632997) | Temporary PR merge; 48 PASS. |
 | [DEV02 38740632913](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38740632913) | Explicit accepted head; 119 PASS on each Python 3.11/3.13. |
 | [DEV03 38740632915](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38740632915) | Explicit accepted head; 36 PASS each. |
 | [DEV04 38740632982](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38740632982) | Explicit accepted head; 34 baseline + 34 facade + 10 boundaries, 55 equal trace keys each. |
 | [DEV05 38740633013](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38740633013) | Explicit accepted head; 43 S2 methods PASS each. |
 | [Phase0 38740632971](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38740632971) | Temporary PR merge; 6 PASS. |
 
-Phase0 checked `738a1c99d28cc25949a2a8ef1804c10446fb382b`, with the same tree and
-parents as the actual merge, **not actual merge-SHA CI**. That temporary object's
-provenance is supplied Controller/reviewer evidence; it is unavailable in the
-archive checkout's local Git objects. Run metadata's headSha alone is not checkout proof.
+DEV01 and Phase0 checked `738a1c99d28cc25949a2a8ef1804c10446fb382b`, with the same
+tree and parents as the actual merge, **not actual merge-SHA CI**. DEV02–05
+explicitly checked the accepted head. **ARCHIVE-CI-01 provenance correction:**
+the original DEV01 run's checkout log (`git log -1 --format=%H`) identifies that
+temporary merge; `PMRH_SOURCE_SHA=68de9fa7db55c51ffad27e498e928ab6788cb817` is the
+logical receipt label, not the actual checkout. This additive clarification leaves
+original receipts, software results and tree equality unchanged. The temporary
+object is unavailable locally; its provenance relies on Controller-supplied records
+and raw checkout logs. Run metadata's headSha alone is not checkout proof.
 
 Historical commands include `python3 -B scripts/check_legacy_scope.py`,
 `python3 -B scripts/architecture_deps.py --check --json <artifacts>/dependencies.json --markdown <artifacts>/architecture.md`,
