@@ -14,6 +14,11 @@ from pathlib import Path
 import re
 import sys
 
+try:
+    from scripts.verify_devpr02_artifacts import validate_named_couplings
+except ModuleNotFoundError:
+    from verify_devpr02_artifacts import validate_named_couplings
+
 REQUIRED = (
     "ast/dependency-graph.json",
     "ast/architecture-audit.md",
@@ -49,9 +54,7 @@ def validate(root: Path, expected_sha: str) -> dict:
         raise ValueError("AST artifact contains architecture violations or parse failures")
     if graph.get("counts", {}).get("unresolved_new_layer_imports", 0):
         raise ValueError("AST artifact has unresolved imports in new layered package")
-    if any(x.get("status") != "MATCHED_DIRECT_EDGE"
-           for x in graph["named_architectural_couplings"]):
-        raise ValueError("A named legacy coupling is not present in the direct graph")
+    validate_named_couplings(graph)
     if b"DEV-PR-01" not in data["ast/architecture-audit.md"]:
         raise ValueError("Markdown architecture report identity missing")
 

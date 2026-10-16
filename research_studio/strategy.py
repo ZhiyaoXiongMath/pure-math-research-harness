@@ -19,9 +19,9 @@ def event(kind,payload):
     e={'actor':'host','capability_ref':'CAP-HOST','event_type':kind,'payload':deepcopy(payload)}
     return {**e,'event_id':identity(e,'STRATEGY-EVENT-')}
 
-def strategy_id(iid):return identity(iid,'STRATEGY-')
+from pmrh.application.read_projections import strategy_id as strategy_id
 
-def current(s,iid):return s.get('strategies',{}).get(strategy_id(iid))
+from pmrh.application.read_projections import strategy_current as current
 
 def frontier(s,iid,mid):
     """Only actual scientific/version changes; no HEAD, timestamps or counters."""

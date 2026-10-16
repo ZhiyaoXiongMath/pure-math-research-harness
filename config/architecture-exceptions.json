@@ -534,5 +534,269 @@
         "remove_by": "DEV-PR-18"
       }
     ]
+  },
+  "devpr05_storage_bridge": {
+    "authorization": "Frozen r1 plus Controller mechanical disposition DEV05-SCOPE-01; no merge",
+    "baseline": "2c65af1a407c159d6768867bf25c03566c4657c1",
+    "changed_paths": [
+      "research_studio/changes.py",
+      "research_studio/host_pool.py",
+      "research_studio/language.py",
+      "research_studio/main_session.py",
+      "research_studio/native_main.py",
+      "research_studio/readonly_query.py",
+      "research_studio/research_audit.py",
+      "research_studio/resources.py",
+      "research_studio/scheduler.py",
+      "research_studio/storage_compat.py",
+      "research_studio/store.py",
+      "research_studio/strategy.py",
+      "research_studio/util.py",
+      "research_studio/version.py",
+      "research_studio/views.py"
+    ],
+    "symbols": {
+      "research_studio/changes.py": [
+        "validator_identity"
+      ],
+      "research_studio/host_pool.py": [
+        "HOST_LIMIT",
+        "PROJECT_LIMIT",
+        "INFLIGHT",
+        "instance_key",
+        "allocations",
+        "_view",
+        "read_status"
+      ],
+      "research_studio/language.py": [
+        "DEFAULT",
+        "policy"
+      ],
+      "research_studio/main_session.py": [
+        "view"
+      ],
+      "research_studio/native_main.py": [
+        "SCHEMA",
+        "GATE_REVISION",
+        "desired",
+        "view"
+      ],
+      "research_studio/research_audit.py": [
+        "effective_guidance",
+        "view"
+      ],
+      "research_studio/resources.py": [
+        "SERIALIZED_BYTES",
+        "DISK_MARGIN_BYTES",
+        "json_bytes",
+        "bounded_canonical",
+        "disk_preflight"
+      ],
+      "research_studio/scheduler.py": [
+        "_cost",
+        "budget_remaining",
+        "project_remaining",
+        "aggregate_project_remaining"
+      ],
+      "research_studio/strategy.py": [
+        "strategy_id",
+        "current"
+      ],
+      "research_studio/util.py": [
+        "now",
+        "safe_path",
+        "read",
+        "fsync_dir",
+        "_same_file_bytes",
+        "_publication_temp",
+        "immutable",
+        "atomic"
+      ],
+      "research_studio/version.py": [
+        "SCHEMA_VERSION",
+        "COMMIT_SCHEMA"
+      ],
+      "research_studio/views.py": [
+        "scope_refs",
+        "status"
+      ]
+    },
+    "direct_edges": [
+      {
+        "source": "research_studio/host_pool.py",
+        "target": "pmrh/adapters/storage/pool_read.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/language.py",
+        "target": "pmrh/adapters/storage/native_format.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/main_session.py",
+        "target": "pmrh/application/read_projections.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/native_main.py",
+        "target": "pmrh/application/read_projections.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/readonly_query.py",
+        "target": "pmrh/adapters/storage/__init__.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/readonly_query.py",
+        "target": "pmrh/adapters/storage/io.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/readonly_query.py",
+        "target": "pmrh/adapters/storage/journal.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/readonly_query.py",
+        "target": "pmrh/adapters/storage/pool_read.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/readonly_query.py",
+        "target": "pmrh/application/__init__.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/readonly_query.py",
+        "target": "pmrh/application/read_projections.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/research_audit.py",
+        "target": "pmrh/application/read_projections.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/resources.py",
+        "target": "pmrh/adapters/storage/io.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/scheduler.py",
+        "target": "pmrh/application/read_projections.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/storage_compat.py",
+        "target": "pmrh/adapters/storage/journal.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/store.py",
+        "target": "pmrh/adapters/storage/journal.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/strategy.py",
+        "target": "pmrh/application/read_projections.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/util.py",
+        "target": "pmrh/adapters/storage/io.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/version.py",
+        "target": "pmrh/adapters/storage/native_format.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/views.py",
+        "target": "pmrh/application/read_projections.py",
+        "consumer": "Shared storage compatibility and confined status",
+        "reason": "Exact frozen extraction edge; no general layer exemption",
+        "owner": "DEV-PR-05",
+        "remove_by": "DEV-PR-18"
+      }
+    ],
+    "query_import_targets": [
+      "pmrh/adapters/storage/__init__.py",
+      "pmrh/adapters/storage/io.py",
+      "pmrh/adapters/storage/journal.py",
+      "pmrh/adapters/storage/pool_read.py",
+      "pmrh/application/__init__.py",
+      "pmrh/application/read_projections.py",
+      "pmrh/ports/dto/__init__.py",
+      "pmrh/ports/dto/core.py",
+      "pmrh/ports/dto/enums.py",
+      "research_studio/util.py"
+    ],
+    "legacy_reachability": {
+      "pmrh/cli.py": [
+        "research_studio/readonly_query.py",
+        "research_studio/util.py"
+      ],
+      "pmrh/__main__.py": [
+        "research_studio/readonly_query.py",
+        "research_studio/util.py"
+      ]
+    },
+    "previous_inventory": "devpr03_read_bridge retains the historical inventory; this exact smaller closure is enforced now."
   }
 }
