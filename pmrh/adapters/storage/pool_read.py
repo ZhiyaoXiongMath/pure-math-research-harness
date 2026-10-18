@@ -25,6 +25,36 @@ def allocations(demands,*,limit=HOST_LIMIT,cursor=0):
         if not progress:break
     return out
 
+def control_pool_view(ledger, snapshots):
+    """Pure typed-pool projection over independently verified fixed snapshots.
+
+    No root discovery, project traversal, PID cleanup or reconciliation. A
+    released tombstone with later contradictory evidence counts as risk.
+    """
+    from .control import releasable
+    occupied={};by_instance={};effective=[];demands={};blocked=False
+    for project_key,snapshot in snapshots.items():
+        for request in snapshot['requests'].values():
+            blocked |= request['admission']['evidence_conflict']
+        for iid,instance in snapshot['instances'].items():
+            key=sha(canonical([project_key,iid]))
+            ready=sum(r['instance_id']==iid and snapshot['tasks'][r['task_id']].get('actor_kind')!='MAIN'
+                      and not releasable(r) for r in snapshot['requests'].values())
+            demands[key]={'project_key':project_key,'instance_id':iid,
+                          'ready':min(1 if instance['kind']=='SURVEY' else PROJECT_LIMIT,ready)}
+    for token,row in ledger['slots'].items():
+        request=snapshots[row['project_key']]['requests'][row['request_id']]
+        if row['state']=='HELD' or request['admission']['evidence_conflict']:
+            effective.append(token)
+            key=sha(canonical([row['project_key'],row['instance_id']]))
+            by_instance[key]=by_instance.get(key,0)+1
+            occupied[row['project_key']]=occupied.get(row['project_key'],0)+1
+    hints={key:max(row['ready'],by_instance.get(key,0)) for key,row in demands.items()}
+    return {'limit':HOST_LIMIT,'active':len(effective),'effective_tokens':effective,
+            'occupied':occupied,'instance_occupied':by_instance,'demands':demands,
+            'shares':allocations(hints,cursor=ledger['cursor']), 'blocked':blocked,
+            'over_capacity':max(0,len(effective)-HOST_LIMIT)}
+
 def _view(data):
     occupied={};by_instance={}
     for r in data['slots'].values():

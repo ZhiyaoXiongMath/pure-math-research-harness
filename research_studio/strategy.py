@@ -91,7 +91,12 @@ def initialize(store,iid):
     require(mid in s['missions'],'AUTHORIZATION_REQUIRED','A native authorized mission is required')
     require(instance['kind'] in {'TRH','FDH'},'MAIN_NOT_APPLICABLE','SURVEY has no MAIN session')
     old=current(s,iid)
-    if old and old['mission_id']==mid:return old
+    if old and old['mission_id']==mid:
+        if store.history()[-1][1]['schema'] == 'pmrh.commit/2':
+            original = [e for e in s['strategy_events'].values() if e['event_type']=='STRATEGY_INITIALIZED' and e['payload']['instance_id']==iid and e['payload']['mission_id']==mid]
+            require(bool(original),'STALE_STRATEGY','Original initialization required')
+            store.commit_strategy(max(original,key=lambda e: -1 if e['payload']['previous_revision'] is None else e['payload']['previous_revision']))
+        return old
     store.commit_strategy(event('STRATEGY_INITIALIZED',{'instance_id':iid,'mission_id':mid,
                          'target_or_scope_ref':instance.get('target_ref') or instance.get('discovery_brief_ref') or identity(instance.get('survey_scope',{})),
                          'previous_revision':old['revision'] if old else None}))
@@ -279,7 +284,10 @@ def request_prepared(s,task):
     st=current(s,task['instance_id']);require(st,'STRATEGY_MISSING','Missing native main state')
     active=st.get('active_main_request_id')
     if active:
-        require(s['requests'][active]['execution_state'] in {'SETTLED','CANCELLED_BEFORE_SEND'},'MAIN_BUSY','One active main request per instance')
+        from pmrh.application.read_projections import control_lane_closed
+        previous=s['requests'][active]
+        require(control_lane_closed(previous) if 'admission' in previous else
+                previous['execution_state'] in {'SETTLED','CANCELLED_BEFORE_SEND'},'MAIN_BUSY','One active main request per instance')
     require(task.get('strategy_revision',task.get('strategy_context',{}).get('revision'))==st['revision'],'STALE_STRATEGY','Strategy revision changed')
     st['active_main_request_id']=task['request_id']
     for did in task.get('strategy_context',{}).get('direction_ids',[]):
@@ -687,12 +695,17 @@ def dispatch_from_main(store,request_id,proposal,idempotency_key):
     task=deepcopy(s.get('tasks',{}).get(request.get('task_id'),{}))
     require(task.get('actor_kind')=='MAIN','AUTHORIZATION_REQUIRED','Only a product MAIN can dispatch stage tasks')
     key=identity([request_id,idempotency_key],'LIVE-DISPATCH-');old=s.get('live_main_dispatches',{}).get(key)
-    if old:
+    if old and store.history()[-1][1]['schema'] != 'pmrh.commit/2':
         require(old['proposal']==proposal,'ALREADY_SETTLED_CONTENT_CONFLICT','Idempotency content differs')
         return {**old,'strategy_revision':current(s,task['instance_id'])['revision'],'pending_trigger_refs':current(s,task['instance_id'])['pending_trigger_refs'],'pending_direction_ids':[d for d in task.get('strategy_context',{}).get('direction_ids',[]) if s.get('human_directions',{}).get(d,{}).get('status') in {'QUEUED','DELIVERED'}]}
-    st=current(s,task['instance_id']);task['strategy_context']['revision']=st['revision'];task['strategy_context']['pending_trigger_refs']=st['pending_trigger_refs'];task['strategy_context']['direction_ids']=[d for d in task['strategy_context'].get('direction_ids',[]) if s.get('human_directions',{}).get(d,{}).get('status') in {'QUEUED','DELIVERED'}]
-    blobs={};validate_output_proposal(task,s,proposal,lambda value:value,records={},blobs=blobs,blob_get=store.read_blob,live=True)
-    for ref,body in blobs.items():require(store.blob(body)==ref,'BLOB_CHANGED','Live decision body changed')
+    if old:
+        # The /2 duplicate still enters commit_strategy's current gate. Its
+        # original already-applied proposal is not a new plan at today's CAS.
+        require(old['proposal']==proposal,'ALREADY_SETTLED_CONTENT_CONFLICT','Idempotency content differs')
+    else:
+        st=current(s,task['instance_id']);task['strategy_context']['revision']=st['revision'];task['strategy_context']['pending_trigger_refs']=st['pending_trigger_refs'];task['strategy_context']['direction_ids']=[d for d in task['strategy_context'].get('direction_ids',[]) if s.get('human_directions',{}).get(d,{}).get('status') in {'QUEUED','DELIVERED'}]
+        blobs={};validate_output_proposal(task,s,proposal,lambda value:value,records={},blobs=blobs,blob_get=store.read_blob,live=True)
+        for ref,body in blobs.items():require(store.blob(body)==ref,'BLOB_CHANGED','Live decision body changed')
     result=store.commit_strategy(event('STRATEGY_LIVE_PROPOSAL',{'instance_id':task['instance_id'],'mission_id':task['mission_id'],
         'request_id':request_id,'idempotency_key':idempotency_key,'proposal':proposal}))
     now=store.read_snapshot();receipt=now['live_main_dispatches'][key]
@@ -701,10 +714,14 @@ def dispatch_from_main(store,request_id,proposal,idempotency_key):
         'pending_direction_ids':[d for d in task.get('strategy_context',{}).get('direction_ids',[]) if now.get('human_directions',{}).get(d,{}).get('status') in {'QUEUED','DELIVERED'}],'model_calls':0}
 
 def trigger(store,iid,reason,stage):
-    st=initialize(store,iid);s=store.read_snapshot();digest=frontier_digest(s,iid,st['mission_id'])
+    if store.history()[-1][1]['schema'] == 'pmrh.commit/2':
+        st=current(store.read_snapshot(),iid)
+        require(st is not None,'STALE_STRATEGY','Initialize explicitly before the trigger command')
+    else:st=initialize(store,iid)
+    s=store.read_snapshot();digest=frontier_digest(s,iid,st['mission_id'])
     directions=sorted(d['direction_id'] for d in pending_directions(s,iid) if not d.get('request_id'))
     tid=identity([iid,st['mission_id'],reason,stage,digest,directions],'TRIGGER-')
-    if tid in s.get('strategy_triggers',{}):return tid
+    if tid in s.get('strategy_triggers',{}) and store.history()[-1][1]['schema'] != 'pmrh.commit/2':return tid
     store.commit_strategy(event('STRATEGY_TRIGGERED',{'instance_id':iid,'mission_id':st['mission_id'],
         'trigger':{'schema':'pmrs.strategy-trigger/1','trigger_id':tid,'instance_id':iid,'mission_id':st['mission_id'],
                    'reason':reason,'stage_id':stage,'frontier_digest':digest,'direction_ids':directions}}))

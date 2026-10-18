@@ -1,0 +1,614 @@
+{
+  "illustrative_only": true,
+  "not_a_runnable_or_migrated_project": true,
+  "notice": "R1 审批教学片段。hash 占位符故意无效；未提供 source bytes、完整 native rows、认证原件、Spec、journal、HEAD 或可执行装配。不得导入或运行。叙述轨迹不是产品事件格式。",
+  "candidate_commit_discriminator": "pmrh.commit/2",
+  "preserved_public_dto_schema": "pmrh.ports/1.0",
+  "bootstrap_trace_not_journal": [
+    {
+      "sequence": 1,
+      "format": "native",
+      "operation": "Store.create(synthetic=True, initial=None)",
+      "events": [
+        "PROJECT_CREATED",
+        "CHECKPOINT"
+      ],
+      "missions": 0,
+      "requests": 0
+    },
+    {
+      "sequence": 2,
+      "format": "native",
+      "operation": "Store.commit(changes.prepare_source_input(raw, purpose=PROBLEM))",
+      "events": [
+        "ORIGINAL_SOURCE_RECEIVED"
+      ],
+      "source_ref": "<SOURCE_REF_FROM_NATIVE_RECEIPT>",
+      "target_ref": "<EXACT_STATEMENT_REF_FROM_NATIVE_RECEIPT>",
+      "authorship": "SOURCE_PRESERVED"
+    },
+    {
+      "sequence": 3,
+      "format": "native",
+      "operation": "CREATE_INSTANCE",
+      "kind": "TRH",
+      "target_ref": "<EXACT_STATEMENT_REF_FROM_NATIVE_RECEIPT>",
+      "status": "PAUSED",
+      "control_version": 0
+    },
+    {
+      "sequence": 4,
+      "format": "pmrh.commit/2",
+      "operation": "ACTIVATED",
+      "status": "PAUSED",
+      "owner_epoch": 1,
+      "control_version": 1
+    },
+    {
+      "sequence": 5,
+      "format": "pmrh.commit/2",
+      "operation": "CONTROL_APPLIED:AUTHORIZE_MISSION",
+      "status": "ACTIVE",
+      "owner_epoch": 1,
+      "control_version": 2,
+      "grant_revision": 1,
+      "max_calls": 5
+    },
+    {
+      "sequence": 6,
+      "format": "pmrh.commit/2",
+      "operation": "STRATEGY_APPLIED:STRATEGY_INITIALIZED",
+      "owner_epoch": 1,
+      "control_version": 2
+    },
+    {
+      "sequence": 7,
+      "format": "pmrh.commit/2",
+      "operation": "CALL_PREPARED",
+      "native_reducers_in_one_transaction": [
+        "PREPARE",
+        "RESERVE"
+      ],
+      "execution_state": "RESERVED",
+      "execution_kind": "SYNTHETIC_TEST_ONLY",
+      "send_phase": "READY",
+      "charge": "RESERVED"
+    },
+    {
+      "sequence": 8,
+      "format": "pmrh.commit/2",
+      "operation": "SEND_STARTED",
+      "execution_state": "UNKNOWN",
+      "owner_epoch": 1,
+      "control_version": 2
+    },
+    {
+      "sequence": 9,
+      "format": "pmrh.commit/2",
+      "operation": "OWNER_ACQUIRED",
+      "owner_epoch": 2,
+      "control_version": 3,
+      "old_main_lane": "BLOCKED_PENDING_ORIGINAL_EVIDENCE"
+    },
+    {
+      "sequence": 10,
+      "format": "pmrh.commit/2",
+      "operation": "GRANT_REVOKED",
+      "owner_epoch": 2,
+      "control_version": 4,
+      "grant_revision": 2,
+      "grant_status": "REVOKED"
+    },
+    {
+      "sequence": 11,
+      "format": "pmrh.commit/2",
+      "operation": "INBOX_PAGE_RECEIVED",
+      "source_page_status": "GAP",
+      "cursor_after_sequence": 0,
+      "owner_epoch": 2,
+      "control_version": 4
+    }
+  ],
+  "profile_blob_fragment": {
+    "schema": "pmrh.control/1",
+    "kind": "PROFILE",
+    "profile": "SYNTHETIC_TEST_ONLY",
+    "project_id": "illustration-project",
+    "genesis_commit": "<NATIVE_COMMIT_1_HASH>",
+    "setup_head": "<NATIVE_COMMIT_3_HASH>",
+    "resource_policy": "COMPAT_8_20_SURVEY1",
+    "pool_id": "synthetic-pool-only"
+  },
+  "reservation_blob_fragment": {
+    "schema": "pmrh.control/1",
+    "kind": "RESERVATION",
+    "reservation_id": "reservation-7",
+    "identity": {
+      "schema_version": "pmrh.ports/1.0",
+      "dto_type": "InvocationIdentity",
+      "scope": {
+        "schema_version": "pmrh.ports/1.0",
+        "dto_type": "Scope",
+        "project_id": "illustration-project",
+        "instance_id": "illustration-trh"
+      },
+      "logical_agent_id": "MAIN-illustration-trh",
+      "invocation_id": "invocation-7",
+      "request_id": "request-7",
+      "execution_id": "execution-7",
+      "attempt_id": "attempt-7"
+    },
+    "grant_ref": {
+      "schema_version": "pmrh.ports/1.0",
+      "dto_type": "ExactRef",
+      "project_id": "illustration-project",
+      "object_id": "budget:grant-1-revision-1",
+      "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+      "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+    },
+    "unit": "AGENT_INVOCATION",
+    "amount": 1,
+    "owner_epoch": 1,
+    "control_version": 2
+  },
+  "send_boundary_event_fragment": {
+    "schema": "pmrh.control-event/1",
+    "type": "SEND_STARTED",
+    "operation_id": "send-operation-7",
+    "idempotency_key": "send-key-7",
+    "scope": {
+      "project_id": "illustration-project",
+      "instance_id": "illustration-trh"
+    },
+    "expected_head": "<COMMIT_7_HASH>",
+    "owner_epoch": 1,
+    "control_version": 2,
+    "payload": {
+      "request_id": "request-7",
+      "send_boundary_id": "boundary-7"
+    },
+    "decision_ref": {
+      "schema_version": "pmrh.ports/1.0",
+      "dto_type": "ExactRef",
+      "project_id": "illustration-project",
+      "object_id": "decision:send-7",
+      "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+      "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+    }
+  },
+  "snapshot_fragments_after_takeover_revocation_and_gap": {
+    "instance": {
+      "instance_id": "illustration-trh",
+      "kind": "TRH",
+      "status": "ACTIVE",
+      "run_control": {
+        "state": "RUNNING",
+        "control_version": 4
+      },
+      "ownership": {
+        "schema": "pmrh.control/1",
+        "kind": "OWNER",
+        "logical_main_id": "MAIN-illustration-trh",
+        "owner_id": "coordinator-new",
+        "owner_epoch": 2,
+        "backend_binding_ref": {
+          "schema_version": "pmrh.ports/1.0",
+          "dto_type": "ExactRef",
+          "project_id": "illustration-project",
+          "object_id": "binding:new-owner-synthetic",
+          "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+          "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+        },
+        "authorization_ref": {
+          "schema_version": "pmrh.ports/1.0",
+          "dto_type": "ExactRef",
+          "project_id": "illustration-project",
+          "object_id": "decision:takeover-2",
+          "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+          "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+        }
+      }
+    },
+    "grant_additions": {
+      "budget_unit": "AGENT_INVOCATION",
+      "grant_revision": 2,
+      "grant_status": "REVOKED",
+      "authorization_ref": {
+        "schema_version": "pmrh.ports/1.0",
+        "dto_type": "ExactRef",
+        "project_id": "illustration-project",
+        "object_id": "decision:revoke-grant-1",
+        "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+        "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+      }
+    },
+    "original_request": {
+      "request_id": "request-7",
+      "instance_id": "illustration-trh",
+      "execution_id": "execution-7",
+      "execution_state": "UNKNOWN",
+      "execution_kind": "SYNTHETIC_TEST_ONLY",
+      "acceptance_state": "NOT_SUBMITTED",
+      "capture_ref": null,
+      "fenced": false,
+      "admission": {
+        "schema": "pmrh.control/1",
+        "kind": "CALL",
+        "operation_id": "prepare-operation-7",
+        "idempotency_key": "prepare-key-7",
+        "invocation_id": "invocation-7",
+        "logical_agent_id": "MAIN-illustration-trh",
+        "attempt_id": "attempt-7",
+        "owner_epoch": 1,
+        "control_version": 2,
+        "spec_ref": {
+          "schema_version": "pmrh.ports/1.0",
+          "dto_type": "ExactRef",
+          "project_id": "illustration-project",
+          "object_id": "spec:invocation-7",
+          "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+          "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+        },
+        "reservation_ref": {
+          "schema_version": "pmrh.ports/1.0",
+          "dto_type": "ExactRef",
+          "project_id": "illustration-project",
+          "object_id": "reservation:reservation-7",
+          "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+          "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+        },
+        "capability_manifest_ref": {
+          "schema_version": "pmrh.ports/1.0",
+          "dto_type": "ExactRef",
+          "project_id": "illustration-project",
+          "object_id": "capability:original-synthetic",
+          "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+          "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+        },
+        "send_phase": "ATTEMPTED",
+        "slot_token": null,
+        "send_boundary_id": "boundary-7",
+        "charge": "UNKNOWN_RESERVED",
+        "receipt_ids": [],
+        "not_sent_ref": null,
+        "termination_ref": null,
+        "evidence_conflict": false
+      },
+      "execution_inbox": {
+        "schema": "pmrh.control/1",
+        "kind": "INBOX",
+        "producer_ref": {
+          "schema_version": "pmrh.ports/1.0",
+          "dto_type": "ExactRef",
+          "project_id": "illustration-project",
+          "object_id": "producer:original-synthetic",
+          "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+          "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+        },
+        "binding_ref": {
+          "schema_version": "pmrh.ports/1.0",
+          "dto_type": "ExactRef",
+          "project_id": "illustration-project",
+          "object_id": "binding:original-execution",
+          "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+          "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+        },
+        "cursor": {
+          "schema_version": "pmrh.ports/1.0",
+          "dto_type": "EventCursor",
+          "scope": {
+            "schema_version": "pmrh.ports/1.0",
+            "dto_type": "Scope",
+            "project_id": "illustration-project",
+            "instance_id": "illustration-trh"
+          },
+          "stream_kind": "RUNNER",
+          "stream_id": "invocation-7",
+          "after_sequence": 0,
+          "last_event_id": null
+        },
+        "state": "GAP",
+        "gap": {
+          "schema_version": "pmrh.ports/1.0",
+          "dto_type": "EventGap",
+          "first_missing_sequence": 1,
+          "last_missing_sequence": 1,
+          "reason": "SOURCE_DROPPED",
+          "resnapshot_ref": null
+        },
+        "last_page_ref": {
+          "schema_version": "pmrh.ports/1.0",
+          "dto_type": "ExactRef",
+          "project_id": "illustration-project",
+          "object_id": "page:gap-before-event-1",
+          "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+          "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+        }
+      }
+    },
+    "derived_budget_view": {
+      "unit": "AGENT_INVOCATION",
+      "limit": 5,
+      "spent_or_settled": 0,
+      "reserved": 0,
+      "unknown_reserved": 1,
+      "remaining": 4,
+      "admission_allowed": false,
+      "reason": "Grant is REVOKED; original UNKNOWN remains charged despite numeric remaining."
+    },
+    "derived_blocked_actions": [
+      "RESEND_ORIGINAL",
+      "DUPLICATE_SEND_UNDER_REVOKED_GRANT",
+      "NEW_MAIN_WHILE_ORIGINAL_UNRESOLVED",
+      "APPLY_OLD_EPOCH_MAIN_STRATEGY",
+      "RELEASE_SLOT_OR_LANE_WHILE_GAP"
+    ]
+  },
+  "gap_page_blob_with_unchanged_v1_field_set": {
+    "schema_version": "pmrh.ports/1.0",
+    "dto_type": "RunnerEventPage",
+    "requested_cursor": {
+      "schema_version": "pmrh.ports/1.0",
+      "dto_type": "EventCursor",
+      "scope": {
+        "schema_version": "pmrh.ports/1.0",
+        "dto_type": "Scope",
+        "project_id": "illustration-project",
+        "instance_id": "illustration-trh"
+      },
+      "stream_kind": "RUNNER",
+      "stream_id": "invocation-7",
+      "after_sequence": 0,
+      "last_event_id": null
+    },
+    "next_cursor": {
+      "schema_version": "pmrh.ports/1.0",
+      "dto_type": "EventCursor",
+      "scope": {
+        "schema_version": "pmrh.ports/1.0",
+        "dto_type": "Scope",
+        "project_id": "illustration-project",
+        "instance_id": "illustration-trh"
+      },
+      "stream_kind": "RUNNER",
+      "stream_id": "invocation-7",
+      "after_sequence": 0,
+      "last_event_id": null
+    },
+    "status": "GAP",
+    "events": [],
+    "duplicate_event_ids": [],
+    "gap": {
+      "schema_version": "pmrh.ports/1.0",
+      "dto_type": "EventGap",
+      "first_missing_sequence": 1,
+      "last_missing_sequence": 1,
+      "reason": "SOURCE_DROPPED",
+      "resnapshot_ref": null
+    }
+  },
+  "current_ingest_decision_fragment": {
+    "schema": "pmrh.control/1",
+    "kind": "DECISION",
+    "decision_id": "decision-ingest-gap-11",
+    "scope": {
+      "project_id": "illustration-project",
+      "instance_id": "illustration-trh"
+    },
+    "principal_ref": {
+      "schema_version": "pmrh.ports/1.0",
+      "dto_type": "ExactRef",
+      "project_id": "illustration-project",
+      "object_id": "principal:current-recovery-service",
+      "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+      "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+    },
+    "authn_evidence_ref": {
+      "schema_version": "pmrh.ports/1.0",
+      "dto_type": "ExactRef",
+      "project_id": "illustration-project",
+      "object_id": "authn:fresh-recovery-session",
+      "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+      "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+    },
+    "authority_ref": {
+      "schema_version": "pmrh.ports/1.0",
+      "dto_type": "ExactRef",
+      "project_id": "illustration-project",
+      "object_id": "authority:ingest-original-request-7",
+      "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+      "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+    },
+    "action": "INBOX_PAGE_RECEIVED",
+    "payload_sha256": "<CANONICAL_COMMAND_HASH_WITHOUT_DECISION_REF>",
+    "owner_epoch": 2,
+    "control_version": 4,
+    "issued_at": "2026-10-16T00:00:00Z",
+    "expires_at": "2026-10-16T00:05:00Z",
+    "budget_grant_ref": null,
+    "capability_manifest_ref": null
+  },
+  "current_ingest_event_fragment": {
+    "schema": "pmrh.control-event/1",
+    "type": "INBOX_PAGE_RECEIVED",
+    "operation_id": "ingest-gap-11",
+    "idempotency_key": "ingest-gap-key-11",
+    "scope": {
+      "project_id": "illustration-project",
+      "instance_id": "illustration-trh"
+    },
+    "expected_head": "<COMMIT_10_HASH>",
+    "owner_epoch": 2,
+    "control_version": 4,
+    "payload": {
+      "request_id": "request-7",
+      "producer_ref": {
+        "schema_version": "pmrh.ports/1.0",
+        "dto_type": "ExactRef",
+        "project_id": "illustration-project",
+        "object_id": "producer:original-synthetic",
+        "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+        "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+      },
+      "binding_ref": {
+        "schema_version": "pmrh.ports/1.0",
+        "dto_type": "ExactRef",
+        "project_id": "illustration-project",
+        "object_id": "binding:original-execution",
+        "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+        "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+      },
+      "page_ref": {
+        "schema_version": "pmrh.ports/1.0",
+        "dto_type": "ExactRef",
+        "project_id": "illustration-project",
+        "object_id": "page:gap-before-event-1",
+        "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+        "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+      }
+    },
+    "decision_ref": {
+      "schema_version": "pmrh.ports/1.0",
+      "dto_type": "ExactRef",
+      "project_id": "illustration-project",
+      "object_id": "decision:ingest-gap-11",
+      "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+      "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+    }
+  },
+  "possible_later_atomic_intake_description_not_a_receipt": {
+    "condition": "Fresh ingest authority verifies COMPLETE page requested at cursor 0, containing original stream event 1 with TERMINATED observation and original binding; no intervening conflict.",
+    "one_HEAD_effects": {
+      "cursor": {
+        "schema_version": "pmrh.ports/1.0",
+        "dto_type": "EventCursor",
+        "scope": {
+          "schema_version": "pmrh.ports/1.0",
+          "dto_type": "Scope",
+          "project_id": "illustration-project",
+          "instance_id": "illustration-trh"
+        },
+        "stream_kind": "RUNNER",
+        "stream_id": "invocation-7",
+        "after_sequence": 1,
+        "last_event_id": "original-terminal-event-1"
+      },
+      "inbox_state": "OPEN",
+      "gap": null,
+      "native_execution_state": "UNKNOWN",
+      "acceptance_state": "NOT_SUBMITTED",
+      "capture_ref": null,
+      "execution_kind": "SYNTHETIC_TEST_ONLY",
+      "send_phase": "CLOSED",
+      "charge": "SPENT_OR_SETTLED",
+      "termination_ref": {
+        "schema_version": "pmrh.ports/1.0",
+        "dto_type": "ExactRef",
+        "project_id": "illustration-project",
+        "object_id": "receipt:original-terminal-event-1",
+        "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+        "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+      },
+      "fenced": true
+    },
+    "main_lane_eligible": true,
+    "new_main_admission_allowed": false,
+    "reason": "Execution termination is not scientific settlement. The revoked grant still forbids a new invocation; old MAIN strategy remains fenced."
+  },
+  "contradiction_cases_are_separate_branches_not_the_above_trace": [
+    {
+      "order": [
+        "SENT",
+        "NOT_SENT"
+      ],
+      "previous_release": false,
+      "final": {
+        "execution_state": "UNKNOWN",
+        "send_phase": "CLOSED",
+        "charge": "SPENT_OR_SETTLED",
+        "evidence_conflict": true,
+        "receipt_ids": [
+          "sent-original",
+          "not-sent-original"
+        ],
+        "pool_new_admission_allowed": false,
+        "main_lane_eligible": false
+      }
+    },
+    {
+      "order": [
+        "NOT_SENT",
+        "SENT"
+      ],
+      "previous_release": true,
+      "intervening_condition": "One other worker spent the released unit of a finite limit=1 grant; this is a separate illustrative branch.",
+      "final": {
+        "execution_state": "UNKNOWN",
+        "send_phase": "CLOSED",
+        "charge": "SPENT_OR_SETTLED",
+        "evidence_conflict": true,
+        "receipt_ids": [
+          "not-sent-original",
+          "sent-original"
+        ],
+        "pool_new_admission_allowed": false,
+        "main_lane_eligible": false
+      },
+      "derived_grant_totals_after_reinstatement": {
+        "limit": 1,
+        "spent_or_settled": 2,
+        "reserved": 0,
+        "unknown_reserved": 0,
+        "remaining": -1
+      },
+      "worker_slot_if_already_released": "Preserve RELEASED tombstone; the conflicting original request counts as risk occupancy. Do not erase the newer execution."
+    }
+  ],
+  "main_only_pool_fragment_requires_root_registration": {
+    "schema": "pmrh.host-pool/1",
+    "pool_id": "synthetic-pool-only",
+    "revision": 1,
+    "projects": {
+      "<PROJECT_KEY_HASH>": {
+        "project_id": "illustration-project",
+        "genesis_commit": "<NATIVE_COMMIT_1_HASH>",
+        "root_binding_id": "trusted-fixture-directory-1"
+      }
+    },
+    "slots": {},
+    "demands": {},
+    "cursor": 0
+  },
+  "separate_survey_instance_fragment": {
+    "instance_id": "illustration-survey",
+    "kind": "SURVEY",
+    "status": "PAUSED",
+    "infrastructure_control_version": 1,
+    "ownership": {
+      "schema": "pmrh.control/1",
+      "kind": "OWNER",
+      "logical_main_id": null,
+      "owner_id": "survey-infrastructure-owner",
+      "owner_epoch": 1,
+      "backend_binding_ref": null,
+      "authorization_ref": {
+        "schema_version": "pmrh.ports/1.0",
+        "dto_type": "ExactRef",
+        "project_id": "illustration-project",
+        "object_id": "decision:survey-activation",
+        "revision": "sha256:<ILLUSTRATIVE_HASH_NOT_SUPPLIED>",
+        "sha256": "<ILLUSTRATIVE_HASH_NOT_SUPPLIED>"
+      }
+    }
+  },
+  "hash_order": [
+    "exact raw bytes and reservation body",
+    "v1 spec referencing reservation",
+    "canonical command excluding decision_ref",
+    "decision and event",
+    "native deltas and journal",
+    "committed references derived after HEAD"
+  ],
+  "automatic_retry": false,
+  "product_validation": "NOT_EXECUTED"
+}

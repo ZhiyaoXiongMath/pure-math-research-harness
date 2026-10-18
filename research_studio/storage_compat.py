@@ -84,11 +84,25 @@ class LegacyWriters:
 
     def _typed_commit(self, event, apply, allowed, category):
         require(apply is None, 'CAPABILITY_VIOLATION', 'Reducers are selected by trusted assembly only')
+        if self.history()[-1][1]['schema'] == 'pmrh.commit/2':
+            actions = {'Control':'CONTROL_APPLIED', 'research_studio.strategy':'STRATEGY_APPLIED',
+                       'research_studio.communication':'COMMUNICATION_APPLIED'}
+            require(category in actions, 'UNSUPPORTED_CAPABILITY', 'Raw native writer is not available on the control profile')
+            if category == 'research_studio.strategy' and event.get('event_type') == 'HUMAN_DIRECTION_SUBMITTED':
+                from pmrh.adapters.storage.control import exact
+                state = self.read_snapshot(); direction = event['payload']['direction']
+                reference = exact(self, state['project_id'], 'direction:'+direction['direction_id'], direction)
+                return self._control_native('GUIDANCE_SAVED', {'direction_ref':reference})
+            return self._control_native(actions[category], {'native_event':event})
         apply, registered = _reducer(category, self.read_blob)
         require(allowed == registered, 'CAPABILITY_VIOLATION', 'Reducer collection contract differs')
         require(isinstance(event, dict), 'RESPONSE_SCHEMA_INVALID', 'Typed event required')
         with self._locked():
             state, head = self.read()
+            # Activation may have won the writer lock after the initial format
+            # dispatch. Do not let a native no-change/duplicate escape its gate.
+            require(self._commit_record(head)['schema'] != 'pmrh.commit/2',
+                    'UNSUPPORTED_CAPABILITY', 'Control activation requires a fresh gated native command')
             payload=event.get('payload',{})
             if event.get('event_type')=='AUTHORIZE_MISSION':
                 mission=payload.get('mission',{})
@@ -118,7 +132,7 @@ class LegacyWriters:
         from .workflow_instances import apply_control
         from .research_audit import MAPS as AUDIT_MAPS
         result=self._typed_commit(event, None, CONTROL_MAPS | AUDIT_MAPS, 'Control')
-        if event.get('event_type')=='HUMAN_DECISION' and event.get('payload',{}).get('action') in {'END','END_WITHOUT_ADOPTION'}:
+        if self.history()[-1][1]['schema'] != 'pmrh.commit/2' and event.get('event_type')=='HUMAN_DECISION' and event.get('payload',{}).get('action') in {'END','END_WITHOUT_ADOPTION'}:
             from .rounds import record
             record(self,event['instance_id'])
         return result
@@ -170,6 +184,18 @@ class LegacyWriters:
         from . import incidents
         return self._commit_extension(incidents,event)
 
+    def _control_guard(self, category):
+        """Native direct writers cannot use CAP-HOST/HUMAN to bypass /2."""
+        if self.history()[-1][1]['schema'] == 'pmrh.commit/2':
+            require(False, 'AUTHORIZATION_REQUIRED' if category in
+                    {'Control', 'Execution', 'Science', 'research_studio.strategy', 'research_studio.communication'}
+                    else 'UNSUPPORTED_CAPABILITY', 'Use the authenticated closed control command service')
+
+    def _control_native(self, action, payload):
+        service = getattr(self, '_control_service', None)
+        require(service is not None, 'AUTHORIZATION_REQUIRED', 'Current host authentication context required')
+        return service.native(action, payload)
+
 
 
 def _reducer(category, blob_get):
@@ -191,3 +217,244 @@ def _reducer(category, blob_get):
     }
     require(category in registry, 'CAPABILITY_VIOLATION', 'Unknown trusted reducer')
     return registry[category]
+
+
+class SyntheticSetup:
+    """One-use capability held only by the assembly that created this root.
+
+    There is deliberately no load(path), migration, synthetic-flag adoption or
+    arbitrary initial-state argument. The exact native outputs are frozen here.
+    """
+    def __init__(self, root, *, kind, inputs=(), survey_scope=None, title='Synthetic control fixture'):
+        from .store import Store
+        from . import changes, workflow_instances as W
+        require(kind in {'TRH', 'FDH', 'SURVEY'} and len(inputs) == {'TRH': 1, 'FDH': 3, 'SURVEY': 0}[kind],
+                'SETUP_PREFIX_INVALID', 'Exact original-source prefix required')
+        require(all(type(raw) is bytes and raw.strip() for raw in inputs), 'SETUP_PREFIX_INVALID', 'Nonempty exact originals required')
+        self.store = Store.create(root, title, synthetic=True, initial=None)
+        originals = []
+        for raw in inputs:
+            before = self.store.read_snapshot()
+            proposal = changes.prepare_source_input(before, raw, purpose='PROBLEM' if kind == 'TRH' else 'PHENOMENON', blob_get=self.store.read_blob)
+            expected = changes.apply_validated(before, proposal)
+            result = self.store.commit(proposal)
+            self._same_output(expected)
+            originals.append(result)
+        state = self.store.read_snapshot()
+        discovery = dict(zip(('phenomenon_ref', 'immutable_background_ref', 'allowed_axes_ref'),
+                             (r['source_ref'] for r in originals))) if kind == 'FDH' else None
+        instance = W.new_instance(state, kind,
+            target_ref=originals[0]['target_ref'] if kind == 'TRH' else None,
+            discovery_brief_ref=originals[0]['source_ref'] if kind == 'FDH' else None,
+            discovery_scope=discovery, survey_scope=survey_scope)
+        event = W.event(state, 'CREATE_INSTANCE', {'instance': instance})
+        expected = W.apply_control(state, event)
+        self.store.commit_control(event)
+        self._same_output(expected)
+        self.instance_id = instance['instance_id']
+        self.heads = tuple(h['commit'] for h, _ in self.store.history())
+        self.state_digest = sha(canonical(self.store.read_snapshot()))
+        self.used = False
+
+    def _same_output(self, expected):
+        from pmrh.adapters.storage.journal import _persistent
+        require(_persistent(expected) == _persistent(self.store.read_snapshot()),
+                'SETUP_PREFIX_INVALID', 'Native setup output differs')
+
+    def verify(self, store):
+        require(not self.used and store.root == self.store.root and
+                tuple(h['commit'] for h, _ in store.history()) == self.heads and
+                sha(canonical(store.read_snapshot())) == self.state_digest,
+                'AUTHORIZATION_REQUIRED', 'Fresh setup capability no longer matches')
+
+
+class ControlNativeBridge:
+    """Static reducer selection owned by trusted legacy composition only."""
+    def __init__(self, store, *, setup=None):
+        self.store = store
+        self.setup = setup
+
+    def activate(self, state):
+        require(type(self.setup) is SyntheticSetup, 'AUTHORIZATION_REQUIRED', 'Fresh setup capability required')
+        self.setup.verify(self.store)
+        return deepcopy(state)
+
+    def _freeze_call(self, state, candidate):
+        """Freeze on the real committed HEAD with a proven visit annotation.
+
+        Native preview is disposable validation, never a pretend committed
+        snapshot. The original freezer and scientific input guards stay intact.
+        """
+        import pmrh.adapters.storage.control as D
+        from pmrh.adapters.storage.journal import _persistent
+        from . import execution, scheduler, tasks
+        index = self.store._control_index
+        require(state.get('synthetic_test_only') is True and index is not None and
+                index.states.get(state.get('knowledge_commit')) == _persistent(state),
+                'AUTHORIZATION_REQUIRED', 'Verified current synthetic control snapshot required')
+        plan, bound = D.visit_plan(state, candidate, index.visit_origins)
+        grant = state['budget_grants'].get(candidate.get('budget_grant_id'))
+        require(grant is not None, 'AUTHORIZATION_REQUIRED', 'Canonical native grant required')
+        policy = grant['execution_policy']
+        selected = scheduler.plan(state, [candidate['instance_id']], policy)['selected']
+        require(any(D.without_visit(row) == D.without_visit(candidate) for row in selected),
+                'AUTHORIZATION_REQUIRED', 'Exact selected native duty required')
+        if plan['opening'] is not None:
+            preview = execution.apply_event(state, plan['opening'], self.store.read_blob)
+            require(_persistent(preview) == _persistent(D.visit_effects(state, plan)),
+                    'CAPABILITY_VIOLATION', 'Closed original visit preview required')
+        task = tasks.freeze(self.store, state, bound, policy)
+        D.task_visit_link(state, state['knowledge_commit'], task, bound, plan)
+        return task, bound, plan
+
+    def _verify_frozen_call(self, state, command):
+        import pmrh.adapters.storage.control as D
+        p = command['payload']; project = state['project_id']
+        candidate = D.read_json(self.store, p['candidate_ref'], project)
+        task, bound, plan = self._freeze_call(state, candidate)
+        require(canonical(task) == D.read_ref(self.store, p['task_ref'], project) and
+                canonical(bound) == D.read_ref(self.store, p['candidate_ref'], project),
+                'ORIGINAL_BYTES_MISMATCH', 'Full frozen task and candidate bytes must match at the same HEAD')
+        return dict(head=state['knowledge_commit'], command=sha(canonical(command)),
+                    task=sha(canonical(task)), candidate=sha(canonical(bound)), plan=plan)
+
+    def _prepare_reserve_only(self, state, task, candidate, at):
+        from . import execution
+        prepared = execution.apply_event(state, execution.event('PREPARE',
+            {'task': task, 'candidate': candidate, 'max_workers': 8, 'issued_at': at}), self.store.read_blob)
+        return execution.apply_event(prepared, execution.event('RESERVE',
+            {'request_id': task['request_id'], 'executor_contract': task['executor_contract'],
+             'model_policy': task['model_policy'], 'execution_kind': 'SYNTHETIC_TEST_ONLY', 'issued_at': at}), self.store.read_blob)
+
+    def prepare(self, state, task, candidate, at):
+        import pmrh.adapters.storage.control as D
+        from . import execution
+        plan, bound = D.visit_plan(state, candidate, self.store._control_index.visit_origins)
+        require(bound == candidate, 'AUTHORIZATION_REQUIRED', 'Derived visit must already be frozen')
+        D.task_visit_link(state, state['knowledge_commit'], task, candidate, plan)
+        opened = execution.apply_event(state, plan['opening'], self.store.read_blob) if plan['opening'] else deepcopy(state)
+        self.store._fault('after_control_visit')
+        result = self._prepare_reserve_only(opened, task, candidate, at)
+        expected = D.visit_effects(state, plan)
+        require(result['visits'] == expected['visits'] and result['missions'] == expected['missions'],
+                'CAPABILITY_VIOLATION', 'Preparation cannot rewrite visits or missions')
+        return result
+
+    def send_check(self, state, request_id, prepared, at):
+        """Re-run original mutable admission guards without a second charge.
+
+        Only this reservation is removed in a private validation snapshot. No
+        validation snapshot or restored allowance is ever published.
+        """
+        import pmrh.adapters.storage.control as D
+        request = state['requests'][request_id]
+        require(request['execution_state'] == 'RESERVED' and not request['fenced'] and
+                request['admission']['send_phase'] == 'READY', 'EXISTING_REQUEST', 'Only the original READY boundary can send')
+        index = self.store._control_index
+        require(index.operations[request['admission']['operation_id']]['command'] == prepared,
+                'ORIGINAL_BYTES_MISMATCH', 'Original validated CALL required')
+        candidate = D.read_json(self.store, prepared['payload']['candidate_ref'], state['project_id'])
+        original_task = D.read_json(self.store, prepared['payload']['task_ref'], state['project_id'])
+        historical = index.states[prepared['expected_head']]
+        origins = {vid:index.visit_origins[vid] for vid in historical['visits']}
+        plan, bound = D.visit_plan(historical, candidate, origins)
+        require(bound == candidate and original_task == state['tasks'][request['task_id']],
+                'ORIGINAL_BYTES_MISMATCH', 'Original frozen visit/task binding required')
+        D.task_visit_link(historical, prepared['expected_head'], original_task, candidate, plan)
+        visit = plan['visit']; vid = visit['visit_id']
+        require(state['visits'].get(vid) == dict(visit, outcome=None, exit_evidence=[], unperformed_duties=[]) and
+                state['missions'][visit['mission_id']]['stage_visit_ids'].count(vid) == 1 and
+                state['execution_events'].get(index.visit_origins[vid]['opening']['event_id']) == index.visit_origins[vid]['opening'],
+                'CONTROL_INVALID', 'Original open visit and opening evidence required')
+        shadow = deepcopy(state)
+        task = shadow['tasks'].pop(request['task_id'])
+        shadow['requests'].pop(request_id)
+        grant = shadow['retry_grants'][candidate['consumer']['retry_grant_id']]
+        grant['remaining_uses'] += 1
+        group = shadow['attempt_groups'][task['attempt_group_key']]
+        group['request_ids'] = [r for r in group['request_ids'] if r != request_id]
+        group['highest_sample_slot'] = max((r['sample_slot'] for r in shadow['requests'].values()
+                                         if r['attempt_group_key'] == task['attempt_group_key']), default=0)
+        for strategy in shadow['strategies'].values():
+            if strategy.get('active_main_request_id') == request_id:
+                strategy['active_main_request_id'] = None
+        for direction in shadow.get('human_directions', {}).values():
+            if direction.get('request_id') == request_id:
+                direction['request_id'] = None
+        # Original generated PREPARE/RESERVE events must not hit legacy duplicate
+        # returns while validating this current send boundary.
+        shadow['execution_events'] = {key: value for key, value in shadow['execution_events'].items()
+            if not (value.get('event_type') in {'PREPARE', 'RESERVE'} and
+                    (value.get('payload', {}).get('request_id') == request_id or
+                     value.get('payload', {}).get('task', {}).get('request_id') == request_id))}
+        checked = self._prepare_reserve_only(shadow, task, candidate, at)
+        openings = lambda s: {k:v for k,v in s['execution_events'].items() if v.get('event_type') == 'VISIT_OPENED'}
+        require(checked['visits'] == state['visits'] and checked['missions'] == state['missions'] and
+                openings(checked) == openings(state), 'CAPABILITY_VIOLATION', 'Send validation cannot select or mutate visits')
+
+    def native(self, state, action, event):
+        from pmrh.adapters.storage.control import CONTROL_TYPES, STRATEGY_TYPES, COMMUNICATION_LIVE, COMMUNICATION_RECOVERY
+        from . import workflow_instances, strategy, communication
+        kind = event.get('event_type')
+        if action == 'CONTROL_APPLIED':
+            require(kind in CONTROL_TYPES, 'UNSUPPORTED_CAPABILITY', 'Closed native control bridge required')
+            if kind == 'HUMAN_DECISION':
+                require(event['payload']['action'] in {'CONTINUE', 'CONTINUE_DISCOVERY', 'PAUSE', 'END', 'END_WITHOUT_ADOPTION'},
+                        'UNSUPPORTED_CAPABILITY', 'Closed human decision subset required')
+                instance = state['instances'][event['instance_id']]
+                mission = state['missions'].get(instance['current_mission_id'], {})
+                action_name = {'CONTINUE_DISCOVERY': 'CONTINUE', 'END_WITHOUT_ADOPTION': 'END'}.get(event['payload']['action'], event['payload']['action'])
+                if action_name in mission.get('report_first_actions', []):
+                    from .report_catalog import classify
+                    report = state['reports'].get(event['payload']['decision_basis'].get('report_ref'))
+                    require(report is not None and classify(self.store, state, report) == 'COMPLETED_CURRENT_REPORT',
+                            'REPORT_BLOCKED', 'Current intact report required')
+            result = workflow_instances.apply_control(state, event)
+        elif action == 'STRATEGY_APPLIED':
+            require(kind in STRATEGY_TYPES, 'UNSUPPORTED_CAPABILITY', 'Closed strategy bridge required')
+            result = strategy.apply_event(state, event, self.store.read_blob)
+        else:
+            require(action == 'COMMUNICATION_APPLIED' and kind in COMMUNICATION_LIVE | COMMUNICATION_RECOVERY,
+                    'UNSUPPORTED_CAPABILITY', 'Closed communication bridge required')
+            result = communication.apply_event(state, event, self.store.read_blob)
+        return result
+
+    def sent(self, state, request_id):
+        from .strategy import request_sent
+        request_sent(state, state['tasks'][state['requests'][request_id]['task_id']])
+
+    def capture(self, state, request_id, receipt, at):
+        from . import execution, input_delivery
+        request = state['requests'][request_id]
+        raw = self.store.read_blob(receipt.raw_output_ref.sha256)
+        require(sha(raw) == receipt.raw_output_ref.sha256, 'ORIGINAL_BYTES_MISMATCH', 'Original sealed capture required')
+        payload = dict(request_id=request_id, execution_id=request['execution_id'],
+                       capture_ref=receipt.raw_output_ref.sha256, issued_at=at)
+        task = state['tasks'][request['task_id']]
+        if task.get('communication_contract'):
+            binding = input_delivery.capture_binding(state, request_id)
+            payload.update(binding)
+            actual = self.store.read_blob(receipt.actual_input_manifest_ref.sha256)
+            require(actual == canonical(input_delivery.manifest(state, request_id)),
+                    'INPUT_DELIVERY_INVALID', 'Capture must seal the actual input manifest')
+        return execution.apply_event(state, execution.event('CAPTURE', payload), self.store.read_blob)
+
+    def science(self, state, request_id, capture):
+        from . import changes
+        request = state['requests'][request_id]; task = state['tasks'][request['task_id']]
+        require(request['capture_ref'] == capture.sha256 and request['execution_kind'] == 'SYNTHETIC_TEST_ONLY',
+                'ORIGINAL_BYTES_MISMATCH', 'Original synthetic capture required')
+        for binding in task.get('read_set', []):
+            require(self.store.read_record(binding['record_ref']) == state['records'][binding['record_ref']], 'RECORD_CHANGED', 'Exact input record required')
+        raw = self.store.read_blob(capture.sha256)
+        proposal = changes.validate_response(task, state, raw, 'live', self.store.read_blob)
+        proposal = changes.revalidate(proposal, state, blob_get=self.store.read_blob)
+        for digest_value, data in proposal.get('blobs', {}).items():
+            require(self.store.put_blob(data) == digest_value, 'BLOB_CHANGED', 'Validated bytes differ')
+        return changes.apply_validated(state, proposal), proposal.get('accepted_request_bindings', [])
+
+    def guidance(self, state, direction):
+        from . import strategy
+        event = strategy.event('HUMAN_DIRECTION_SUBMITTED', dict(instance_id=direction['instance_id'],
+            mission_id=direction['mission_id'], direction=direction))
+        return strategy.apply_event(state, event, self.store.read_blob)

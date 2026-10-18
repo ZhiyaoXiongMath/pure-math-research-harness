@@ -137,13 +137,15 @@ class Journal:
                     'knowledge_delta_ref', 'control_delta_ref', 'report_delta_ref',
                     'registry_delta_ref', 'accepted_request_bindings', 'events', 'actor', 'at'}
         require(set(entry) == required, 'JOURNAL_INVALID', 'Unknown commit fields')
-        require(entry['schema'] in (COMMIT_SCHEMA, 'pmrh.commit/1'),
+        require(entry['schema'] in (COMMIT_SCHEMA, 'pmrh.commit/1', 'pmrh.commit/2'),
                 'UNSUPPORTED_SCHEMA_VERSION', 'Unknown commit format')
         require(entry['sequence'] == head['sequence'], 'JOURNAL_INVALID', 'Sequence differs')
         require(head['path'] == f"journal/{entry['sequence']:012d}-{head['commit']}.json" and canonical(entry) == raw,
                 'JOURNAL_INVALID', 'Noncanonical commit identity')
         from .format import validate_entry
         validate_entry(entry)
+        from .control import validate_entry as validate_control_entry
+        validate_control_entry(entry)
         previous = entry['previous_commit']
         require(previous is None and entry['sequence'] == 1 or isinstance(previous, dict) and
                 previous['sequence'] == entry['sequence']-1, 'JOURNAL_INVALID', 'Noncontiguous journal')
@@ -212,6 +214,12 @@ class Journal:
         from .format import scan
         self._last_index = scan(self, published_history, _apply_delta,
                                 allow_missing_envelopes=getattr(self, '_allow_event_gaps', False))
+        from .control import scan as control_scan
+        self._control_index = control_scan(self, published_history, _apply_delta)
+        if self._control_index is not None:
+            replayed = self._control_index.states.get(selected_head['commit'])
+            if replayed is not None:
+                require(state == replayed, 'CHECKPOINT_CHANGED', 'Control snapshot differs from complete replay')
         state['knowledge_commit'] = selected_head['commit']
         state['_head'] = selected_head
         state['_snapshot_sequence'] = selected_head['sequence']
@@ -263,7 +271,7 @@ class Journal:
             wrapper = b'{"commit":' + canonical(digest) + b',"state":' + state_raw + b',"state_sha256":' + canonical(sha(state_raw)) + b'}'
             immutable(self.root/'checkpoints'/f'{digest}.json', wrapper)
         head = {'sequence': sequence, 'commit': digest, 'path': path}
-        if schema == EXTENDED_SCHEMA:
+        if schema in (EXTENDED_SCHEMA, 'pmrh.commit/2'):
             self._preflight_extended_head(head)
         self._fault('before_head')
         atomic(self.root/'HEAD', canonical(head))
@@ -475,14 +483,18 @@ class Journal:
             rows.append((deepcopy(head), entry))
             head = entry['previous_commit']
         rows.reverse()
-        extended = False
+        extended = None
         for _, entry in rows:
-            require(not extended or entry['schema'] == 'pmrh.commit/1',
+            require(not extended or entry['schema'] == extended,
                     'JOURNAL_INVALID', 'Extended lineage cannot downgrade')
             if not extended and entry['schema'] == 'pmrh.commit/1':
                 require(any(e.get('type') == 'PMRH_PORT_SCOPE_BOUND' for e in entry['events']),
                         'JOURNAL_INVALID', 'Extension must begin with an explicit scope binding')
-            extended |= entry['schema'] == 'pmrh.commit/1'
+            if not extended and entry['schema'] == 'pmrh.commit/2':
+                require(any(e.get('type') == 'ACTIVATED' for e in entry['events']),
+                        'JOURNAL_INVALID', 'Control lineage requires exact activation')
+            if entry['schema'] in ('pmrh.commit/1', 'pmrh.commit/2'):
+                extended = entry['schema']
         if extended:
             require(len(rows) <= 4096 and sum(len(canonical(e)) for _, e in rows) <= 128 * 1024**2,
                     'RESOURCE_LIMIT', 'Extension history exceeds read budget')

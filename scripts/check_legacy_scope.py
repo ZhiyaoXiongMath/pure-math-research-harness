@@ -5,9 +5,9 @@ import json
 from pathlib import Path
 import subprocess
 try:
-    from scripts import domain_scope, storage_scope
+    from scripts import domain_scope, storage_scope, control_scope
 except ModuleNotFoundError:
-    import domain_scope, storage_scope
+    import domain_scope, storage_scope, control_scope
 
 BASE = 'e4de0210f9985224e030ac4cfd2f7e2904005b37'
 TREE = 'c17a592ff0a4906afa7a6423535f41c67c926128'
@@ -59,8 +59,8 @@ def main():
     if git('rev-parse', BASE+'^{tree}').decode().strip() != TREE:
         raise ValueError('Original baseline tree changed')
     changed = set(filter(None, git('diff', '--name-only', '--no-renames', BASE, '--', 'research_studio/').decode().splitlines()))
-    if changed - ALLOWED_PATHS - domain_scope.SYMBOLS.keys() - storage_scope.PATHS:
-        raise ValueError('Legacy change outside the exact DEV03 allowlist: ' + ', '.join(sorted(changed-ALLOWED_PATHS-domain_scope.SYMBOLS.keys()-storage_scope.PATHS)))
+    if changed - ALLOWED_PATHS - domain_scope.SYMBOLS.keys() - storage_scope.PATHS - control_scope.PATHS:
+        raise ValueError('Legacy change outside the exact DEV03 allowlist: ' + ', '.join(sorted(changed-ALLOWED_PATHS-domain_scope.SYMBOLS.keys()-storage_scope.PATHS-control_scope.PATHS)))
     policy = json.loads((root/'config/architecture-exceptions.json').read_bytes())
     if set(policy['devpr03_read_bridge']['changed_paths']) != ALLOWED_PATHS:
         raise ValueError('DEV03 policy path allowlist differs from the fixed authorized scope')
@@ -70,10 +70,19 @@ def main():
         raise ValueError('DEV05 accepted baseline tree changed')
     if policy['devpr05_storage_bridge']['symbols'] != storage_scope.SYMBOLS or set(policy['devpr05_storage_bridge']['changed_paths']) != storage_scope.PATHS:
         raise ValueError('DEV05 exact scope differs')
+    if git('rev-parse', control_scope.BASE+'^{tree}').decode().strip() != control_scope.TREE:
+        raise ValueError('DEV06 frozen baseline tree changed')
+    control = policy['devpr06_control_bridge']
+    if control['symbols'] != control_scope.SYMBOLS or set(control['changed_paths']) != control_scope.PATHS or control['baseline'] != control_scope.BASE:
+        raise ValueError('DEV06 exact symbol authorization differs')
+    for path in control_scope.PATHS:
+        control_scope.verify_sections(path, git('show', control_scope.BASE+':'+path), (root/path).read_bytes())
+    def before_control(path):
+        return git('show', control_scope.BASE+':'+path) if path in control_scope.PATHS else (root/path).read_bytes()
     def inherited(path):
-        return git('show', storage_scope.BASE+':'+path) if path in storage_scope.PATHS else (root/path).read_bytes()
+        return git('show', storage_scope.BASE+':'+path) if path in storage_scope.PATHS else before_control(path)
     for path in storage_scope.SYMBOLS:
-        storage_scope.verify_sections(path, git('show', storage_scope.BASE+':'+path), (root/path).read_bytes())
+        storage_scope.verify_sections(path, git('show', storage_scope.BASE+':'+path), before_control(path))
     # Recheck DEV03/04 against their original baseline before applying DEV05's
     # separately frozen slices. This does not reset either previous guard.
     for path in domain_scope.SYMBOLS:

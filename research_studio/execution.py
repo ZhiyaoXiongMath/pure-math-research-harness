@@ -316,7 +316,10 @@ def apply_event(snapshot,e,blob_get=None,*,historical=False):
         from .scheduler import validate_task_control
         validate_task_control(s,task)
         stage=is_stage(s,r)
-        active=sum(is_stage(s,x)==stage and x['instance_id']==r['instance_id'] and x['execution_state'] in {'RESERVED','SENT','UNKNOWN'} for x in s.get('requests',{}).values())
+        from pmrh.application.read_projections import control_releasable, control_lane_closed
+        active=sum(is_stage(s,x)==stage and x['instance_id']==r['instance_id'] and
+                   (not (control_releasable(x) if stage else control_lane_closed(x)) if 'admission' in x else
+                    x['execution_state'] in {'RESERVED','SENT','UNKNOWN'}) for x in s.get('requests',{}).values())
         require(active<(instance_limit(s,r['instance_id']) if stage else 1),'BUDGET_OR_WORKER_LIMIT','Uncertain requests retain the original instance lane reservation')
         require(p['executor_contract']==task['executor_contract'] and p['model_policy']==task['model_policy'],
                 'EXECUTOR_CONTRACT_CHANGED','No silent executor, permission, model, effort or tier change')
@@ -555,6 +558,7 @@ def apply_event(snapshot,e,blob_get=None,*,historical=False):
     s.setdefault('execution_events',{})[e['event_id']]=deepcopy(e);return s
 
 def reserve(store,request_id,*,execution_kind='MODEL',executor_contract=None,model_policy=None):
+    store._control_guard('LegacyRuntime')
     s=store.read_snapshot();r=_request(s,request_id);t=s['tasks'][r['task_id']]
     if t.get('report_context'):
         from .reports import dispatch_current
@@ -569,6 +573,7 @@ def reserve(store,request_id,*,execution_kind='MODEL',executor_contract=None,mod
     return {'execution_id':r['execution_id'],'receipt':receipt}
 
 def seal_capture(store,request_id,raw_bytes,*,execution_id=None,usage=None):
+    store._control_guard('LegacyRuntime')
     require(isinstance(raw_bytes,bytes),'RESPONSE_SCHEMA_INVALID','Capture preserves exact bytes')
     s=store.read_snapshot();r=_request(s,request_id);task=s['tasks'][r['task_id']]
     require(r['execution_state'] in {'RESERVED','SENT','UNKNOWN','CAPTURED'},'EXISTING_REQUEST','Capture must bind an actual reserved request')
@@ -584,6 +589,7 @@ def seal_capture(store,request_id,raw_bytes,*,execution_id=None,usage=None):
     return seal
 
 def capture(store,request_id,raw_bytes,*,execution_id=None,usage=None):
+    store._control_guard('LegacyRuntime')
     seal=seal_capture(store,request_id,raw_bytes,execution_id=execution_id,usage=usage)
     result=store.commit_execution(event('CAPTURE',{k:seal[k] for k in ('request_id','execution_id','capture_ref','usage','delivery_manifest_hash','input_window_seal','delivery_cutoff') if k in seal}))
     _release_model_slot(store,request_id)
@@ -595,6 +601,7 @@ def _release_model_slot(store,request_id):
         release(store,request_id)
 
 def recover_capture_seal(store,request_id):
+    store._control_guard('LegacyRuntime')
     s=store.read_snapshot();r=_request(s,request_id);task=s['tasks'][r['task_id']]
     path=store.root/'execution'/'captures'/(request_id+'.json')
     if not path.exists():return False
@@ -610,6 +617,7 @@ def recover_capture_seal(store,request_id):
     return True
 
 def recover(store,request_id,*,check_only=False,recheck=False,reason=None):
+    store._control_guard('LegacyRuntime')
     from . import resources
     # A completed local transport may have sealed its original files before
     # capture publication ran out of physical resources. Recover those exact

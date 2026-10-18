@@ -148,7 +148,7 @@ def seal(store,request_id,execution_id):
     from .communication import event
     s=store.read_snapshot();task=s['tasks'][s['requests'][request_id]['task_id']]
     if not task.get('communication_contract'):return {}
-    if not s.get('input_windows',{}).get(request_id):
+    if not s.get('input_windows',{}).get(request_id) or store.history()[-1][1]['schema'] == 'pmrh.commit/2':
         store.commit_communication(event('INPUT_WINDOW_SEALED',{'request_id':request_id,'execution_id':execution_id}))
     return capture_binding(store.read_snapshot(),request_id)
 

@@ -281,7 +281,9 @@ def send(store,request_id,execution_id,*,to,body,kind='QUESTION',idempotency_key
     if old:
         require(all(old.get(k)==row[k] for k in ('recipient','kind','body_ref','record_refs','reply_to','idempotency_key','allow_independence_loss')),
                 'IDEMPOTENCY_CONFLICT','Retry must preserve the exact original message.')
-    else:store.commit_communication(event('MESSAGE_PUBLISHED',row))
+    if not old or store.history()[-1][1]['schema'] == 'pmrh.commit/2':
+        original = {k:v for k,v in old.items() if k not in {'created_seq','withdrawn','withdrawal_reason','withdrawal_event'}} if old else row
+        store.commit_communication(event('MESSAGE_PUBLISHED',original))
     return {'message_id':mid,'state':'WITHDRAWN' if old and old.get('withdrawn') else 'LATE_AFTER_SEAL' if row['late_after_seal'] else 'QUEUED','evidence_state':'CANDIDATE_HINT'}
 
 

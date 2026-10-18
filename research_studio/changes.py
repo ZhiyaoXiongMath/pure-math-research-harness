@@ -643,7 +643,8 @@ def validator_identity():
     domain=root.parent/'pmrh'/'domain'
     fingerprints.update({'pmrh/domain/'+path.name:sha(path.read_bytes()) for path in sorted(domain.glob('*.py'))})
     moved = [root/'storage_compat.py', root/'util.py', root/'resources.py',
-             root.parent/'pmrh/application/unit_of_work.py', root.parent/'pmrh/application/read_projections.py']
+             root.parent/'pmrh/application/unit_of_work.py', root.parent/'pmrh/application/read_projections.py',
+             root.parent/'pmrh/application/control.py']
     moved += sorted((root.parent/'pmrh/adapters/storage').glob('*.py'))
     # Storage replay and UoW use DTO decoding, validation and wire budgets.
     # The ports initializer imports interfaces, registering every DTO module.

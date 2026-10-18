@@ -99,6 +99,7 @@ class FakeExecutor:
     def _fault(self,name):
         if self.fault_at==name:raise SimulatedCrash(name)
     def execute(self,store,task_id):
+        store._control_guard('LegacyRuntime')
         t=tasks.load(store,task_id);rid=t['request_id'];s=store.read_snapshot();r=s['requests'][rid]
         if r['execution_state']=='CAPTURED':return _recover_clean(store,rid)
         require(r['execution_state']=='PREPARED','EXISTING_REQUEST','Fake executors also cannot repeat uncertain sends')
@@ -120,6 +121,7 @@ class FakeExecutor:
 
 
 def materialize_task_inputs(store, task, work, *, reserved=False):
+    store._control_guard('LegacyRuntime')
     if reserved:return _materialize_task_inputs(store,task,work)
     with resources.reserve(store.root,owner='materialize-'+task['task_id'],temporary_bytes=256*resources.MIB,memory_bytes=resources.MAX_PREPARATION_MEMORY,max_preparations=min(2,store.read_snapshot().get('max_workers',1))):
         return _materialize_task_inputs(store,task,work)
@@ -242,6 +244,7 @@ def _preflight_dispatch(store,task):
     early check must not reserve budget or change an old request merely because
     it was selected again after pause, mission replacement or changed inputs.
     """
+    store._control_guard('LegacyRuntime')
     snapshot=store.read_snapshot();request=snapshot['requests'][task['request_id']]
     require(request['execution_state']=='PREPARED' and not request.get('fenced'),
             'TASK_FENCED','Only a current unsent request can enter executor preparation.')
@@ -265,6 +268,7 @@ class CodexExecutor:
         require(isinstance(timeout,(int,float)) and 0<timeout<=14400,'TIMEOUT_INVALID','Bounded timeout required')
         self.binary=binary;self.timeout=timeout
     def execute(self,store,task_id):
+        store._control_guard('LegacyRuntime')
         initial=store.read_snapshot();require(task_id in initial['tasks'],'TASK_UNKNOWN','Select an original frozen task.')
         initial_state=initial['requests'][initial['tasks'][task_id]['request_id']]['execution_state']
         try:
@@ -285,6 +289,7 @@ class CodexExecutor:
                     'resource':getattr(exc,'resource','PHYSICAL')}
 
     def _execute(self,store,task_id):
+        store._control_guard('LegacyRuntime')
         snapshot=store.read_snapshot();frozen=snapshot['tasks'][task_id];rid=frozen['request_id'];request=snapshot['requests'][rid]
         if request['execution_state'] in {'CAPTURED','SETTLED'}:return _recover_clean(store,rid)
         require(request['execution_state']=='PREPARED','EXISTING_REQUEST','Inspect uncertain requests; no automatic resend')
@@ -398,6 +403,7 @@ class CodexExecutor:
 
 
 def recover_transport(store,task_id):
+    store._control_guard('LegacyRuntime')
     with task_executor_lock(store,task_id):
         with resources.reserve(store.root,owner='transport-recovery-'+task_id,temporary_bytes=0,
                                memory_bytes=resources.PHASE_MEMORY['capture'],phase='capture'):
@@ -463,6 +469,7 @@ def coordinator_status(store):
 def run(store,*,instance_ids=None,instance_id=None,executor=None,max_tasks=32,policy=None,
         on_result=None,on_idle=None,on_tick=None):
     """Completion-driven bounded driver; waits never allocate a new request."""
+    store._control_guard('LegacyRuntime')
     require(type(max_tasks) is int and 1<=max_tasks<=1000,'BATCH_INVALID','Explicit bounded task batch required')
     require(instance_ids is not None or instance_id is not None,'INSTANCE_SELECTOR_REQUIRED','Select authorized workflow instances')
     selected=instance_ids if instance_ids is not None else [instance_id]

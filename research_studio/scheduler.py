@@ -51,8 +51,12 @@ def plan(snapshot,authorized_instances,policy=None):
     allowed=set(authorized_instances);actions=[];waits=[];ready=[]
     for iid in allowed:require(iid in snapshot.get('instances',{}),'INSTANCE_UNKNOWN',iid)
     from .host_pool import is_stage,instance_limit
-    active_by_instance={iid:sum(is_stage(snapshot,r) and r['instance_id']==iid and r['execution_state'] in {'RESERVED','SENT','UNKNOWN'} for r in snapshot.get('requests',{}).values()) for iid in allowed}
-    main_active={iid:sum(not is_stage(snapshot,r) and r['instance_id']==iid and r['execution_state'] in {'PREPARED','RESERVED','SENT','UNKNOWN'} for r in snapshot.get('requests',{}).values()) for iid in allowed}
+    from pmrh.application.read_projections import control_lane_closed, control_releasable
+    def active(r, main=False):
+        if 'admission' in r:return not (control_lane_closed(r) if main else control_releasable(r))
+        return r['execution_state'] in ({'PREPARED','RESERVED','SENT','UNKNOWN'} if main else {'RESERVED','SENT','UNKNOWN'})
+    active_by_instance={iid:sum(is_stage(snapshot,r) and r['instance_id']==iid and active(r) for r in snapshot.get('requests',{}).values()) for iid in allowed}
+    main_active={iid:sum(not is_stage(snapshot,r) and r['instance_id']==iid and active(r,main=True) for r in snapshot.get('requests',{}).values()) for iid in allowed}
     seen_purposes=set()
     for rid,r in sorted(snapshot.get('requests',{}).items()):
         if r.get('purpose')=='PROJECT_ASSISTANT':continue
@@ -173,6 +177,7 @@ plan_dispatch=plan
 
 def commit_dispatch(store,dispatch_plan,*,policy=None):
     """The event reducer rechecks relevant state under Store's single write lock."""
+    store._control_guard('LegacyRuntime')
     from . import tasks,execution
     snapshot=store.read_snapshot(); prepared=[]
     for candidate in dispatch_plan['selected']:

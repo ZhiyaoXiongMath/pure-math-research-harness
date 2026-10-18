@@ -171,6 +171,7 @@ class Rpc:
 
 class Service:
     def __init__(self,store,iid,task,work):
+        store._control_guard('LegacyRuntime')
         from . import runner,task_tools
         binary,manifest=native_binary()
         self.store=store;self.iid=iid;self.active=None;self.turns={};self.delegates={};self.thread_id=None;self.done=threading.Event();self.result=None;self.gate_lock=threading.Lock();self.closing=threading.Event();self.last_usage={}
@@ -333,6 +334,7 @@ class Service:
             # Preserve the prepared evidence without claiming model receipt.
             a['signal_seen'].update(new)
     def run(self,task,work,inputs):
+        self.store._control_guard('LegacyRuntime')
         from . import execution,runner,usage_ledger,resources
         rid=task['request_id'];s=self.store.read_snapshot();r=s['requests'][rid]
         require(self.active is None or self.active['done'].is_set(),'NATIVE_MAIN_BUSY','One native root stream per instance')
@@ -410,6 +412,7 @@ class Service:
 
 
 def execute(store,task,binary='codex'):
+    store._control_guard('LegacyRuntime')
     from . import runner
     runner._preflight_dispatch(store,task);native_binary()
     require(task.get('actor_kind')=='MAIN' and task['model_policy_resolution'].get('model')=='gpt-6-astra' and task['model_policy_resolution'].get('reasoning_effort')=='ultra','NATIVE_MAIN_POLICY_INVALID','Persistent MAIN requires exact Astra Ultra; no fallback')
@@ -428,6 +431,7 @@ def execute(store,task,binary='codex'):
 
 def _sync_unloaded(store,iid):
     """Read/set a persisted Goal without loading a research thread or resuming it."""
+    store._control_guard('LegacyRuntime')
     from . import runner
     s=store.read_snapshot();b=s.get('native_main_bindings',{}).get(iid)
     if not b:return {'state':'UNBOUND','model_calls':0}
@@ -462,6 +466,7 @@ def _sync_unloaded(store,iid):
 def sync_pending(store,instance_id=None,binary='codex'):
     # Never resume or activate from a passive control observer. Existing Goals
     # can be read/paused/completed directly while their thread stays unloaded.
+    store._control_guard('LegacyRuntime')
     result=[];root=str(store.root.resolve());s=store.read_snapshot()
     iids=[iid for iid,i in s.get('instances',{}).items() if i.get('kind') in {'TRH','FDH'} and (not instance_id or iid==instance_id)]
     for iid in iids:

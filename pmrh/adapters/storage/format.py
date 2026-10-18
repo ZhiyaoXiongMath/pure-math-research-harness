@@ -93,6 +93,14 @@ def validate_entry(entry):
 
 
 def publication_schema(store, previous, events):
+    control = previous is not None and store._commit_record(previous)['schema'] == 'pmrh.commit/2'
+    proposed_control = any(e.get('schema') == 'pmrh.control-event/1' for e in events)
+    if control or proposed_control:
+        checked(not any(e.get('type') in (BIND, BATCH) for e in events), 'UNSUPPORTED_CAPABILITY')
+        checked(getattr(store, '_control_publication', None) is not None, 'AUTHORIZATION_REQUIRED')
+        checked(len(events) == 1 and proposed_control and not getattr(store, '_fixture_publication', False), 'UNSUPPORTED_CAPABILITY')
+        checked(previous is not None and store._commit_record(previous)['schema'] != EXTENDED_SCHEMA, 'UNSUPPORTED_CAPABILITY')
+        return 'pmrh.commit/2'
     extended = previous is not None and store._commit_record(previous)['schema'] == EXTENDED_SCHEMA
     port = any(e.get('type') in (BIND, BATCH) for e in events)
     if port:
