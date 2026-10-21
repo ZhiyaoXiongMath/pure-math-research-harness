@@ -1,3 +1,19 @@
+# Current contribution amendment — 2026-10-21
+
+[PROGRAM-CONTROL](docs/development/PROGRAM-CONTROL.md) records the immediately effective **HUMAN-PROGRAM-GRANT-20261021**. It replaces repeated package startup permission only for GOV-02, DEV06 closeout, DEV07–14 and DEV18 integrated acceptance/release-candidate preparation. Its effect comes from the human grant, not this documentation PR. The per-package-grant wording in the historical text and [ROADMAP](docs/development/ROADMAP.md) is reconciled within that scope; dependencies and reserved human decisions remain binding.
+
+Read [PROJECT-STATE](docs/development/PROJECT-STATE.md), the [ledger](docs/development/DEVELOPMENT-LEDGER.json), [MAIN protocol](docs/development/MAIN-OPERATING-PROTOCOL.md), effective ADRs, acceptance baseline/addendum and relevant handoffs. Global control persists across handoffs; a package Controller completes only its appointed package. Global control may coordinate a successor after dependencies and handoff are verified and its smallest useful deliverable, consumers, baseline, interfaces/files, non-goals, acceptance IDs, tests/review/rollback and roles are frozen. Default product work is sequential. DEV07's current global read-only preflight is not implementation or package appointment.
+
+Use actual gpt-6-astra/xhigh global control, gpt-6-astra/high Controller and gpt-6-astra/xhigh Developer and independent Reviewer. Verify runtime identity and effective permissions before source work; use scoped Developer writes, fresh read-only review inputs, blocked task network and parent/child filesystem/network probes. Disclose Controller host privileges. Stop and retain exact errors on mismatch or rejection; never silently change model or confinement. Public records summarize the gates without exposing private runtime identifiers or logs.
+
+A Developer supplies a bounded delta and exact evidence; the independent Reviewer examines the final committed head; the package Controller separately decides MAIN acceptance. The human decides each merge. Then verify actual main, parents/tree and CI checkout provenance before handoff. This isolated GOV-02 Developer produces scratch documents only: Controller owns inspection, copying and publication. GOV-02 has no self-review, self-acceptance or predicted final SHA/PR/merge.
+
+DEV15 experiments, DEV16 adoption/implementation, DEV17 migration tooling/actual migration and formal tag/Release remain **PENDING_HUMAN_DECISION**. Read-only proposals may inform those decisions. No development grant authorizes real research/project access, paid product-model calls, production, recovery or extra budget. Preserve scientific authority and raw evidence, original target/D0, single Research MAIN, PAUSED/UNKNOWN and no blind retry. Run only package-authorized checks; this documentation package uses static validation and does not rerun product suites or mark 58+46 PASS. Management inference is NOT_MEASURED.
+
+## Historical content — original bytes retained below
+
+The following text preserves its dated decisions and observations. Read current authorization and status through the amendment above; no missing historical evidence is repaired by this annotation.
+
 # Contributing to Pure Math Research Harness
 
 ## Development status

@@ -1,3 +1,21 @@
+# GOV-02 amendment — human program grant (2026-10-21)
+
+The explicit **HUMAN-PROGRAM-GRANT-20261021** is effective from the human decision on 2026-10-21. This governance delivery records it; review or merge of this delivery does not activate it. Its provenance, boundaries and role gates are in [PROGRAM-CONTROL](docs/development/PROGRAM-CONTROL.md). Read the latest [PROJECT-STATE](docs/development/PROJECT-STATE.md) and [development ledger](docs/development/DEVELOPMENT-LEDGER.json) as dated evidence, never as authorization tokens.
+
+For **GOV-02, DEV06 closeout, DEV07–14 bounded development and DEV18 integrated acceptance/release-candidate preparation only**, the existing grant replaces repeated human startup requests. It reconciles the per-package-grant wording below, in CONTRIBUTING, the operating protocol, ROADMAP and earlier handoffs/ADRs without changing their dependency graph or scientific constraints. Outside this scope, revised scope and reserved decisions still need the human. Each PR merge, formal tag/Release, DEV15 experiments, DEV16 adoption/implementation and DEV17 tool development/actual migration require separate human decisions; none is implicitly approved.
+
+Global control remains appointed across package handoffs and may coordinate in-scope successors only after dependencies, verified handoff and a recorded package freeze. Each package retains a separately appointed Controller (Development MAIN), Developer and independent Reviewer. An outgoing package Controller cannot self-appoint successor work. Global control is the architecture conflict arbiter. Product work is sequential by default; current disjoint GOV-02 documentation, DEV06 read-only closeout and DEV07 read-only preflight do not start DEV07 implementation.
+
+Required actual roles are **gpt-6-astra/xhigh** global control, **gpt-6-astra/high** package Controller, and **gpt-6-astra/xhigh** Developer and independent Reviewer. Before substantive source work, verify actual runtime/thread/turn/model/effort/approval/permission evidence, enforced scoped Developer writes, fresh read-only Reviewer input, blocked task network, and parent **and child** filesystem/network probes. Stop on mismatch or CLI/security rejection; preserve the exact error, with no fallback or weakened permissions. Prompts are not sandboxes; disclose Controller host privileges. Authorized global/Controller acquisition supplies frozen public-source evidence to network-blocked task roles.
+
+Freeze the smallest useful deliverable, consumers, interfaces/owned files, exact baseline, dependencies, non-goals, inherited acceptance IDs, tests/review/rollback and role ownership before implementation. Preserve independent exact-head review, separate MAIN acceptance, human merge, post-merge readback and handoff. For DEV11/12/13 use the approved Research MAIN specification v0.1.0 and acceptance mapping, naming applicable RMAIN-REQ and K/O/S/GUIDE cases; historical candidate labels are reconciled by [PROJECT-STATE](docs/development/PROJECT-STATE.md).
+
+All original target/D0, TRH/FDH, six-record, source/proof qualification, scientific independence, single logical Research MAIN, budget, PAUSED/UNKNOWN and raw-evidence invariants remain binding. No real research/project access, paid product-model calls, production activation, recovery or budget increase follows from this development grant. Original 58+46 acceptance definitions remain unchanged and have no blanket PASS.
+
+## Historical content — original bytes retained below
+
+The following text preserves its dated decisions and observations. Read current authorization and status through the amendment above; no missing historical evidence is repaired by this annotation.
+
 # PMRH development-agent contract (repository-wide)
 
 **Scope.** This repository is the successor to Pure Math Research Studio, a domain-specific, evidence-constrained multi-agent pure-mathematics harness. This file directs software-development agents only. It is **not** an operating-system ACL, a sandbox, a grant to access research projects, or authority to run model inference.
