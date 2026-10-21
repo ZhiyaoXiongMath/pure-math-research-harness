@@ -1,6 +1,12 @@
 """DEV05 exact owned symbols; preserves the original and DEV03/04 baselines."""
 import ast
 import hashlib
+import json
+from pathlib import Path
+try:
+    from scripts import control_scope
+except ModuleNotFoundError:
+    import control_scope
 
 BASE = '2c65af1a407c159d6768867bf25c03566c4657c1'
 TREE = '2b141b07ea297aa37d6ffb2d85b21e8b6c07bd5c'
@@ -172,6 +178,41 @@ def verify_test_seam(original, current):
         raise ValueError('SCOPE-02 permits only the exact hook migration; assertions and publication stay unchanged')
 
 
+
+# Exact bytes at the accepted DEV05 / pre-DEV06 boundary. Compact replacements
+# reconstruct those sources from the already frozen DEV05 input; no Git or
+# additional fixture mount is needed inside S2. These hashes are not AST hashes.
+PRECONTROL_PATHS = frozenset(['research_studio/changes.py', 'research_studio/host_pool.py', 'research_studio/native_main.py', 'research_studio/scheduler.py', 'research_studio/strategy.py'])
+PRECONTROL_SHA256 = 'b427aed90b79ab9e948ab93d0de6d96c29cfed0bd642717549135d8995ab5e85'
+
+
+def _precontrol_boundary(path, original):
+    raw = Path(__file__).with_name('storage_scope_precontrol.json').read_bytes()
+    if hashlib.sha256(raw).hexdigest() != PRECONTROL_SHA256:
+        raise ValueError('Frozen pre-control boundary artifact differs')
+    data = json.loads(raw)
+    if ((data['dev05_base'], data['dev05_tree']) != (BASE, TREE) or
+            (data['dev06_base'], data['dev06_tree']) != (control_scope.BASE, control_scope.TREE) or
+            set(data['files']) != PRECONTROL_PATHS or
+            set(SYMBOLS) & set(control_scope.SYMBOLS) != PRECONTROL_PATHS):
+        raise ValueError('Frozen scope boundary chain differs')
+    row = data['files'][path]
+    if row['symbols'] != control_scope.SYMBOLS[path]:
+        raise ValueError('Exact DEV06 boundary symbols differ: '+path)
+    if hashlib.sha256(original).hexdigest() != row['original_sha256']:
+        raise ValueError('Frozen DEV05 boundary original differs: '+path)
+    parts = []; position = 0
+    for start, end, replacement in row['replacements']:
+        if not 0 <= position <= start <= end <= len(original):
+            raise ValueError('Frozen scope boundary replacement bounds differ: '+path)
+        parts.extend((original[position:start], replacement.encode('utf-8')))
+        position = end
+    boundary = b''.join((*parts, original[position:]))
+    if hashlib.sha256(boundary).hexdigest() != row['boundary_sha256']:
+        raise ValueError('Frozen pre-control source differs: '+path)
+    return boundary
+
+
 def verify_sections(path, original, current):
     if path in OWNED_WHOLE:
         return  # r1 explicitly owns the shared engine/facade and query wiring.
@@ -193,8 +234,15 @@ def verify_sections(path, original, current):
     approved = {dump(ast.parse(row).body[0]) for row in IMPORTS[path]}
     def outside(tree):
         return [dump(n) for n in tree.body if name(n) not in SYMBOLS[path] and dump(n) not in approved]
-    if outside(before) != outside(after):
+    boundary = _precontrol_boundary(path, original) if path in PRECONTROL_PATHS else None
+    inherited = ast.parse(boundary) if boundary is not None else after
+    if outside(before) != outside(inherited):
         raise ValueError('Outside DEV05 exact symbols changed: '+path)
+    if boundary is not None:
+        # Compose two independent obligations, never a union of allowed symbols.
+        # The current DEV05 aliases/non-DEV06 bodies must still equal this exact
+        # accepted boundary; DEV06 cannot reopen earlier ownership wholesale.
+        control_scope.verify_sections(path, boundary, current)
     actual = {dump(n) for n in after.body if isinstance(n, ast.ImportFrom)
               and (n.module or '').startswith(('pmrh.adapters.', 'pmrh.application.'))}
     if actual != approved:

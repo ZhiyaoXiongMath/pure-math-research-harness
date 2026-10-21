@@ -1,0 +1,140 @@
+{
+  "dev05_base": "2c65af1a407c159d6768867bf25c03566c4657c1",
+  "dev05_tree": "2b141b07ea297aa37d6ffb2d85b21e8b6c07bd5c",
+  "dev06_base": "4239f15ad1233cc89cd6556cec284951b5fc2e3e",
+  "dev06_tree": "5680df0c7d62ea5cb4bf42dd388771380ce66e32",
+  "files": {
+    "research_studio/changes.py": {
+      "boundary_sha256": "c533854a49844504ef6a0b467facfe0aeb83acf71c659d93ed74bf6c9e19b46c",
+      "original_sha256": "1e179a88dee064f82f0ad651f3b6a14cedf3753816f9d33f7be0648c06c2ec99",
+      "replacements": [
+        [
+          56555,
+          56555,
+          "    moved = [root/'storage_compat.py', root/'util.py', root/'resources.py',\n             root.parent/'pmrh/application/unit_of_work.py', root.parent/'pmrh/application/read_projections.py']\n    moved += sorted((root.parent/'pmrh/adapters/storage').glob('*.py'))\n    # Storage replay and UoW use DTO decoding, validation and wire budgets.\n    # The ports initializer imports interfaces, registering every DTO module.\n    ports = root.parent/'pmrh/ports'\n    moved += [ports/'__init__.py', ports/'interfaces.py']\n    moved += sorted((ports/'dto').glob('*.py'))\n    fingerprints.update({str(path.relative_to(root.parent)):sha(path.read_bytes()) for path in moved})\n"
+        ]
+      ],
+      "symbols": [
+        "validator_identity"
+      ]
+    },
+    "research_studio/host_pool.py": {
+      "boundary_sha256": "a1420b4efb9856fbb15083e8c915f60cb61b39c8c0822e679cf57fae485393be",
+      "original_sha256": "e70868c5c061a553820f2950a093fe696b206bb481b0eb869c35d70ecca56643",
+      "replacements": [
+        [
+          321,
+          390,
+          "from pmrh.adapters.storage.pool_read import HOST_LIMIT as HOST_LIMIT\nfrom pmrh.adapters.storage.pool_read import PROJECT_LIMIT as PROJECT_LIMIT\nfrom pmrh.adapters.storage.pool_read import INFLIGHT as INFLIGHT\n"
+        ],
+        [
+          2128,
+          2181,
+          "from pmrh.adapters.storage.pool_read import instance_key as instance_key\n"
+        ],
+        [
+          2182,
+          2665,
+          "from pmrh.adapters.storage.pool_read import allocations as allocations\n"
+        ],
+        [
+          4679,
+          5348,
+          "from pmrh.adapters.storage.pool_read import _view as _view\n"
+        ],
+        [
+          8613,
+          11880,
+          "from pmrh.adapters.storage.pool_read import read_status as read_status\n"
+        ]
+      ],
+      "symbols": [
+        "acquire",
+        "release",
+        "mark",
+        "update_demand",
+        "clear_demand"
+      ]
+    },
+    "research_studio/native_main.py": {
+      "boundary_sha256": "4d26fbf22edc70af73b2b3be78c6d641aced299e28b960249b2b941dc470fc3c",
+      "original_sha256": "5e0399f776a1dd8a94b570bc4df724ce824f876afbb9a7c4fdef52334b8817eb",
+      "replacements": [
+        [
+          533,
+          601,
+          "from pmrh.application.read_projections import NATIVE_SCHEMA as SCHEMA\nfrom pmrh.application.read_projections import GATE_REVISION as GATE_REVISION\n"
+        ],
+        [
+          1106,
+          2268,
+          "from pmrh.application.read_projections import native_desired as desired\n"
+        ],
+        [
+          6509,
+          7886,
+          "from pmrh.application.read_projections import native_view as view\n"
+        ]
+      ],
+      "symbols": [
+        "Service.__init__",
+        "Service.run",
+        "execute",
+        "_sync_unloaded",
+        "sync_pending"
+      ]
+    },
+    "research_studio/scheduler.py": {
+      "boundary_sha256": "025e707ffd8b735a0a39541d08fc185131ad31d5c25eaef7817c665e7ce87ca7",
+      "original_sha256": "13b615816a639d5097aec525fd8bd710dfab159093c1a931ee7ef5f64e8787fb",
+      "replacements": [
+        [
+          242,
+          458,
+          "from pmrh.application.read_projections import _cost as _cost\n"
+        ],
+        [
+          459,
+          811,
+          "from pmrh.application.read_projections import budget_remaining as budget_remaining\n"
+        ],
+        [
+          812,
+          1207,
+          "from pmrh.application.read_projections import project_remaining as project_remaining\n"
+        ],
+        [
+          1208,
+          1575,
+          "from pmrh.application.read_projections import aggregate_project_remaining as aggregate_project_remaining\n"
+        ]
+      ],
+      "symbols": [
+        "plan",
+        "commit_dispatch"
+      ]
+    },
+    "research_studio/strategy.py": {
+      "boundary_sha256": "46f7edfeeca0872a1036deddf9d6ba71b3d3fee127d03585f63236fd03f5f80b",
+      "original_sha256": "082f0e0eff3ce6b34711c9068e99736c97ecd41f7842f072b5c2a2cc8572867a",
+      "replacements": [
+        [
+          1184,
+          1238,
+          "from pmrh.application.read_projections import strategy_id as strategy_id\n"
+        ],
+        [
+          1239,
+          1310,
+          "from pmrh.application.read_projections import strategy_current as current\n"
+        ]
+      ],
+      "symbols": [
+        "initialize",
+        "trigger",
+        "request_prepared",
+        "dispatch_from_main"
+      ]
+    }
+  }
+}
