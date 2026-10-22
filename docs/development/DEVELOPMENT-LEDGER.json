@@ -1,10 +1,10 @@
 {
   "schema": "pmrh.development-ledger/1",
-  "snapshot_date": "2026-10-21",
-  "observed_utc": "2026-10-21 13:30:58 UTC",
-  "observed_main": "4239f15ad1233cc89cd6556cec284951b5fc2e3e",
+  "snapshot_date": "2026-10-22",
+  "observed_utc": "2026-10-22T03:01:13.194831+00:00",
+  "observed_main": "3d5880885f1f99d05851ff9fa18d4b368106b121",
   "nature": "Dated frozen evidence index; not a live status mirror, authorization token, proof authority or substitute for explicit human decisions.",
-  "evidence_source": "Global control supplied primary GitHub metadata at the unchanged observed_utc cutoff and reused prior audit receipts. A later verified private-decision supplement changes only DEV06 final-head Controller disposition; no renewed GitHub fetch, product tests or independent review. Isolated GOV-02 Developer made no live query.",
+  "evidence_source": "Controller frozen source-bound public facts, 2026-10-22; verified PR14 then PR13 merge/readback and scoped receipt reuse. Isolated archive Developer made no live GitHub query, product execution or full historical re-audit. Private originals remain private.",
   "public_grant": {
     "id": "HUMAN-PROGRAM-GRANT-20261021",
     "date": "2026-10-21",
@@ -60,17 +60,17 @@
     "id": "GOV-02",
     "authorization": "AUTHORIZED_UNDER_PROGRAM_GRANT",
     "base": "4239f15ad1233cc89cd6556cec284951b5fc2e3e",
-    "delivery": "AUTHORED_IN_SCRATCH_NOT_COMMITTED_BY_DEVELOPER",
-    "independent_review": "NOT_YET_RECORDED",
-    "main_acceptance": "NOT_YET_RECORDED",
-    "pr": null,
-    "final_head": null,
-    "merge": "NOT_MERGED_IN_THIS_SNAPSHOT",
-    "handoff": "NOT_DECLARED",
+    "delivery": "MERGED_SIX_FILE_DOCUMENTATION_SCOPED",
+    "independent_review": "APPROVE_FOR_MAIN_ACCEPTANCE_ZERO_FINDINGS_FRESH_ISOLATED_REVIEW",
+    "main_acceptance": "MAIN_ACCEPTED_LOCAL_DOCUMENTATION_SCOPED",
+    "pr": 14,
+    "final_head": "b2243e8d36e026788b64894dce599ac3becd0063",
+    "merge": "58817a8749d63f7c72c7452c2225f687372f6e9f",
+    "handoff": "PRIVATE_POSTMERGE_TRANSFER_VERIFIED_PUBLIC_ARCHIVE_COMPLETION_PENDING",
     "roles": {
       "controller": "APPOINTED_GOV02_CONTROLLER_PER_TASK_NO_PRIVATE_ID_PUBLISHED",
       "developer": "APPOINTED_ISOLATED_GOV02_DEVELOPER_ACTUAL_GATES_VERIFIED",
-      "reviewer": "NOT_APPOINTED_IN_FROZEN_PACKET"
+      "reviewer": "FRESH_ISOLATED_GPT_6_ASTRA_XHIGH_REVIEW_VERIFIED; INITIAL_LOGIN_SHELL_ATTEMPT_INCONCLUSIVE"
     },
     "owned_paths": [
       "AGENTS.md",
@@ -80,14 +80,93 @@
       "docs/development/PROGRAM-CONTROL.md",
       "docs/development/DEVELOPMENT-LEDGER.json"
     ],
-    "next_gate": "Controller inspect/copy allowed bytes, commit, commission fresh independent final-head full-delta review, separate MAIN disposition, human merge and verified handoff; later facts recorded externally."
+    "next_gate": "Public archive candidate requires independent final-head review, separate Controller acceptance, root publication, separate human merge approval, actual main merge and readback before formal archival completion.",
+    "tree": "0a7f7e817d19921b986c8174c9dab017afb1cd8e",
+    "merge_parents": [
+      "4239f15ad1233cc89cd6556cec284951b5fc2e3e",
+      "b2243e8d36e026788b64894dce599ac3becd0063"
+    ],
+    "historical_failure": "Initial reviewer attempt INCONCLUSIVE due login-shell confinement startup; fresh same-ACL non-login reviewer approved. Prior failure retained.",
+    "ci": {
+      "workflows": 6,
+      "jobs": 10,
+      "head_checkout_jobs": 8,
+      "temporary_merge_checkout_jobs": 2,
+      "temporary_merge": {
+        "sha": "8fc8fb59d91f0c06d7d2efafd17236988542cd9e",
+        "tree": "0a7f7e817d19921b986c8174c9dab017afb1cd8e",
+        "parents": [
+          "4239f15ad1233cc89cd6556cec284951b5fc2e3e",
+          "b2243e8d36e026788b64894dce599ac3becd0063"
+        ],
+        "qualification": "Same tree as reviewed candidate; not an actual merge"
+      },
+      "runs": [
+        {
+          "id": 39614206932,
+          "name": "PMRH Phase 0 safe offline checks",
+          "url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39614206932",
+          "event": "pull_request",
+          "head_sha": "b2243e8d36e026788b64894dce599ac3becd0063",
+          "conclusion": "success"
+        },
+        {
+          "id": 39614206773,
+          "name": "PMRH DEV-PR-01 AST and synthetic offline guard",
+          "url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39614206773",
+          "event": "pull_request",
+          "head_sha": "b2243e8d36e026788b64894dce599ac3becd0063",
+          "conclusion": "success"
+        },
+        {
+          "id": 39614207426,
+          "name": "PMRH DEV-PR-02 versioned contracts",
+          "url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39614207426",
+          "event": "pull_request",
+          "head_sha": "b2243e8d36e026788b64894dce599ac3becd0063",
+          "conclusion": "success"
+        },
+        {
+          "id": 39614206630,
+          "name": "PMRH DEV-PR-04 pure domain extraction",
+          "url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39614206630",
+          "event": "pull_request",
+          "head_sha": "b2243e8d36e026788b64894dce599ac3becd0063",
+          "conclusion": "success"
+        },
+        {
+          "id": 39614206389,
+          "name": "PMRH DEV-PR-03 confined read-only queries",
+          "url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39614206389",
+          "event": "pull_request",
+          "head_sha": "b2243e8d36e026788b64894dce599ac3becd0063",
+          "conclusion": "success"
+        },
+        {
+          "id": 39614206627,
+          "name": "PMRH DEV-PR-05 bounded disk storage",
+          "url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39614206627",
+          "event": "pull_request",
+          "head_sha": "b2243e8d36e026788b64894dce599ac3becd0063",
+          "conclusion": "success"
+        }
+      ],
+      "actual_merge_runs": 0,
+      "reuse": "Same complete source tree/modes; original PR-triggered CI only, not actual merged-SHA CI"
+    },
+    "private_provenance": {
+      "visibility": "PRIVATE_ORIGINALS_CONTROLLER_VERIFIED_AT_2026_10_22_CUTOFF_NOT_PUBLIC_RECEIPT_LINKS",
+      "review_sha256": "69391e3f930b77a5a259de03c9ad818b7e9a59e186dd5329ee1ff981d86cd05f",
+      "acceptance_sha256": "567dd6799e823ed531459f4c9a999e2f6ac3d6b835d59ba05bf985166ad8254c",
+      "postmerge_sha256": "7f27f640764a61954a2fda8d72a2ea9a4e63dc2958e9e0d4cd373fcbb6919135"
+    }
   },
   "scheduling": {
     "default": "SEQUENTIAL_PRODUCT_IMPLEMENTATION",
     "current_disjoint_assignments": [
-      "GOV-02 six documentation paths on frozen main",
-      "DEV06 read-only final-head closeout private evidence",
-      "DEV07 global read-only interface/consumer preflight private evidence; no implementation appointment"
+      "GOV02/DEV06 four-document postmerge public archive candidate; no product edits; formal archive merge/readback handoff pending.",
+      "DEV11 bounded implementation active; final independent review, overall acceptance, public merge and handoff not recorded; final integration follows existing ordering.",
+      "DEV07 read-only preparation completed, implementation not started; DEV08/13 read-only preparation only."
     ],
     "future_parallelism_requires": [
       "Recorded file/interface ownership",
@@ -122,7 +201,7 @@
     "Production activation",
     "Real research/project access",
     "Scientific migration",
-    "Product test reruns by GOV-02 Developer"
+    "Product test reruns by this GOV02/DEV06 archival Developer"
   ],
   "management_inference": "NOT_MEASURED",
   "acceptance_baseline": {
@@ -354,7 +433,7 @@
         "independent_review": "REVIEWED_HISTORICAL_SCOPED",
         "main_acceptance": "MAIN_ACCEPTED_HISTORICAL_SCOPED",
         "github_merge": "MERGED",
-        "handoff": "HISTORICAL_DOCUMENT_PRESENT_COMPLETION_NOT_ASSERTED"
+        "handoff": "HISTORICAL_HANDOFF_COMPLETE_EXISTING_EVIDENCE_VERIFIED_BY_CONTROLLER"
       },
       "roles": {
         "controller": "HISTORICAL_ROLE_EVIDENCE_IN_REFERENCES_NO_ID_OR_CONFIGURATION_RECONSTRUCTED",
@@ -396,7 +475,13 @@
         "Software extraction does not implement DEV11 fast objects or DEV12 strategic loop.",
         "Review rendering is path-normalized; original acceptance record is separately archived."
       ],
-      "next_gate": "Retain scoped historical receipts and unresolved limits; verify dependency/handoff evidence at successor freeze without reconstructing missing historical decisions."
+      "next_gate": "Retain scoped historical receipts and unresolved limits; verify dependency/handoff evidence at successor freeze without reconstructing missing historical decisions.",
+      "handoff_reconciliation": {
+        "verified_snapshot_date": "2026-10-22",
+        "source_visibility": "PRIVATE_ORIGINAL_CONTROLLER_VERIFIED_DIGEST; NO_NEW_ACCEPTANCE_OR_INFERENCE_FROM_ARCHIVE_MERGE",
+        "source_sha256": "3de2a8ac09137ea153f85d6cc290b6a9dbf0ba186892a49044a3652561e37350",
+        "qualification": "Previously existing historical HANDOFF COMPLETE verified for dependency; no new acceptance"
+      }
     },
     {
       "id": "DEV-PR-05",
@@ -419,7 +504,7 @@
         "independent_review": "REVIEWED_HISTORICAL_SCOPED",
         "main_acceptance": "MAIN_ACCEPTED_HISTORICAL_SCOPED",
         "github_merge": "MERGED",
-        "handoff": "HISTORICAL_DOCUMENT_PRESENT_COMPLETION_NOT_ASSERTED"
+        "handoff": "HISTORICAL_HANDOFF_COMPLETE_EXISTING_EVIDENCE_VERIFIED_BY_CONTROLLER"
       },
       "roles": {
         "controller": "HISTORICAL_ROLE_EVIDENCE_IN_REFERENCES_NO_ID_OR_CONFIGURATION_RECONSTRUCTED",
@@ -463,7 +548,13 @@
         "Synthetic pmrh.commit/1 extension does not authorize production activation, downgrade or migration.",
         "PR12 archive merge does not independently supply historical archive review/acceptance/handoff completion evidence."
       ],
-      "next_gate": "Retain scoped historical receipts and unresolved limits; verify dependency/handoff evidence at successor freeze without reconstructing missing historical decisions."
+      "next_gate": "Retain scoped historical receipts and unresolved limits; verify dependency/handoff evidence at successor freeze without reconstructing missing historical decisions.",
+      "handoff_reconciliation": {
+        "verified_snapshot_date": "2026-10-22",
+        "source_visibility": "PRIVATE_ORIGINAL_CONTROLLER_VERIFIED_DIGEST; NO_NEW_ACCEPTANCE_OR_INFERENCE_FROM_ARCHIVE_MERGE",
+        "source_sha256": "62ce7708be64a725ea3fe16a3fce8c4c8b44608f352e238f00c8ecb35dc83269",
+        "qualification": "Existing HANDOFF COMPLETE retrieved after old GOV02 snapshot, bound to merge4239f15; PR CI passed, separate actual merged-main CI not observed; archive merge alone was never evidence of handoff"
+      }
     },
     {
       "id": "DEV-PR-06",
@@ -484,11 +575,11 @@
         "authorization": "AUTHORIZED_UNDER_PROGRAM_GRANT",
         "implementation": "IMPLEMENTED_SYNTHETIC_DELIVERY",
         "testing": "TESTED_SCOPED_RECEIPTS_REUSED",
-        "independent_review": "REPAIR_RECOMMENDATION_RECORDED_SEPARATE_FROM_PRODUCT_ACCEPTANCE",
-        "main_acceptance": "ACCEPTED_SCOPED_PREMERGE",
-        "github_merge": "OPEN_UNMERGED",
-        "handoff": "NOT_DECLARED",
-        "merge_readiness": "READY_FOR_USER_MERGE_DECISION"
+        "independent_review": "ORIGINAL_H0_AND_FOUR_FILE_REPAIR_RECOMMENDATIONS_RECORDED_SEPARATELY",
+        "main_acceptance": "ACCEPTED_SCOPED_POSTMERGE_SOURCE_AND_EVIDENCE_FORMAL_HANDOFF_PENDING",
+        "github_merge": "MERGED_VERIFIED",
+        "handoff": "PRIVATE_TRANSFER_READY_FORMAL_HANDOFF_PENDING_PUBLIC_ARCHIVE_ACTUAL_MERGE_AND_READBACK",
+        "merge_readiness": "ORIGINAL_PR13_MERGE_VERIFIED_ARCHIVE_MERGE_NOT_AUTHORIZED"
       },
       "roles": {
         "controller": "ORIGINAL_PRODUCT_CONTROLLER_REPORTED_IN_PR13; SEPARATE_NEW_CLOSEOUT_CONTROLLER_ACTUAL_GPT_6_ASTRA_HIGH_VERIFIED_BY_GLOBAL_CONTROL; DECISION_DEV06_CLOSEOUT_20261021_PRIVATE_SOURCE",
@@ -507,9 +598,15 @@
       "source_identity": {
         "base": "4239f15ad1233cc89cd6556cec284951b5fc2e3e",
         "head": "0a552d93fb2518fdc03697f21e560ec1db312999",
-        "merge": null,
+        "merge": "3d5880885f1f99d05851ff9fa18d4b368106b121",
         "github_pr": 13,
-        "evidence": "FROZEN_CURRENT_PUBLIC_FACTS"
+        "evidence": "CONTROLLER_FROZEN_POSTMERGE_FACTS_2026_10_22",
+        "head_tree": "97f1bb72b20c5b55b7259b8ff7b596e1d43bb2f7",
+        "merge_parents": [
+          "58817a8749d63f7c72c7452c2225f687372f6e9f",
+          "0a552d93fb2518fdc03697f21e560ec1db312999"
+        ],
+        "merge_tree": "ab23bb3637dc0d635f2673c75ca3dcbef5a1c86a"
       },
       "public_evidence_refs": [
         "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/13",
@@ -519,7 +616,8 @@
         "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595722202",
         "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595722138",
         "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595721970",
-        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595721989"
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595721989",
+        "handoffs/DEV-PR-06.md"
       ],
       "acceptance_mapping": {
         "status": "REUSE_SCOPED_CONTRACT_RECEIPTS_NO_AGGREGATE_PASS",
@@ -530,12 +628,12 @@
       },
       "unresolved_limits": [
         "local005 cause remains UNKNOWN; local001–008 failure/incomplete history preserved.",
-        "Scoped final-head readiness remains subject to human merge, verified handoff and invalidation on changed head/base/owned interface/authority, new finding, superseding failed CI or evidence mismatch.",
-        "H0 acceptance is not silently rebound to the repair head.",
-        "No actual merge SHA or merge-SHA CI while PR13 is open.",
-        "Metadata refresh reuses prior artifact audit; no new full artifact audit by GOV-02."
+        "Postmerge source/evidence verification and private transfer readiness do not close the existing public archive actual-merge/readback gate; formal HANDOFF COMPLETE remains pending.",
+        "H0 acceptance, repair recommendation/delivery, final-head premerge acceptance and postmerge disposition remain separate; changed source/interface/authority, new findings, superseding failed CI or evidence mismatch require targeted renewed disposition.",
+        "At the old 2026-10-21 cutoff PR13 was open with no actual merge SHA. At 2026-10-22 readback the actual merge is verified but no actual merge-SHA CI was observed or dispatched; empty legacy pending is neither PASS nor observed test failure.",
+        "Referenced evidence/log hashes reused within scope; no new full artifact audit or product tests by this archival Developer."
       ],
-      "next_gate": "Human merge decision while scoped final-head acceptance remains valid, then actual main/CI provenance readback and verified handoff; no DEV07 implementation before these gates and its own appointment/freeze.",
+      "next_gate": "Public archive exact-head independent review, separate Controller acceptance, root publication, separate human merge approval, actual main merge and file readback before formal HANDOFF COMPLETE. No waiver. DEV07 then requires its own appointment/input/scope freeze and verified dependencies.",
       "evidence_detail": {
         "original_product_acceptance": {
           "head": "261195fa78f1243326119876a94b9f32219b4b26",
@@ -711,19 +809,34 @@
           "Phase0_DEV01_temporary_merge": "2fa9fac802d83e8e72bebf0da36212cfab7677e0",
           "temporary_merge_same_tree": true,
           "temporary_merge_is_actual_merge": false,
-          "actual_merge_sha": null,
-          "actual_merge_sha_ci": "NOT_APPLICABLE_PR_UNMERGED"
+          "actual_merge_sha": "3d5880885f1f99d05851ff9fa18d4b368106b121",
+          "actual_merge_sha_ci": "NOT_OBSERVED_NOT_DISPATCHED",
+          "actual_merge_observation": {
+            "runs": 0,
+            "checks": 0,
+            "legacy_statuses": 0,
+            "combined_status_label": "pending",
+            "interpretation": "No actual merge-SHA CI observed at readback. Empty legacy statuses produce pending; this is neither a tested PASS nor an observed test failure.",
+            "queries_all_events": true,
+            "pagination_verified": true,
+            "dispatch": "NOT_DISPATCHED_NO_AFFECTED_SCOPE_JUSTIFICATION"
+          },
+          "reuse": "No product/test/workflow or runtime interface change; exact approved disjoint composition; postmerge-ci-plan/2 instructs affected-scope reuse, no universal actual-merge CI rerun."
         },
         "audit_reuse": {
           "prior_checkout_logs": 12,
           "prior_artifact_zips": 11,
           "prior_source_archives": 10,
-          "fresh_work": "GLOBAL_METADATA_REFRESH_ONLY",
+          "fresh_work": "POSTMERGE_BOUNDED_REFERENCED_EVIDENCE_HASH_AND_ALL_12_CHECKOUT_LOG_HASH_VERIFICATION; NO_REPEAT_FULL_DOWNLOAD_AUDIT",
           "new_full_artifact_audit": "NOT_EXECUTED_BY_GOV02"
         },
         "failure_history": {
           "local001_to_008": "FAILURE_INCOMPLETE_HISTORY_PRESERVED",
-          "local005_cause": "UNKNOWN"
+          "local005_cause": "UNKNOWN",
+          "local001_004_006_008": "FAIL retained; later success does not erase raw failures",
+          "local005": "INCOMPLETE; cause UNKNOWN; no final receipt",
+          "H0_hosted_DEV05": "Both Python versions43tests:41OK/2errors; direct historical source guards rejected separately approvedDEV06 edits.",
+          "H0_hosted_DEV06": "Both cancelled at confirmed outer15min; archivedRUNNING/completed=false/isolationNOT_ESTABLISHED retained."
         },
         "fresh_controller_final_head_disposition": "ACCEPTED_SCOPED_PREMERGE",
         "closeout_decision": {
@@ -751,6 +864,49 @@
           ],
           "human_merge": "PENDING_HUMAN_DECISION_OPEN_UNMERGED",
           "handoff": "NOT_COMPLETE"
+        },
+        "historical_record_scope": "Original product acceptance, repair delivery and closeout_decision below retain their dated premerge decisions, including then-pending human merge/handoff. Current status is supplied by postmerge, not by rewriting those originals.",
+        "postmerge": {
+          "recorded_at": "2026-10-22T03:14:55.763879+00:00",
+          "source_sha256": "9cb02d559ca16241803bf674ad11c32c45983a2d67a6ea56499cb4aff4e8b789",
+          "source_visibility": "PRIVATE_ORIGINAL_CONTROLLER_VERIFIED_PUBLIC_DATE_DIGEST_NOT_PUBLIC_RECEIPT_LINK",
+          "status": "MERGED_POSTMERGE_SOURCE_VERIFIED_PRIVATE_TRANSFER_READY_PUBLIC_ARCHIVE_AND_FORMAL_HANDOFF_PENDING",
+          "controller_disposition": "ACCEPTED_SCOPED_POSTMERGE_SOURCE_AND_EVIDENCE_FORMAL_HANDOFF_PENDING",
+          "state_axes": {
+            "scoped_final_head_acceptance": "ACCEPTED_SCOPED_PREMERGE_PRESERVED",
+            "github_merge": "VERIFIED",
+            "actual_merged_source": "VERIFIED",
+            "existing_test_review_applicability": "VERIFIED_WITH_ORIGINAL_PROVENANCE",
+            "actual_merge_sha_ci": "NOT_OBSERVED_NOT_DISPATCHED",
+            "private_technical_handoff": "PRIVATE_TRANSFER_READY",
+            "public_versioned_archive": "PENDING_EXTERNAL_AUTHOR_REVIEW_OPEN_PR_SEPARATE_HUMAN_MERGE_AND_READBACK",
+            "successor": "NOT_STARTED_BY_THIS_CONTROLLER",
+            "whole_program_goal": "NOT_DECLARED_COMPLETE",
+            "formal_handoff": "PENDING_PUBLIC_ARCHIVE_ACTUAL_MERGE_AND_VERIFICATION"
+          },
+          "source_composition": "All370paths exact disjoint union:37 DEV06 paths + six separately reviewed GOV02 docs; no product/test/workflow drift from accepted DEV06 head.",
+          "formal_handoff_complete": false
+        },
+        "architectural_inheritance": {
+          "interfaces": "Inherit accepted DEV06 local offline application control and storage /2 visit-aware semantics, current authorization, owner epoch/control fence, reservation/outbox/inbox, budget/PAUSED/UNKNOWN and conservative project/shared-pool recovery. Four-file CI repair changes no public ports/DTO, persistence semantics or scientific guards.",
+          "format": "Old visitless /2 history is intentionally rejected, including old as-of/pool paths requiring complete ancestry. No weak reader, migration, format downgrade or liability clearing is supplied.",
+          "science": "Preserve TRH P0–P14, FDH D0–D5, immutable original target/D0, one logical Research MAIN; Context/Statement/Argument/Example/SourceEvidence/Assessment provenance and independent mathematical review. Software hashes/tests are neither human consent nor proof.",
+          "consumer_rule": "Root freezes each successor exact baseline, consumers, interfaces and affected acceptance IDs; unchanged evidence may be reused within scope. Changed interfaces/source assumptions require targeted checks/review."
+        },
+        "validation_counts": {
+          "original_H0": {
+            "total": 116,
+            "DEV06": 81,
+            "selected_DEV05": 35
+          },
+          "final_DEV06_suite": {
+            "total": 119,
+            "DEV06": 84,
+            "selected_DEV05": 35
+          },
+          "final_DEV05_suite": 43,
+          "overlap": 35,
+          "aggregate_acceptance": "NOT_EXECUTED_NO_ADDITIVE_COVERAGE_INFERENCE"
         }
       }
     },
@@ -814,13 +970,13 @@
       "unresolved_limits": [
         "Package roles, exact baseline, owned interfaces/files and detailed acceptance/test plan are NOT_FROZEN; authorization is not implementation."
       ],
-      "next_gate": "DEV06 scoped final-head acceptance is recorded; human DEV06 merge and verified handoff remain pending, followed by global appointment and exact DEV07 package freeze before implementation, with acceptance remaining valid.",
+      "next_gate": "DEV06 original merge/source readback verified; formal DEV06 public archive actual-merge/readback handoff remains pending. Then own global appointment, verified input and exact scope freeze before DEV07 implementation.",
       "preparation": {
-        "status": "GLOBAL_READ_ONLY_PREFLIGHT",
+        "status": "READ_ONLY_PREPARATION_COMPLETED_IMPLEMENTATION_NOT_STARTED",
         "scope": "Interface/consumer preparation only; private evidence",
         "product_start": false,
         "package_roles": "NOT_APPOINTED",
-        "implementation_dependency": "DEV06 scoped final-head acceptance recorded; human merge and verified handoff pending; DEV07 appointment/freeze still required. Changed head/base/owned interface/authority or superseding adverse evidence requires renewed disposition."
+        "implementation_dependency": "DEV06 original merge/source readback verified; formal DEV06 public archive actual-merge/readback handoff remains pending. Then own global appointment, verified input and exact scope freeze before DEV07 implementation."
       },
       "package_freeze": "NOT_FROZEN"
     },
@@ -884,7 +1040,13 @@
         "Package roles, exact baseline, owned interfaces/files and detailed acceptance/test plan are NOT_FROZEN; authorization is not implementation."
       ],
       "next_gate": "Verify mandatory predecessors and handoffs; global control appoints roles and freezes bounded package before implementation under existing grant.",
-      "package_freeze": "NOT_FROZEN"
+      "package_freeze": "NOT_FROZEN",
+      "preparation": {
+        "status": "READ_ONLY_PREPARATION_ONLY",
+        "source": "CONTROLLER_FROZEN_PUBLIC_FACTS_2026_10_22",
+        "product_start": false,
+        "implementation_pass": false
+      }
     },
     {
       "id": "DEV-PR-09",
@@ -1029,17 +1191,17 @@
       },
       "status": {
         "authorization": "AUTHORIZED_UNDER_PROGRAM_GRANT",
-        "implementation": "NOT_STARTED",
-        "testing": "NOT_EXECUTED",
-        "independent_review": "NOT_EXECUTED",
-        "main_acceptance": "NOT_YET_RECORDED",
-        "github_merge": "NOT_STARTED",
-        "handoff": "NOT_STARTED"
+        "implementation": "BOUNDED_IMPLEMENTATION_ACTIVE",
+        "testing": "NOT_ESTABLISHED_BY_THIS_PUBLIC_PACKET",
+        "independent_review": "FINAL_INDEPENDENT_REVIEW_NOT_RECORDED",
+        "main_acceptance": "OVERALL_CONTROLLER_ACCEPTANCE_NOT_RECORDED",
+        "github_merge": "NOT_MERGED",
+        "handoff": "NOT_COMPLETE"
       },
       "roles": {
-        "controller": "NOT_APPOINTED",
-        "developer": "NOT_APPOINTED",
-        "reviewer": "NOT_APPOINTED"
+        "controller": "BOUNDED_IMPLEMENTATION_REPORTED; APPOINTMENT_DETAILS_NOT_SUPPLIED_IN_PUBLIC_PACKET",
+        "developer": "BOUNDED_IMPLEMENTATION_REPORTED; APPOINTMENT_DETAILS_NOT_SUPPLIED_IN_PUBLIC_PACKET",
+        "reviewer": "FINAL_INDEPENDENT_REVIEW_NOT_RECORDED"
       },
       "authorization": {
         "source": "HUMAN-PROGRAM-GRANT-20261021",
@@ -1055,7 +1217,7 @@
         "head": null,
         "merge": null,
         "github_pr": null,
-        "evidence": "NOT_FROZEN"
+        "evidence": "BOUNDED_IMPLEMENTATION_REPORTED; EXACT_IMPLEMENTATION_BASE_HEAD_NOT_SUPPLIED_IN_PUBLIC_PACKET"
       },
       "public_evidence_refs": [
         "ROADMAP.md",
@@ -1070,10 +1232,11 @@
         ]
       },
       "unresolved_limits": [
-        "Package roles, exact baseline, owned interfaces/files and detailed acceptance/test plan are NOT_FROZEN; authorization is not implementation."
+        "Frozen Controller summary establishes bounded implementation only, not final review, overall acceptance, public merge or handoff. Exact implementation head, appointment/freeze details and test results are not supplied in this public packet.",
+        "Approved Research MAIN strategy/mapping v0.1.0 and applicable RMAIN-REQ plus K/O/S/GUIDE cases remain required; this archive does not invent detailed mappings or validate DEV11 implementation."
       ],
-      "next_gate": "Verify mandatory predecessors and handoffs; global control appoints roles and freezes bounded package before implementation under existing grant.",
-      "package_freeze": "NOT_FROZEN"
+      "next_gate": "Continue only existing bounded implementation; final integration follows existing ordering and GOV02/DEV06 public archive actual-merge/readback formal handoff gate. Final exact-head review, separate Controller acceptance and human merge remain required.",
+      "package_freeze": "BOUNDED_IMPLEMENTATION_ACTIVE; EXACT_FREEZE_DETAILS_NOT_SUPPLIED_IN_PUBLIC_PACKET"
     },
     {
       "id": "DEV-PR-12",
@@ -1201,7 +1364,13 @@
         "Package roles, exact baseline, owned interfaces/files and detailed acceptance/test plan are NOT_FROZEN; authorization is not implementation."
       ],
       "next_gate": "Verify mandatory predecessors and handoffs; global control appoints roles and freezes bounded package before implementation under existing grant.",
-      "package_freeze": "NOT_FROZEN"
+      "package_freeze": "NOT_FROZEN",
+      "preparation": {
+        "status": "READ_ONLY_PREPARATION_ONLY",
+        "source": "CONTROLLER_FROZEN_PUBLIC_FACTS_2026_10_22",
+        "product_start": false,
+        "implementation_pass": false
+      }
     },
     {
       "id": "DEV-PR-14",
@@ -1542,5 +1711,47 @@
     "validation": "Global control verified all 26 evidence digests, report and actual runtime; package Controller verified source decision digest.",
     "product_tests_rerun": false,
     "independent_review_rerun": false
+  },
+  "historical_source": {
+    "cutoff": "2026-10-21 13:30:58 UTC; decision supplement verified 2026-10-21T13:39:53.644980+00:00",
+    "immutable_head": "b2243e8d36e026788b64894dce599ac3becd0063",
+    "immutable_merge": "58817a8749d63f7c72c7452c2225f687372f6e9f",
+    "paths": [
+      "docs/development/PROJECT-STATE.md",
+      "docs/development/DEVELOPMENT-LEDGER.json"
+    ],
+    "qualification": "Original complete bytes remain in immutable Git objects and existing evidence; no full prior-ledger snapshot nested here. Old dated decisions are evidence, not current authorization."
+  },
+  "human_merge_decision": {
+    "date": "2026-10-22",
+    "id": "HUMAN-MERGE-PR14-PR13-20261022",
+    "source_sha256": "3a79c12ea4ee665c57034d42049ff5cfe6fc4ffe0de81a97ca28a03523ff8c97",
+    "order": [
+      14,
+      13
+    ],
+    "scope": "Only PR14/13 approved; archival PR and all other merges require separate approval. No waiver of existing public archive merge/readback gate.",
+    "source_visibility": "PRIVATE_ORIGINAL_CONTROLLER_VERIFIED_PUBLIC_ID_DATE_DIGEST_NOT_PUBLIC_LINK"
+  },
+  "public_archive": {
+    "stage": "LOCAL_CANDIDATE_PENDING_INDEPENDENT_REVIEW_CONTROLLER_ACCEPTANCE_ROOT_PUBLICATION_SEPARATE_HUMAN_MERGE_AND_READBACK",
+    "source_base": "3d5880885f1f99d05851ff9fa18d4b368106b121",
+    "source_tree": "ab23bb3637dc0d635f2673c75ca3dcbef5a1c86a",
+    "owned_paths": [
+      "docs/development/handoffs/GOV-02.md",
+      "docs/development/handoffs/DEV-PR-06.md",
+      "docs/development/PROJECT-STATE.md",
+      "docs/development/DEVELOPMENT-LEDGER.json"
+    ],
+    "formal_handoff_complete": false,
+    "gate": {
+      "source": "DEV06 premerge plan step6 and merge-readiness step6; root reverified original text",
+      "condition": "Public archive PR independently reviewed, separately accepted, user-approved merge into main and actual file readback before formal HANDOFF COMPLETE.",
+      "not_a_user_waiver": true,
+      "current_document_stage": "Candidate archive preparation only; no own future SHA/PR number or acceptance claim."
+    },
+    "developer_role": "SCRATCH_AUTHOR_ONLY_NOT_REVIEWER_OR_CONTROLLER",
+    "new_product_tests": "NOT_EXECUTED",
+    "new_independent_review": "NOT_EXECUTED"
   }
 }

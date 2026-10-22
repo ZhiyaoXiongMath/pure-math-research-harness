@@ -1,46 +1,110 @@
-# Latest reconciliation — GOV-02 frozen snapshot (2026-10-21)
+# Latest reconciliation — GOV-02 and DEV06 postmerge archive candidate (2026-10-22)
 
-**Observed main:** `4239f15ad1233cc89cd6556cec284951b5fc2e3e`, from global control's refreshed primary GitHub metadata at **2026-10-21 13:30:58 UTC**. This is the **GitHub metadata cutoff**, not the time of the later Controller decision. The original packet remains preserved. A separate decision supplement was verified at **2026-10-21T13:39:53.644980+00:00** and changes only DEV06's final-head Controller disposition. This isolated Developer used both frozen inputs and made no live GitHub query. This is a dated evidence index, not a live mirror, authorization token or mathematical authority. All older snapshots below, including headings saying “latest,” candidate labels and NOT_AUTHORIZED/archive-pending statements, describe their dated checkpoints.
+**Observed main:** `3d5880885f1f99d05851ff9fa18d4b368106b121`; tree `ab23bb3637dc0d635f2673c75ca3dcbef5a1c86a`.
+Controller primary readback: **2026-10-22T03:01:13.194831+00:00**; source-bound
+packet frozen **2026-10-22T03:16:15.271716+00:00**. PR14 then PR13 are verified merged.
+This isolated Developer made no live GitHub query. This dated snapshot is not a
+live mirror, authorization token or mathematical authority. **This public archive
+is a local candidate; its own review, acceptance, publication, separately authorized
+merge and readback are pending. Formal DEV06 HANDOFF COMPLETE is not declared.**
 
-[PROGRAM-CONTROL](PROGRAM-CONTROL.md) records **HUMAN-PROGRAM-GRANT-20261021**, effective immediately from the explicit human decision; GOV-02 review/merge records it rather than activating it. It covers GOV-02, DEV06 closeout, DEV07–14 bounded development and DEV18 integrated acceptance/release-candidate preparation. [DEVELOPMENT-LEDGER.json](DEVELOPMENT-LEDGER.json) separates authorization, implementation, tests, review, acceptance, merge and handoff for all 18 planning packages. Optional DEV15–17 decisions and formal release remain PENDING_HUMAN_DECISION. Global control persists across package handoffs; dependencies, appointments/freezes and human merge decisions remain mandatory.
+[PROGRAM-CONTROL](PROGRAM-CONTROL.md)'s **HUMAN-PROGRAM-GRANT-20261021** was
+effective on the human decision date, not GOV-02 merge. It covers GOV-02, DEV06
+closeout, DEV07–14 bounded development and DEV18 integrated acceptance/release-
+candidate preparation. [DEVELOPMENT-LEDGER.json](DEVELOPMENT-LEDGER.json) keeps
+all 18 package status axes and dependencies separate. Each PR merge, formal
+tag/Release and DEV15–17 reserved decision still needs the human.
 
-## Current facts and historical limitations
+## Current facts and reconciliation
 
 | Item | Frozen evidence and limits |
 |---|---|
-| DEV01–05 software | Merged as the older baseline records report. DEV01's separately retrievable MAIN acceptance remains unavailable despite its archived independent review and merge. No retroactive acceptance record is created. |
-| Historical archives | [PR12](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/12) is merged at observed main above (archive head `7adeb4e6b5e8c3662c0f67e406828a725a01fde0`), reconciling the older DEV05 archive-pending snapshot. Prior PR7/10 merges remain recorded below. Archive merge alone establishes neither missing historical review/acceptance nor HANDOFF COMPLETE. PR5's historical independent document review is **NOT_RETRIEVED**. |
-| Approved specification | Research MAIN strategy and 04/11/12 mapping v0.1.0 are effective specifications via [PR8 approval](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/8#issuecomment-6185982722), merged `f724c06b54b157abe580cdf046f4fc08bb01c144`. Historical candidate labels persist unchanged; specification approval itself never granted implementation. |
-| DEV06 current delivery | [PR13](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/13) is **OPEN / unmerged**, head `0a552d93fb2518fdc03697f21e560ec1db312999`, base equal to observed main. At the metadata cutoff, seven workflows / twelve jobs are green; exact runs follow. The later supplement reports no merge and does not refresh CI metadata. There is no actual merge SHA or merge-SHA CI for this unmerged PR. |
-| DEV06 original product decision | H0 `261195fa78f1243326119876a94b9f32219b4b26`: original Controller MAIN ACCEPTED only for the approved local/offline synthetic scope, validation009 **116/116** and **43 requirement items**. The PR13 public body indexes review/acceptance/evidence; original private sources remain private. |
-| DEV06 later repair | Final head changes four CI/guard files with product bytes unchanged. Independent recommendation **APPROVE_FOR_MAIN_ACCEPTANCE** (zero findings) and separate **ACCEPTED_FOR_AUTHORIZED_CI_REMEDIATION_DELIVERY** decision are bounded repair evidence, not the original product acceptance rebound to final head. Private independent review is distinct from native GitHub Review; delivery reported no native reviews. |
-| DEV06 closeout — later decision supplement | A separate new actual **gpt-6-astra/high** package Controller issued **ACCEPTED_SCOPED_PREMERGE / READY_FOR_USER_MERGE_DECISION** at **2026-10-21T13:36:35.874566+00:00**, for head `0a552d93fb2518fdc03697f21e560ec1db312999`, base `4239f15ad1233cc89cd6556cec284951b5fc2e3e` and tree `97f1bb72b20c5b55b7259b8ff7b596e1d43bb2f7`. Scope: approved local/offline synthetic DEV06 plus the separately tested and independently reviewed four-file CI repair. Human merge remains pending; **DEV06 HANDOFF COMPLETE is not declared.** |
-| DEV07–14 / DEV18 | AUTHORIZED_UNDER_PROGRAM_GRANT within the stated scope, but product packages remain NOT_STARTED / NOT_APPOINTED until appointed and frozen with dependencies verified. DEV07 global read-only preflight is preparation only; DEV06 scoped final-head acceptance is now recorded; implementation still awaits human DEV06 merge, verified handoff and package appointment/freeze, with that acceptance remaining valid. DEV18 formal release needs a separate decision. |
-| GOV-02 | Six-path documentation package only. Developer authors scratch outputs; independent final-commit review, separate Controller acceptance, PR/merge and post-merge handoff are not recorded here. No own future SHA or completion claim is embedded. |
+| GOV-02 | [PR14](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/14), reviewed head `b2243e8d36e026788b64894dce599ac3becd0063`, actual merge `58817a8749d63f7c72c7452c2225f687372f6e9f`, tree `0a7f7e817d19921b986c8174c9dab017afb1cd8e`. Fresh independent **APPROVE_FOR_MAIN_ACCEPTANCE**, zero findings; separate **MAIN_ACCEPTED_LOCAL_DOCUMENTATION_SCOPED**. Initial confinement/login-shell review remains **INCONCLUSIVE**. Verified private transfer released six shared paths; public archival completion is pending. See [GOV-02 handoff](handoffs/GOV-02.md). |
+| DEV06 | [PR13](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/13), final head `0a552d93fb2518fdc03697f21e560ec1db312999`, actual merge `3d5880885f1f99d05851ff9fa18d4b368106b121`, parents `58817a8749d63f7c72c7452c2225f687372f6e9f` and `0a552d93fb2518fdc03697f21e560ec1db312999`. All 370 paths match the exact disjoint 37-path DEV06 + six-document GOV-02 composition; no product/test/workflow drift. See [DEV06 handoff](handoffs/DEV-PR-06.md). |
+| DEV06 separate decisions | H0 `261195fa78f1243326119876a94b9f32219b4b26` had original **MAIN ACCEPTED**, validation009 **116/116**, **43 requirement items**, offline synthetic scope. The later four-file repair's independent recommendation and **ACCEPTED_FOR_AUTHORIZED_CI_REMEDIATION_DELIVERY** are separate. **DEV06-CLOSEOUT-20261021** subsequently issued **ACCEPTED_SCOPED_PREMERGE** for the final head at `2026-10-21T13:36:35.874566+00:00`. Postmerge **ACCEPTED_SCOPED_POSTMERGE_SOURCE_AND_EVIDENCE_FORMAL_HANDOFF_PENDING** at `2026-10-22T03:14:55.763879+00:00` records **PRIVATE_TRANSFER_READY**; no earlier decision is retroactively rebound. |
+| Human merge authorization | **HUMAN-MERGE-PR14-PR13-20261022** approved PR14 then PR13 only. No authorization for this archival merge or waiver of the public archive gate. Private original, Controller-verified SHA-256 `3a79c12ea4ee665c57034d42049ff5cfe6fc4ffe0de81a97ca28a03523ff8c97`, dated 2026-10-22. |
+| DEV01–05 historical evidence | Software merges remain as recorded below. DEV01's separately retrievable MAIN acceptance remains unavailable; PR5's historical independent document review remains **NOT_RETRIEVED**. No missing decision is recreated. |
+| DEV04/05 handoff reconciliation | Controller retrieved existing historical **HANDOFF COMPLETE** evidence for dependency use; DEV05 is bound to archive merge `4239f15ad1233cc89cd6556cec284951b5fc2e3e`. This is verification of existing decisions, not new acceptance or inference from archive merge alone. DEV05 PR CI passed; separate actual merged-main CI was not observed. Private originals, Controller-verified at this cutoff: DEV04 SHA-256 `3de2a8ac09137ea153f85d6cc290b6a9dbf0ba186892a49044a3652561e37350`; DEV05 `62ce7708be64a725ea3fe16a3fce8c4c8b44608f352e238f00c8ecb35dc83269`. Older archive-pending text below remains dated history. |
+| Approved specification | Research MAIN strategy and 04/11/12 mapping v0.1.0 are effective via [PR8 approval](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/8#issuecomment-6185982722), merge `f724c06b54b157abe580cdf046f4fc08bb01c144`. Earlier candidate labels remain historical; specification approval alone grants no implementation. |
+| DEV07 | Read-only preparation completed; implementation **NOT_STARTED**. Formal DEV06 public archive merge/readback handoff, own appointment/input/scope freeze and dependencies remain required. |
+| DEV11 | **Bounded implementation active**; no final independent review, overall Controller acceptance, public merge or handoff. Final integration follows the existing ordering. Exact implementation head/role details are not supplied in this public packet. |
+| Other future packages | DEV08/13 read-only preparation only; other future packages remain unimplemented. Authorization is not implementation or a PASS. DEV18 preparation does not authorize formal release. |
 
-**New decision provenance:** `DEV06-CLOSEOUT-20261021`, dated `2026-10-21T13:36:35.874566+00:00`, source SHA-256 `5f3447a007d233d92b2940557ac4958fd4257d624665faf0696f7b4bd0463cd4`. The original decision is **PRIVATE**, retained outside the public repository; this public ID/date/digest is Controller-attested provenance, not a public PR13 decision link. Global control verified all **26 evidence digests**, the report and actual runtime; the package Controller verified the source decision digest. No product tests or independent review were rerun. This new decision is separate from H0 product acceptance, the repair recommendation and bounded repair delivery decision; none is retroactively rebound. Readiness is invalidated by changed head/base/owned interface/authority, a new finding, superseding failed CI or evidence mismatch.
+The private premerge decision remains **DEV06-CLOSEOUT-20261021**, source
+SHA-256 `5f3447a007d233d92b2940557ac4958fd4257d624665faf0696f7b4bd0463cd4`; its earlier
+verification bound 26 evidence digests and actual runtime without rerunning
+product tests or independent review. The private postmerge disposition has
+SHA-256 `9cb02d559ca16241803bf674ad11c32c45983a2d67a6ea56499cb4aff4e8b789`. These Controller-verified
+digests/date labels are provenance, not public decision URLs. The handoffs index
+the other supplied private receipt digests without publishing private paths,
+thread identities, logs or conversation text.
 
-## DEV06 CI provenance — reused scoped evidence
+## CI provenance, retained failures and limits
 
-| Exact public run | Workflow | Jobs | Metadata at 13:30:58 UTC |
-|---|---|---|---|
-| [39595721914](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595721914) | PMRH Phase 0 safe offline checks | 1 | completed / success |
-| [39595721871](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595721871) | PMRH DEV-PR-01 AST and synthetic offline guard | 1 | completed / success |
-| [39595722065](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595722065) | PMRH DEV-PR-02 versioned contracts | 2 | completed / success |
-| [39595722202](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595722202) | PMRH DEV-PR-04 pure domain extraction | 2 | completed / success |
-| [39595722138](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595722138) | PMRH DEV-PR-03 confined read-only queries | 2 | completed / success |
-| [39595721970](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595721970) | PMRH DEV-PR-05 bounded disk storage | 2 | completed / success |
-| [39595721989](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595721989) | PMRH DEV-PR-06 synthetic control admission | 2 | completed / success |
+GOV-02: six PR workflows / ten jobs succeeded; eight checked its reviewed head,
+two checked temporary merge `8fc8fb59d91f0c06d7d2efafd17236988542cd9e`
+with the same tree. No actual PR14 merge-SHA runs were observed. Exact public
+links are in the [GOV-02 handoff](handoffs/GOV-02.md).
 
-DEV02–06 checkout the exact PR head `0a552d93fb2518fdc03697f21e560ec1db312999`. Phase0/DEV01 use temporary PR merge `2fa9fac802d83e8e72bebf0da36212cfab7677e0`, with the same tree; it is **not an actual merge**. Run metadata alone is not checkout proof. The original delivery audited **12 checkout logs, 11 artifact ZIPs and 10 source archives**. Global control refreshed current metadata and reused that prior audit; neither this refresh nor this documentation authoring is a new full artifact audit.
+DEV06: seven PR workflows / twelve jobs succeeded; ten checked final head
+`0a552d93fb2518fdc03697f21e560ec1db312999`, Phase0/DEV01 checked temporary merge
+`2fa9fac802d83e8e72bebf0da36212cfab7677e0` with that head's tree. The
+[DEV06 handoff](handoffs/DEV-PR-06.md) preserves all seven exact public run links,
+checkout provenance and scope. Neither temporary merge is an actual merge.
+Prior audit covered 12 checkout logs, 11 ZIP digests and 10 source archives;
+postmerge reuse verified referenced evidence hashes and all 12 log hashes,
+without a new full download/audit. Actual PR13 merge-SHA readback found zero
+runs/check-runs/legacy statuses across all events with pagination verified.
+Empty combined **pending** is neither tested PASS nor an observed test failure;
+no CI was dispatched. Unchanged source/interface assumptions support bounded
+reuse under postmerge-ci-plan/2, retaining original PR-triggered provenance.
 
-Supplied local full-suite evidence reports DEV05 **43/43** and DEV06 **119/119**, with **35 overlapping methods**; do not add these as independent coverage or equate them to H0 validation009's 116/116. Original local001–008 failures/incomplete history remains; **local005 cause is UNKNOWN**. Later success does not repair historical provenance. Inherited REV02-HELPER-01 stays accepted nonblocking **INCONCLUSIVE / NOT_EXECUTED**, never sole integrity or merge authority.
+Local DEV05 **43/43** and DEV06-suite **119/119** include **35 overlapping methods**
+(119 = 84 + 35; H0's 116 = 81 + 35); counts do not imply additional acceptance
+coverage. Local001–004/006–008 remain **FAIL**; local005 remains **INCOMPLETE**,
+no final receipt, cause **UNKNOWN**. H0 hosted DEV05 retained 41 OK / 2 errors
+out of 43 on both versions; H0 hosted DEV06 retained outer 15-minute cancellation,
+**RUNNING / completed=false / isolation NOT_ESTABLISHED**. GOV-02's initial
+review remains **INCONCLUSIVE** despite the fresh successful same-ACL non-login
+review. REV02-HELPER-01 stays accepted nonblocking **INCONCLUSIVE / NOT_EXECUTED**,
+never sole integrity or merge authority.
 
-## Unchanged boundaries and next gates
+## Inherited boundaries and remaining gates
 
-Preserve original target/D0, TRH/FDH responsibilities, six immutable scientific records, exact source/proof qualification and independent review, dependency-scoped invalidation, one logical Research MAIN, budgets, PAUSED/UNKNOWN, no blind retry and raw invocation/capture evidence. Development management supplies no scientific/model authority. Original **58+46 definitions are unchanged**: full product aggregate, real backend transport, production, research and migration remain **NOT_EXECUTED**. Management inference is **NOT_MEASURED**, not measured zero. No product tests were rerun by this documentation Developer.
+Inherit DEV06 local synthetic control and visit-aware /2, current authority,
+epoch/fence, reservation/outbox/inbox, budgets, PAUSED/UNKNOWN and conservative
+project/shared-pool recovery. Old visitless /2 is intentionally rejected even
+for old as-of/full-ancestry paths; no weak reader, migration, downgrade or liability
+clearing is supplied. No universal crash/filesystem guarantee follows. Preserve
+TRH/FDH, immutable original target/D0, all six native scientific records, exact
+source/proof qualification, independent review, dependency-scoped invalidation,
+one logical Research MAIN and raw invocation/capture evidence. No hash, JSON,
+software test or management decision supplies consent or proof.
 
-GOV-02's next gate is Controller inspection/copy followed by fresh independent review of the committed full delta and frozen inputs, separate MAIN disposition and human merge. DEV06 now awaits the human merge decision, then actual main/CI-provenance readback and verified handoff under its separately recorded scoped final-head acceptance; neither package can claim the other's acceptance. Recheck real main on each authorized merge, record CI source provenance and verify handoff before successors. Public evidence uses existing repository records and supplied public links; private packets, runtime IDs, paths and logs remain private. Revert only through reviewed, authorized software/documentation change; never rewrite evidence or clear PAUSED/UNKNOWN.
+Original **58+46 definitions remain unchanged**, full aggregate **NOT_EXECUTED**;
+no blanket PASS. Full legacy/native/provider/browser/PDF/doctor, real backend,
+unselected stress, production, research and migration remain unexecuted or outside
+authorization as qualified in the handoffs. Management inference is **NOT_MEASURED**.
+This Developer ran static documentation checks only, with no product tests.
+
+The existing DEV06 closeout/merge-readiness step 6 requires the public archive's
+independent exact-head review, separate Controller acceptance, root publication,
+separate human merge approval, actual merge into main and file readback **before
+formal HANDOFF COMPLETE**. **No human waiver exists.** Verified original merges
+and private transfer readiness are distinct. DEV07 start and DEV11 final
+integration follow this gate and existing ordering, with their own dependencies,
+appointments and scope freezes. Global control remains the architecture arbiter;
+this Developer is neither Reviewer nor Controller and starts no successor.
+Rollback requires reviewed, authorized change, preserving history/evidence,
+compatible readers and PAUSED/UNKNOWN; no research recovery or budget increase.
+
+**Historical source/cutoff:** the replaced 2026-10-21 current section and original
+ledger remain in immutable [PR14 head](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/tree/b2243e8d36e026788b64894dce599ac3becd0063)
+and merge `58817a8749d63f7c72c7452c2225f687372f6e9f` (also the supplied main baseline). That section's
+GitHub cutoff was 2026-10-21 13:30:58 UTC, with a separate decision supplement
+verified at 13:39:53.644980 UTC. The preexisting historical suffix below is retained
+byte-for-byte; old “latest,” candidate, OPEN and NOT_AUTHORIZED labels describe
+their dated checkpoints. No whole-file duplicate or retroactive repair is added.
 
 ## Historical content — original bytes retained below
 
