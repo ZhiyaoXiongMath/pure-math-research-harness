@@ -384,10 +384,18 @@ def run(root: Path, policy: dict) -> dict:
                      set(control.get('changed_paths', ())) == control_scope.PATHS)
     if control_valid:
         permitted |= control_scope.PATHS
+    # Old synthetic graphs need no successor policy; real DEV11 sources do.
+    fast_sources = fastmath_scope.PATHS - (set(fastmath_scope.SYMBOLS) | fastmath_scope.WHOLE)
+    fast_required = ('devpr11_fastmath_bridge' in policy or
+        bool(set(source_nodes) & fast_sources) or
+        any(p.startswith(('pmrh/domain/fastmath/', 'tests/devpr11/')) for p in source_nodes))
     fast = policy.get('devpr11_fastmath_bridge', {})
-    fast_valid = (fast.get('baseline') == fastmath_scope.PARENT and
-        set(fast.get('changed_paths', ())) == set(fastmath_scope.SYMBOLS) | fastmath_scope.WHOLE and
-        {(r.get('source'),r.get('target')) for r in fast.get('direct_edges', ())} == fastmath_scope.EDGES)
+    try:
+        fast_valid = (isinstance(fast, dict) and fast.get('baseline') == fastmath_scope.PARENT and
+            set(fast.get('changed_paths', ())) == set(fastmath_scope.SYMBOLS) | fastmath_scope.WHOLE and
+            {(r.get('source'),r.get('target')) for r in fast.get('direct_edges', ())} == fastmath_scope.EDGES)
+    except (AttributeError, TypeError):
+        fast_valid = False
     if fast_valid:
         permitted |= set(fastmath_scope.SYMBOLS) | fastmath_scope.WHOLE
     inventory, discrepancies = manifest_sources(root, permitted)
@@ -433,7 +441,7 @@ def run(root: Path, policy: dict) -> dict:
         except (ValueError,OSError) as exc:
             violations.append({'reason':'invalid_devpr11_stage','detail':str(exc)})
         bridge_edges |= fastmath_scope.EDGES
-    else:
+    elif fast_required:
         violations.append({'reason':'invalid_devpr11_exact_scope'})
     violation_keys = set()
     for filename in source_nodes:

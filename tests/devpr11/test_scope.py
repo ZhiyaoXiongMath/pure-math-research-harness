@@ -14,6 +14,75 @@ ROOT=Path(__file__).resolve().parents[2]
 
 
 class ScopeTests(unittest.TestCase):
+    def test_source35_synthetic_graph_applicability_and_dependency_denial(self):
+        from scripts import architecture_deps as D
+        policy={'legacy_baseline_commit':'e4de0210f9985224e030ac4cfd2f7e2904005b37',
+                'legacy_owners':{}}
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            for relative,raw in (
+                    ('docs/reference/PMRS-Next_Phase1/source-inventory.json','{"modules":[]}'),
+                    ('pmrh/domain/rules.py','VALUE = 1\n'),
+                    ('pmrh/ports/spec.py','from pmrh.domain.rules import VALUE\n')):
+                path=root/relative;path.parent.mkdir(parents=True,exist_ok=True);path.write_text(raw)
+            self.assertEqual(D.run(root,policy)['architecture_violations'],[])
+            bridge=json.loads((ROOT/'config/architecture-exceptions.json').read_bytes())['devpr11_fastmath_bridge']
+            malformed_paths=dict(bridge,changed_paths=[[]])
+            malformed_edges=dict(bridge,direct_edges=[None])
+            for declared in ({},None,[],False,'invalid',malformed_paths,malformed_edges):
+                with self.subTest(declared=declared):
+                    report=D.run(root,dict(policy,devpr11_fastmath_bridge=declared))
+                    self.assertEqual(report['architecture_violations'],[{'reason':'invalid_devpr11_exact_scope'}])
+            # Even a valid declaration must verify actual complete source and oracle.
+            report=D.run(root,dict(policy,devpr11_fastmath_bridge=bridge))
+            self.assertIn('invalid_devpr11_stage',{v['reason'] for v in report['architecture_violations']})
+            path=root/'pmrh/adapters/disk.py';path.parent.mkdir(parents=True);path.write_text('VALUE = 1\n')
+            (root/'pmrh/domain/rules.py').write_text('import pmrh.adapters.disk\n')
+            report=D.run(root,policy);reasons={v['reason'] for v in report['architecture_violations']}
+            self.assertIn('forbidden_new_layer_direction',reasons)
+            self.assertNotIn('invalid_devpr11_exact_scope',reasons)
+
+    def test_source35_fast_source_presence_requires_policy(self):
+        from scripts import architecture_deps as D
+        policy={'legacy_baseline_commit':'e4de0210f9985224e030ac4cfd2f7e2904005b37',
+                'legacy_owners':{}}
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);inventory=root/'docs/reference/PMRS-Next_Phase1/source-inventory.json'
+            inventory.parent.mkdir(parents=True);inventory.write_text('{"modules":[]}')
+            for relative in ('pmrh/domain/fastmath/model.py','pmrh/domain/fastmath/unlisted.py',
+                    'pmrh/domain/native_response.py','pmrh/domain/native_settlement.py',
+                    'pmrh/adapters/storage/fastmath.py','pmrh/adapters/storage/control_fast.py',
+                    'pmrh/application/fastmath.py','scripts/fastmath_scope.py','tests/devpr11/unlisted.py'):
+                with self.subTest(source=relative):
+                    path=root/relative;path.parent.mkdir(parents=True,exist_ok=True);path.write_text('VALUE = 1\n')
+                    for supplied in (policy,dict(policy,devpr11_fastmath_bridge={}),
+                                     dict(policy,devpr11_fastmath_bridge=None)):
+                        report=D.run(root,supplied)
+                        self.assertEqual(report['architecture_violations'],[{'reason':'invalid_devpr11_exact_scope'}])
+                    path.unlink()
+
+    def test_source35_real_repository_policy_and_tampering_fail_closed(self):
+        from scripts import architecture_deps as D
+        policy=json.loads((ROOT/'config/architecture-exceptions.json').read_bytes())
+        self.assertEqual(D.run(ROOT,policy)['architecture_violations'],[])
+        missing=deepcopy(policy);del missing['devpr11_fastmath_bridge']
+        report=D.run(ROOT,missing)
+        self.assertIn('invalid_devpr11_exact_scope',{v['reason'] for v in report['architecture_violations']})
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);data=self.oracle_root(root)
+            for relative in set(data['baseline_file_sha256'])|G.PATHS:
+                path=root/relative;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes((ROOT/relative).read_bytes())
+            path=root/'pmrh/domain/contracts.py';original=path.read_bytes()
+            altered=original.replace(b'pmrs.response/4.2.2',b'pmrs.response/forged',1)
+            self.assertNotEqual(altered,original);path.write_bytes(altered)
+            report=D.run(root,policy)
+            self.assertIn('invalid_devpr11_stage',{v['reason'] for v in report['architecture_violations']})
+            path.write_bytes(original)
+            path=root/'pmrh/domain/fastmath/model.py';path.write_bytes(path.read_bytes()+b'\nimport socket\n')
+            report=D.run(root,policy)
+            self.assertTrue(any(v['reason']=='prohibited_capability_import' and
+                v.get('source')=='pmrh/domain/fastmath/model.py' for v in report['architecture_violations']))
+
     def test_source32_exact_symbol_uniqueness_rejects_shadow_bindings(self):
         data=G.oracle(ROOT);path='pmrh/domain/contracts.py'
         original=base64.b64decode(data['files'][path]['bytes_base64']);current=(ROOT/path).read_bytes()

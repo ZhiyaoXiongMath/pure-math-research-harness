@@ -20,6 +20,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
+          persist-credentials: false
       - name: Root-pinned implementation parent
         run: |
           mkdir "$RUNNER_TEMP/dev11-parent"
@@ -32,8 +33,43 @@ jobs:
           python3 -B scripts/fastmath_scope.py
           python3 -B scripts/check_legacy_scope.py
           python3 -B scripts/architecture_deps.py --check --json "$RUNNER_TEMP/dev11-architecture.json" --markdown "$RUNNER_TEMP/dev11-architecture.md"
+      - name: Install OS isolation tool on ephemeral hosted Linux
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$RUNNER_OS" = Linux
+          sudo apt-get update && sudo apt-get install -y bubblewrap
+      - name: Configure ephemeral hosted runner for unprivileged namespaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$RUNNER_OS" = Linux
+          mkdir -p "$RUNNER_TEMP/pmrh-devpr11"
+          # Ubuntu's AppArmor userns restriction can deny bwrap loopback setup.
+          # Change only this ephemeral job's host setting, never the confinement.
+          if test -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns; then
+            cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns > "$RUNNER_TEMP/pmrh-devpr11/apparmor-userns-original.txt"
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 | tee "$RUNNER_TEMP/pmrh-devpr11/namespace-setup.log"
+            test "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns)" = 0
+          else
+            echo 'AppArmor userns restriction sysctl absent; no adjustment applied.' > "$RUNNER_TEMP/pmrh-devpr11/namespace-setup.log"
+          fi
       - name: Confined synthetic suite; no fallback
         run: python3 -B scripts/offline_fastmath.py --oracle "$RUNNER_TEMP/dev11-parent" --out "$RUNNER_TEMP/dev11-results"
+      - name: Restore hosted runner namespace setting
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if test -f "$RUNNER_TEMP/pmrh-devpr11/apparmor-userns-original.txt"; then
+            test "$RUNNER_ENVIRONMENT" = github-hosted
+            test "$RUNNER_OS" = Linux
+            DEV11_USERNS_ORIGINAL="$(cat "$RUNNER_TEMP/pmrh-devpr11/apparmor-userns-original.txt")"
+            case "$DEV11_USERNS_ORIGINAL" in 0|1) ;; *) exit 1 ;; esac
+            sudo sysctl -w "kernel.apparmor_restrict_unprivileged_userns=$DEV11_USERNS_ORIGINAL" | tee "$RUNNER_TEMP/pmrh-devpr11/namespace-restore.log"
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -43,3 +79,4 @@ jobs:
             ${{ runner.temp }}/dev11-results
             ${{ runner.temp }}/dev11-architecture.json
             ${{ runner.temp }}/dev11-architecture.md
+            ${{ runner.temp }}/pmrh-devpr11/
