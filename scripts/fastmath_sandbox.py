@@ -87,7 +87,7 @@ def run_suite(suite):
 def main():
     parser=argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument('--host-net');parser.add_argument('--probe-only',action='store_true');parser.add_argument('--reopen')
-    parser.add_argument('--suite',choices=('default','source04-affected','source07-affected','source09-affected','source10-affected','source11-affected','source11-query','source12-permission','source13-core','source13-business','source16-small','source17-affected','source18-affected','source19-capacity','source20-final-remaining','source21-affected','p01-large','p01-256','p01-256-plus-one','fm13-pilot','fm13-native-pilot'),default='default')
+    parser.add_argument('--suite',choices=('default','ci-core','ci-storage','source04-affected','source07-affected','source09-affected','source10-affected','source11-affected','source11-query','source12-permission','source13-core','source13-business','source16-small','source17-affected','source18-affected','source19-capacity','source20-final-remaining','source21-affected','p01-large','p01-256','p01-256-plus-one','fm13-pilot','fm13-native-pilot'),default='default')
     args=parser.parse_args()
     if args.reopen:
         path=Path(args.reopen)
@@ -248,6 +248,20 @@ def main():
         from tests.devpr11.test_retrieval import p01_256_mib_case,p01_256_mib_plus_one_case
         selected=p01_256_mib_case if args.suite=='p01-256' else p01_256_mib_plus_one_case
         suite=unittest.TestSuite([unittest.FunctionTestCase(selected)])
+    elif args.suite in ('ci-core','ci-storage'):
+        from scripts.offline_fastmath import ci_partition_ids
+        discovered=unittest.defaultTestLoader.discover('/source/tests/devpr11',pattern='test_*.py',top_level_dir='/source')
+        pending=[discovered];full=[]
+        while pending:
+            item=pending.pop()
+            if isinstance(item,unittest.TestSuite):pending.extend(reversed(list(item)))
+            else:full.append(item)
+        partition=ci_partition_ids([item.id() for item in full],args.suite)
+        print('DEV11_FULL_DISCOVERED_TEST_IDS '+json.dumps(partition['full']),flush=True)
+        print('DEV11_SELECTED_TEST_IDS '+json.dumps(partition['selected']),flush=True)
+        print('DEV11_COMPLEMENT_TEST_IDS '+json.dumps(partition['complement']),flush=True)
+        selected=set(partition['selected'])
+        suite=unittest.TestSuite(item for item in full if item.id() in selected)
     else:
         suite=unittest.defaultTestLoader.discover('/source/tests/devpr11',pattern='test_*.py',top_level_dir='/source')
     return run_suite(suite)

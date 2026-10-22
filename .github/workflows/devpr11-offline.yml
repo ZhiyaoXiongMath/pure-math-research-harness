@@ -15,6 +15,11 @@ jobs:
   scoped:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        suite: [ci-core, ci-storage]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -57,7 +62,7 @@ jobs:
             echo 'AppArmor userns restriction sysctl absent; no adjustment applied.' > "$RUNNER_TEMP/pmrh-devpr11/namespace-setup.log"
           fi
       - name: Confined synthetic suite; no fallback
-        run: python3 -B scripts/offline_fastmath.py --oracle "$RUNNER_TEMP/dev11-parent" --out "$RUNNER_TEMP/dev11-results"
+        run: python3 -B scripts/offline_fastmath.py --oracle "$RUNNER_TEMP/dev11-parent" --out "$RUNNER_TEMP/dev11-results" --suite "${{ matrix.suite }}"
       - name: Restore hosted runner namespace setting
         if: always()
         shell: bash
@@ -73,7 +78,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: dev11-scoped-evidence
+          name: dev11-scoped-evidence-${{ matrix.suite }}
           if-no-files-found: error
           path: |
             ${{ runner.temp }}/dev11-results

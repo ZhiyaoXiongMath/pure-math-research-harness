@@ -19,6 +19,25 @@ import sys
 SUITE_TIMEOUT_SECONDS = 1800
 
 
+def ci_partition_ids(full_ids, selector):
+    """Two complete, ordered partitions; identities never authorize test reuse."""
+    if selector not in ('ci-core', 'ci-storage'):
+        raise ValueError('Unknown closed CI partition')
+    if (type(full_ids) is not list or not full_ids or
+            any(type(name) is not str or not name.startswith('tests.devpr11.') for name in full_ids) or
+            len(full_ids) != len(set(full_ids))):
+        raise ValueError('Empty, invalid or duplicate CI discovery identity')
+    storage = [name for name in full_ids if name.startswith('tests.devpr11.test_storage.')]
+    core = [name for name in full_ids if not name.startswith('tests.devpr11.test_storage.')]
+    selected, complement = (core, storage) if selector == 'ci-core' else (storage, core)
+    if (not selected or not complement or len(selected) != len(set(selected)) or
+            len(complement) != len(set(complement)) or set(selected) & set(complement) or
+            set(selected) | set(complement) != set(full_ids) or
+            len(selected) + len(complement) != len(full_ids)):
+        raise ValueError('Missing or invalid complete CI partition')
+    return {'full': list(full_ids), 'selected': selected, 'complement': complement}
+
+
 class Interrupted(Exception):
     def __init__(self, signum):
         self.signum = signum
@@ -122,7 +141,9 @@ def run_logged(command, out, receipt, *, timeout=SUITE_TIMEOUT_SECONDS, environm
         markers = {}
         try:
             for line in (out/'stdout.log').read_text(errors='replace').splitlines():
-                for prefix in ('DEV11_PROBES ', 'DEV11_RESULT ', 'DEV11_TEST_IDS '):
+                for prefix in ('DEV11_PROBES ', 'DEV11_RESULT ', 'DEV11_TEST_IDS ',
+                               'DEV11_FULL_DISCOVERED_TEST_IDS ', 'DEV11_SELECTED_TEST_IDS ',
+                               'DEV11_COMPLEMENT_TEST_IDS '):
                     if line.startswith(prefix):markers[prefix.strip()] = json.loads(line[len(prefix):])
             if 'DEV11_PROBES' in markers:
                 receipt.update(probes=markers['DEV11_PROBES'], isolation='VERIFIED')
@@ -130,6 +151,15 @@ def run_logged(command, out, receipt, *, timeout=SUITE_TIMEOUT_SECONDS, environm
             receipt['suite_result'] = result or None
             receipt['test_ids'] = markers.get('DEV11_TEST_IDS', [])
             complete = (result.get('tests', 0)>0 and result.get('tests') == result.get('discovered') == len(receipt['test_ids']))
+            if receipt.get('suite_selection') in ('ci-core', 'ci-storage'):
+                receipt['ci_partition'] = {
+                    'full': markers.get('DEV11_FULL_DISCOVERED_TEST_IDS'),
+                    'selected': markers.get('DEV11_SELECTED_TEST_IDS'),
+                    'complement': markers.get('DEV11_COMPLEMENT_TEST_IDS')}
+                if caught is None:
+                    expected = ci_partition_ids(receipt['ci_partition']['full'], receipt['suite_selection'])
+                    if receipt['ci_partition'] != expected or receipt['test_ids'] != expected['selected']:
+                        raise ValueError('CI partition evidence does not match executed identities')
             if caught is None:
                 receipt['status'] = ('PASS' if receipt.get('exit_code')==0 and receipt.get('isolation')=='VERIFIED' and complete and
                     result.get('status')=='PASS' and all(result.get(k)==0 for k in ('failures','errors','skipped','expected_failures')) else
@@ -147,7 +177,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--oracle', type=Path, required=True)
-    parser.add_argument('--suite',choices=('default','source04-affected','source07-affected','source09-affected','source10-affected','source11-affected','source11-query','source12-permission','source13-core','source13-business','source16-small','source17-affected','source18-affected','source19-capacity','source20-final-remaining','source21-affected','p01-large','p01-256','p01-256-plus-one','fm13-pilot','fm13-native-pilot'),default='default')
+    parser.add_argument('--suite',choices=('default','ci-core','ci-storage','source04-affected','source07-affected','source09-affected','source10-affected','source11-affected','source11-query','source12-permission','source13-core','source13-business','source16-small','source17-affected','source18-affected','source19-capacity','source20-final-remaining','source21-affected','p01-large','p01-256','p01-256-plus-one','fm13-pilot','fm13-native-pilot'),default='default')
     args = parser.parse_args()
     source = Path(__file__).resolve().parents[1]
     oracle = args.oracle.resolve()
@@ -180,7 +210,7 @@ def main():
 
 
 def launch(source, oracle, out, receipt, *, suite='default'):
-    if suite not in {'default','source04-affected','source07-affected','source09-affected','source10-affected','source11-affected','source11-query','source12-permission','source13-core','source13-business','source16-small','source17-affected','source18-affected','source19-capacity','source20-final-remaining','source21-affected','p01-large','p01-256','p01-256-plus-one','fm13-pilot','fm13-native-pilot'}:raise ValueError('Unknown closed suite selector')
+    if suite not in {'default','ci-core','ci-storage','source04-affected','source07-affected','source09-affected','source10-affected','source11-affected','source11-query','source12-permission','source13-core','source13-business','source16-small','source17-affected','source18-affected','source19-capacity','source20-final-remaining','source21-affected','p01-large','p01-256','p01-256-plus-one','fm13-pilot','fm13-native-pilot'}:raise ValueError('Unknown closed suite selector')
     receipt['suite_selection']=suite
     for label, tree in (('source', source), ('oracle', oracle)):
         for path in sorted(tree.rglob('*')):

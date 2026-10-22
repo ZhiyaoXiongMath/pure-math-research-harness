@@ -14,6 +14,42 @@ ROOT=Path(__file__).resolve().parents[2]
 
 
 class ScopeTests(unittest.TestCase):
+    def test_source36_ci_partition_complete_disjoint_ordered_pair(self):
+        from scripts.offline_fastmath import ci_partition_ids
+        first='tests.devpr11.test_storage.StorageTests.test_first'
+        middle='tests.devpr11.test_domain.DomainTests.test_middle'
+        last='tests.devpr11.test_storage.StorageTests.test_last'
+        harness='tests.devpr11.test_scope.ScopeTests.test_new_harness'
+        full=[first,middle,last,harness];original=list(full)
+        core=ci_partition_ids(full,'ci-core');storage=ci_partition_ids(full,'ci-storage')
+        self.assertEqual(full,original)
+        self.assertEqual(core,{'full':full,'selected':[middle,harness],'complement':[first,last]})
+        self.assertEqual(storage,{'full':full,'selected':[first,last],'complement':[middle,harness]})
+        self.assertEqual(core['full'],storage['full'])
+        self.assertFalse(set(core['selected']) & set(storage['selected']))
+        self.assertEqual(set(core['selected']) | set(storage['selected']),set(full))
+        self.assertEqual(len(core['selected'])+len(storage['selected']),len(full))
+
+    def test_source36_ci_partition_rejects_unknown_duplicate_and_missing(self):
+        from scripts.offline_fastmath import ci_partition_ids
+        core='tests.devpr11.test_scope.ScopeTests.test_core'
+        storage='tests.devpr11.test_storage.StorageTests.test_storage'
+        for selector in ('default','ci','ci-all','ci-core-extra','',None):
+            with self.subTest(selector=selector):
+                with self.assertRaisesRegex(ValueError,'Unknown closed CI partition'):
+                    ci_partition_ids([core,storage],selector)
+        for invalid in (None,[],[core,storage,core],[storage,core,storage],
+                        [core,''],[core,None],[core,'unittest.loader._FailedTest.test_missing']):
+            for selector in ('ci-core','ci-storage'):
+                with self.subTest(full=invalid,selector=selector):
+                    with self.assertRaisesRegex(ValueError,'CI discovery identity'):
+                        ci_partition_ids(invalid,selector)
+        for missing in ([core],[storage]):
+            for selector in ('ci-core','ci-storage'):
+                with self.subTest(full=missing,selector=selector):
+                    with self.assertRaisesRegex(ValueError,'Missing or invalid complete CI partition'):
+                        ci_partition_ids(missing,selector)
+
     def test_source35_synthetic_graph_applicability_and_dependency_denial(self):
         from scripts import architecture_deps as D
         policy={'legacy_baseline_commit':'e4de0210f9985224e030ac4cfd2f7e2904005b37',
