@@ -12,6 +12,17 @@ from .util import now, read, canonical, sha, loads, require, safe_path, immutabl
 class Store(LegacyWriters, Journal):
     _other_control_maps = SURVEY_MAPS | ASSISTANT_MAPS
 
+    def commit(self, validated, expected_relevant_guards=None, *, admission_recheck=None):
+        """Route control-profile captures through the single admission gate."""
+        if self.history()[-1][1]['schema'] == 'pmrh.commit/2':
+            from pmrh.adapters.storage.control import exact
+            task = getattr(validated, '_task', None)
+            require(type(task) is dict and getattr(validated, '_raw', None) is not None and admission_recheck is None,
+                    'UNSUPPORTED_CAPABILITY', 'Control profile admits only original frozen request captures')
+            capture = exact(self, self._marker()['project_id'], 'capture:'+task['request_id'], validated._raw, raw=True)
+            return self._control_native('SCIENCE_ADMITTED', {'request_id':task['request_id'], 'capture_ref':capture})
+        return super().commit(validated, expected_relevant_guards, admission_recheck=admission_recheck)
+
     def _publish(self, previous, before, after, *, actor, events, base=None, accepted=None):
         return super()._publish(previous, before, after, actor=actor, events=events,
                                 base=base, accepted=accepted, at=now(),

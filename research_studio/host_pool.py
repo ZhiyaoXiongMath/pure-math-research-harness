@@ -75,6 +75,7 @@ def _clean(data,snapshots=None,roots=None):
 from pmrh.adapters.storage.pool_read import _view as _view
 
 def update_demand(store,demand,project_limit=None,*,demands=None):
+    store._control_guard('LegacyRuntime')
     s=store.read_snapshot();project=project_key(store);require(type(demand) is int and demand>=0,'RESOURCE_LIMIT','Nonnegative ready demand required.')
     with ledger('model-pool') as data:
         _clean(data,{project:s},{project:str(store.root)})
@@ -83,11 +84,17 @@ def update_demand(store,demand,project_limit=None,*,demands=None):
             data['demands'][instance_key(project,iid)]={'project':project,'instance_id':iid,'root':str(store.root),'pid':os.getpid(),'start':process_start(os.getpid()),'demand':min(cap,max(pending,(demands or {}).get(iid,pending))),'limit':cap,'auto':False}
         return _view(data)
 def clear_demand(store):
+    store._control_guard('LegacyRuntime')
     with ledger('model-pool') as data:
         _clean(data)
         for key,row in list(data['demands'].items()):
             if row['project']==project_key(store):data['demands'].pop(key)
 def acquire(store,request_id):
+    if store.history()[-1][1]['schema']=='pmrh.commit/2':
+        service=getattr(store,'_control_service',None)
+        require(service is not None,'AUTHORIZATION_REQUIRED','Current synthetic resource context required')
+        return service.acquire_slot(request_id)
+    store._control_guard('LegacyRuntime')
     s=store.read_snapshot();r=s['requests'][request_id]
     if not is_stage(s,r):return {'request_id':request_id,'exempt':'MAIN_TOP_LEVEL'}
     project=project_key(store);iid=r['instance_id'];key=instance_key(project,iid);token=project+':'+request_id;cap=instance_limit(s,iid)
@@ -101,10 +108,16 @@ def acquire(store,request_id):
         data['slots'][token]={'project':project,'instance':key,'instance_id':iid,'root':str(store.root),'request_id':request_id,'pid':os.getpid(),'start':process_start(os.getpid()),'state':'ACQUIRED'}
         return {'token':token,'project':project,'instance_id':iid,'request_id':request_id}
 def mark(store,request_id,state):
+    store._control_guard('LegacyRuntime')
     with ledger('model-pool') as data:
         token=project_key(store)+':'+request_id
         if token in data.setdefault('slots',{}):data['slots'][token]['state']=state
 def release(store,request_id,*,before_send=False):
+    if store.history()[-1][1]['schema']=='pmrh.commit/2':
+        service=getattr(store,'_control_service',None)
+        require(service is not None,'AUTHORIZATION_REQUIRED','Current synthetic recovery context required')
+        return service.release_slot(request_id)
+    store._control_guard('LegacyRuntime')
     s=store.read_snapshot();r=s.get('requests',{}).get(request_id,{})
     if not is_stage(s,r):return
     safe=r.get('execution_state') in {'CAPTURED','SETTLED','CANCELLED_BEFORE_SEND'}

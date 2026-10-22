@@ -16,9 +16,9 @@ from pathlib import Path
 import re
 import sys
 try:
-    from scripts import domain_scope, storage_scope
+    from scripts import domain_scope, storage_scope, control_scope
 except ModuleNotFoundError:
-    import domain_scope, storage_scope
+    import domain_scope, storage_scope, control_scope
 
 IGNORED_DIRS = {".git", ".venv", "venv", "__pycache__", ".tox", "build", "dist"}
 LAYERS = {"domain", "ports", "application", "orchestration", "adapters",
@@ -378,6 +378,12 @@ def run(root: Path, policy: dict) -> dict:
                      and storage.get('baseline') == storage_scope.BASE)
     if storage_valid:
         permitted |= storage_scope.PATHS
+    control = policy.get('devpr06_control_bridge', {})
+    control_valid = (control.get('baseline') == control_scope.BASE and
+                     control.get('symbols') == control_scope.SYMBOLS and
+                     set(control.get('changed_paths', ())) == control_scope.PATHS)
+    if control_valid:
+        permitted |= control_scope.PATHS
     inventory, discrepancies = manifest_sources(root, permitted)
     violations, legacy_blocks = [], []
     bridge_edges = {(row['source'], row['target']) for row in bridge.get('direct_edges', ())
@@ -408,6 +414,13 @@ def run(root: Path, policy: dict) -> dict:
         violations.append({'reason': 'invalid_devpr05_storage_allowlist'})
     if storage_valid and storage_edges == storage_scope.EDGES:
         bridge_edges |= storage_edges
+    control_edges = {(r['source'], r['target']) for r in control.get('direct_edges', ())
+                     if all(r.get(k) for k in ('consumer', 'reason', 'owner', 'remove_by'))
+                     and r.get('owner') == 'DEV-PR-06'}
+    if control and (not control_valid or control_edges != control_scope.EDGES):
+        violations.append({'reason': 'invalid_devpr06_control_allowlist'})
+    if control_valid and control_edges == control_scope.EDGES:
+        bridge_edges |= control_edges
     violation_keys = set()
     for filename in source_nodes:
         if layer(filename) == "unclassified":

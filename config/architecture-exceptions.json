@@ -798,5 +798,111 @@
       ]
     },
     "previous_inventory": "devpr03_read_bridge retains the historical inventory; this exact smaller closure is enforced now."
+  },
+  "devpr06_control_bridge": {
+    "authorization": "Approved DEV06 contract SHA-256 76b173dadab5938190ecfccc90fdb01ff1d47e73a1422985677bcf3c94d84e11, section 9",
+    "baseline": "4239f15ad1233cc89cd6556cec284951b5fc2e3e",
+    "symbols": {
+      "research_studio/changes.py": [
+        "validator_identity"
+      ],
+      "research_studio/communication.py": [
+        "send"
+      ],
+      "research_studio/input_delivery.py": [
+        "seal"
+      ],
+      "research_studio/execution.py": [
+        "apply_event",
+        "reserve",
+        "seal_capture",
+        "capture",
+        "recover_capture_seal",
+        "recover"
+      ],
+      "research_studio/host_pool.py": [
+        "acquire",
+        "release",
+        "mark",
+        "update_demand",
+        "clear_demand"
+      ],
+      "research_studio/native_main.py": [
+        "Service.__init__",
+        "Service.run",
+        "execute",
+        "_sync_unloaded",
+        "sync_pending"
+      ],
+      "research_studio/runner.py": [
+        "FakeExecutor.execute",
+        "CodexExecutor.execute",
+        "CodexExecutor._execute",
+        "materialize_task_inputs",
+        "_preflight_dispatch",
+        "recover_transport",
+        "run"
+      ],
+      "research_studio/scheduler.py": [
+        "plan",
+        "commit_dispatch"
+      ],
+      "research_studio/strategy.py": [
+        "initialize",
+        "trigger",
+        "request_prepared",
+        "dispatch_from_main"
+      ],
+      "research_studio/store.py": [
+        "Store.commit"
+      ],
+      "research_studio/storage_compat.py": [
+        "LegacyWriters._typed_commit",
+        "LegacyWriters.commit_control",
+        "LegacyWriters._control_guard",
+        "LegacyWriters._control_native",
+        "SyntheticSetup",
+        "ControlNativeBridge"
+      ]
+    },
+    "changed_paths": [
+      "research_studio/changes.py",
+      "research_studio/communication.py",
+      "research_studio/execution.py",
+      "research_studio/host_pool.py",
+      "research_studio/input_delivery.py",
+      "research_studio/native_main.py",
+      "research_studio/runner.py",
+      "research_studio/scheduler.py",
+      "research_studio/storage_compat.py",
+      "research_studio/store.py",
+      "research_studio/strategy.py"
+    ],
+    "direct_edges": [
+      {
+        "source": "research_studio/execution.py",
+        "target": "pmrh/application/read_projections.py",
+        "consumer": "Native RESERVE lane guard",
+        "reason": "Read the closed control liability instead of native terminal status",
+        "owner": "DEV-PR-06",
+        "remove_by": "DEV-PR-10"
+      },
+      {
+        "source": "research_studio/storage_compat.py",
+        "target": "pmrh/adapters/storage/control.py",
+        "consumer": "Static trusted native control bridge",
+        "reason": "Closed commands and immutable reference validation; no data-selected reducer",
+        "owner": "DEV-PR-06",
+        "remove_by": "DEV-PR-10"
+      },
+      {
+        "source": "research_studio/store.py",
+        "target": "pmrh/adapters/storage/control.py",
+        "consumer": "Native Store scientific admission facade",
+        "reason": "Route /2 captures through the gate while preserving the original LegacyWriters.commit body",
+        "owner": "DEV-PR-06",
+        "remove_by": "DEV-PR-10"
+      }
+    ]
   }
 }

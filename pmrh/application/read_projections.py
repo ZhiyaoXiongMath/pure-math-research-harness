@@ -5,6 +5,8 @@ from pmrh.domain.relations import premise_closure
 
 def _cost(snapshot,request):
     # Unknown usage retains the full authorization reservation, never zero.
+    if 'admission' in request:
+        return 0 if request['admission']['charge']=='RELEASED' else 1
     if request['execution_state']=='CANCELLED_BEFORE_SEND':return 0
     return request.get('reserved_calls',1)
 
@@ -13,19 +15,41 @@ def budget_remaining(snapshot,grant_id):
     if grant.get('explicit_unlimited') is True:return float('inf')
     maximum=grant.get('max_calls',0)
     used=sum(_cost(snapshot,r) for r in snapshot.get('requests',{}).values() if r.get('budget_grant_id')==grant_id)
-    return max(0,maximum-used)
+    return maximum-used if any('ownership' in i for i in snapshot.get('instances',{}).values()) else max(0,maximum-used)
 
 def project_remaining(snapshot):
     budget=snapshot.get('project_budget',{'max_calls':0})
     if budget.get('explicit_unlimited') is True:return aggregate_project_remaining(snapshot)
-    return min(aggregate_project_remaining(snapshot),max(0,budget.get('max_calls',0)-sum(_cost(snapshot,r) for r in snapshot.get('requests',{}).values()
-        if r.get('budget_domain','SCIENCE')=='SCIENCE')))
+    remaining=budget.get('max_calls',0)-sum(_cost(snapshot,r) for r in snapshot.get('requests',{}).values() if r.get('budget_domain','SCIENCE')=='SCIENCE')
+    return min(aggregate_project_remaining(snapshot),remaining if any('ownership' in i for i in snapshot.get('instances',{}).values()) else max(0,remaining))
 
 def aggregate_project_remaining(snapshot):
     """An optional explicitly configured total includes every request domain."""
     budget=snapshot.get('project_total_budget')
     if not budget or budget.get('explicit_unlimited') is True:return float('inf')
-    return max(0,budget.get('max_calls',0)-sum(_cost(snapshot,r) for r in snapshot.get('requests',{}).values()))
+    remaining=budget.get('max_calls',0)-sum(_cost(snapshot,r) for r in snapshot.get('requests',{}).values())
+    return remaining if any('ownership' in i for i in snapshot.get('instances',{}).values()) else max(0,remaining)
+
+def control_releasable(request):
+    admission=request.get('admission')
+    return bool(admission and not admission['evidence_conflict'] and request['execution_inbox']['state']=='OPEN'
+                and (admission['not_sent_ref'] or admission['termination_ref']))
+
+def control_lane_closed(request):
+    admission=request.get('admission')
+    return bool(control_releasable(request) and (admission['not_sent_ref'] or
+                admission['termination_ref'] and (request['execution_state']=='SETTLED' or request['fenced'])))
+
+def control_budget(snapshot,grant_id):
+    grant=snapshot['budget_grants'][grant_id]
+    buckets={name:0 for name in ('RESERVED','UNKNOWN_RESERVED','SPENT_OR_SETTLED','RELEASED')}
+    for request in snapshot['requests'].values():
+        if request['budget_grant_id']==grant_id:buckets[request['admission']['charge']]+=1
+    remaining=budget_remaining(snapshot,grant_id)
+    return {'unit':'AGENT_INVOCATION','limit':grant.get('max_calls'),'charges':buckets,
+            'remaining':remaining,'deficit':max(0,-remaining),
+            'admission_allowed':grant['grant_status']=='ACTIVE' and remaining>=1,
+            'usage':None,'parent_child_inclusion':'UNKNOWN'}
 
 NATIVE_SCHEMA='pmrs.native-main/1'
 
