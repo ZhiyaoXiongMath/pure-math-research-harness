@@ -24,9 +24,9 @@ jobs:
         run: |
           mkdir "$RUNNER_TEMP/dev11-parent"
           git archive 48b445f4370922d5535f7b6c4641066bd82fcfdc | tar -x -C "$RUNNER_TEMP/dev11-parent"
-      - name: Verify root-pinned v7 oracle
+      - name: Verify root-pinned v8 oracle
         run: |
-          python3 -B -c "from pathlib import Path; import hashlib; assert hashlib.sha256(Path('scripts/fastmath_scope_preintegration.json').read_bytes()).hexdigest() == 'c212c1a9f390bc6a77f11eb72481847f7e00819d763be77fce6736d99c2216a4'"
+          python3 -B -c "from pathlib import Path; import hashlib; assert hashlib.sha256(Path('scripts/fastmath_scope_preintegration.json').read_bytes()).hexdigest() == 'dc8ef798e09f31928ca683431e14fe962aff8ccbe0303b6e397e461c248866a8'"
       - name: Exact staged source scope
         run: |
           python3 -B scripts/fastmath_scope.py

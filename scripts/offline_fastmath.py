@@ -195,7 +195,7 @@ def launch(source, oracle, out, receipt, *, suite='default'):
     for name in ('stdout','stderr'):
         receipt[name+'_sha256']=hashlib.sha256((out/(name+'.log')).read_bytes()).hexdigest()
     raw_oracle = (source/'scripts/fastmath_scope_preintegration.json').read_bytes()
-    if hashlib.sha256(raw_oracle).hexdigest() != 'c212c1a9f390bc6a77f11eb72481847f7e00819d763be77fce6736d99c2216a4':
+    if hashlib.sha256(raw_oracle).hexdigest() != 'dc8ef798e09f31928ca683431e14fe962aff8ccbe0303b6e397e461c248866a8':
         raise ValueError('Root-pinned oracle mismatch')
     frozen = json.loads(raw_oracle)
     receipt['oracle_manifest_matches'] = receipt['oracle'] == frozen['baseline_file_sha256']

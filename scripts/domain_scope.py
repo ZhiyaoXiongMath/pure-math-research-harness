@@ -207,7 +207,10 @@ def verify_sections(path, original, current):
     # The caller-supplied current bytes must pass the root-pinned stage too.
     fastmath_scope = None
     if path in ('research_studio/changes.py', 'research_studio/contracts.py'):
-        from scripts import fastmath_scope as fast_scope
+        if __package__:
+            from scripts import fastmath_scope as fast_scope
+        else:
+            import fastmath_scope as fast_scope
         reexports = {ast.dump(ast.parse(row).body[0], include_attributes=False)
                      for row in fast_scope.SCOPE04_REEXPORTS[path]}
         if any(ast.dump(n, include_attributes=False) in reexports for n in after.body):

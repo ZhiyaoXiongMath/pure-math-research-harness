@@ -3,7 +3,7 @@
   "parent": "48b445f4370922d5535f7b6c4641066bd82fcfdc",
   "tree": "1c0d3f9417a6d398168472af47c930991e0efc1b",
   "manifest_sha256": "1eb31ac02dc4a058cc7e1d6ec97d6449691878f6980808602115f8006230d51c",
-  "policy": "Exact main48b pre-DEV11 baseline remains372 files. Preserve all23 v6 embedded preimages and other inherited guard pins; add only domain_scope.verify_sections and the single DEV05 extraction-test method as exact root-approved whole-file deltas. The direct DEV04 caller must retain every original check and additionally validate supplied current DEV11 bytes. The DEV05 comparison reconstructs only the verified domain/contracts.py preimage; all other legacy files still compare exactly. Scope04 36 fixed AST-serialization hashes become exact accepted-b21 source-span hashes including decorators and full final lines. This fixes observed HostedCI compatibility failures without product semantic changes, skipped gates, broad allowlists or a new framework. Root-pinned; Developer cannot regenerate.",
+  "policy": "Exact main48b pre-DEV11 baseline remains372 files. Preserve all23 v6 embedded preimages and other inherited guard pins; add only domain_scope.verify_sections and the single DEV05 extraction-test method as exact root-approved whole-file deltas. The direct DEV04 caller must retain every original check and additionally validate supplied current DEV11 bytes. The DEV05 comparison reconstructs only the verified domain/contracts.py preimage; all other legacy files still compare exactly. Scope04 36 fixed AST-serialization hashes become exact accepted-b21 source-span hashes including decorators and full final lines. This fixes observed HostedCI compatibility failures without product semantic changes, skipped gates, broad allowlists or a new framework. Root-pinned; Developer cannot regenerate. Subsequent f03 HostedCI exposed a direct-CLI sibling import failure. Only the exact approved domain verify_sections package-context import selection is repinned; all25 preimages, baseline and36 source-span pins remain unchanged. Real fresh-process CLI validation must preserve native sys.path without PYTHONPATH or injected repository root.",
   "files": {
     "research_studio/knowledge_access.py": {
       "mode": "100644",
@@ -133,7 +133,7 @@
   },
   "inherited_guard_hashes": {
     "scripts/control_scope.py": "17c4ad8adc05f7c2d413a368caaeeda9c079ea9f2c1b75475b7ce17fdb0341dd",
-    "scripts/domain_scope.py": "5708437bdaea16b4edc74667ca1098c7c7dc202a732f3c7d4e8752252fd8f781",
+    "scripts/domain_scope.py": "246f9d3a1c1bbdc7836c9a43c9a51ab2c6a714ee06c16f9d958b0f4498cc8b14",
     "scripts/storage_scope_precontrol.json": "b427aed90b79ab9e948ab93d0de6d96c29cfed0bd642717549135d8995ab5e85"
   },
   "baseline_file_sha256": {
@@ -511,7 +511,7 @@
     "tests/test_ui_localization.py": "20a3fcdad34621f7df9783d896c57bea2ce34faf3c378f172326a618a894a072"
   },
   "provenance": {
-    "previous_oracle_sha256": "fa4823bf89d291d8c8f8d1607aa8d3a513d4d53c932bcaac80411117066a1604",
+    "previous_oracle_sha256": "c212c1a9f390bc6a77f11eb72481847f7e00819d763be77fce6736d99c2216a4",
     "finalmain_integration_receipt_sha256": "4345ce4134ffe57035b71409cfe1835a624966f835105d7f0609effd5c5dc174",
     "baseline_receipt_sha256": "1eb31ac02dc4a058cc7e1d6ec97d6449691878f6980808602115f8006230d51c",
     "pr15_postmerge_receipt_sha256": "f0064447cdd828cda9e16cc8128c3f2eb84439dcc9fb9760680e349b6752da88",
@@ -520,6 +520,13 @@
     "accepted_source_tree": "c55e1dfa8d2a9f07d5129592e8d515b7937e493f",
     "guard_proposal_sha256": "3f0acd12fece9041de1f2751d8298ea9cae47f6ebc6602e5881855338e27ae1c",
     "dev05_proposal_sha256": "dbc8cc353d4e341475fc8436a6a567a56a2ef140d674c062ff44d70dae6601d1",
-    "source_span_pins_sha256": "f3aad1b99c7e83ffca300571a97a8290ea3d5be0e4c5c1eb7b78ae734e9182ca"
+    "source_span_pins_sha256": "f3aad1b99c7e83ffca300571a97a8290ea3d5be0e4c5c1eb7b78ae734e9182ca",
+    "cli_import_repair": {
+      "failed_head": "f03ddbfb719552016a2061a80f482e018bf6d01c",
+      "proposal_sha256": "a19e4bb694dd1be903d8bd6b5c7cab051e51f81c2e9f0a5a7ed4380b29ab6f50",
+      "ci_summary_sha256": "eadf1e469579e3cbd5d07ed5ddd2c67f240d2219d52aacca8eff3d51e7145ae7",
+      "previous_domain_guard_sha256": "5708437bdaea16b4edc74667ca1098c7c7dc202a732f3c7d4e8752252fd8f781",
+      "approved_domain_guard_sha256": "246f9d3a1c1bbdc7836c9a43c9a51ab2c6a714ee06c16f9d958b0f4498cc8b14"
+    }
   }
 }
