@@ -16,6 +16,55 @@ def rehash(entry):
 
 
 class DomainTests(unittest.TestCase):
+    def test_source28_transition_reuse_requires_complete_arrow_identity(self):
+        from tests.test_final_kernel import statement
+        f,t,target,arg,sid,entries=self.fixture()
+        end=f.add(statement('The scoped consequence follows.'))
+        premise=dict(premise_ref=target,kind='SUPPORTED_STATEMENT',context_ref=None,scope_locator=None,
+                     binding_mode='PINNED',support_ref=sid,assumption_locator=None)
+        argument,support,req=add_exact_path(f,end,'The premise implies the scoped consequence.',premises=[premise])
+        body='An additional mathematical context, not an explanatory label.'
+        context=f.add(K.make_record('Context',body,dict(definitions=[],objects=[],assumptions=[],quantifiers=[],
+            conventions=[dict(key='extra',locator=K.locator(body))],parent_context_refs=[]),[],records=f.s['records'],blob_get=f.get))
+        f.s['instances'][t['instance_id']]['target_ref']=end
+        fresh=six_entries(f.s,t,argument_ref=argument,support_ids=[support]);old=deepcopy(fresh[1])
+        old['body']['payload'].update(start_ref=target,end_ref=end,relation='IMPLICATION',direction='FORWARD')
+        rehash(old);binding=deepcopy(fresh[-1]);binding['body']['payload'].update(upper_revision_ref=old['ref'],upper_claim_slot='arrow')
+        binding['body']['dependencies']=[old['ref'],end];rehash(binding)
+        state=deepcopy(f.s);state['fast_revisions']=validate_delta(delta_for(f.s,t,[old,binding]),f.s)
+        state['fast_selected']={row['object_id']:ref for ref,row in state['fast_revisions'].items()}
+        original=project(old['ref'],state)['bindings'][0]
+        self.assertEqual(original['qualification']['support_basis'],'QUALIFIED_WITHIN_EXACT_SCOPE')
+        display=deepcopy(old);display['body'].update(predecessor=old['ref'],body='Clearer explanation of the same arrow.')
+        display['body']['payload'].update(title='Same exact arrow, clearer title',explanatory_order=2)
+        # Renaming the slot is explicit; it does not retarget immutable B1.
+        display['body']['payload']['claim_slots']['display_arrow']=display['body']['payload']['claim_slots'].pop('arrow')
+        rehash(display)
+        link=dict(old_upper_ref=old['ref'],new_upper_ref=display['ref'],old_slot='arrow',new_slot='display_arrow',
+            claim_fingerprint=binding['body']['payload']['claim_fingerprint'],source_binding_ref=binding['ref'])
+        valid=deepcopy(state);valid['fast_revisions']=validate_delta(delta_for(state,t,[display],links=[link]),state)
+        valid['fast_claim_links']={'S1-display':link}
+        shown=project(display['ref'],valid)['bindings'][0]
+        self.assertEqual(shown['qualification'],original['qualification'])
+        self.assertEqual((shown['binding_target'],shown['displayed_upper'],shown['binding_ref']),
+                         (old['ref'],display['ref'],binding['ref']))
+        self.assertEqual(valid['fast_revisions'][binding['ref']],binding['body'])
+        changes=[dict(start_ref=end,end_ref=target),dict(start_ref=end),dict(end_ref=target),
+            dict(relation='CONDITIONAL_IMPLICATION'),dict(relation='EQUIVALENCE',direction='BOTH'),
+            dict(direction='OPEN'),dict(shared_context_refs=[context])]
+        for change in changes:
+            with self.subTest(change=change):
+                bad=deepcopy(display);bad['body']['payload'].update(change);rehash(bad)
+                bad_link={**link,'new_upper_ref':bad['ref']}
+                with self.assertRaises(FastMathError) as caught:
+                    validate_delta(delta_for(state,t,[bad],links=[bad_link]),state)
+                self.assertEqual(caught.exception.code,'FAST_SCHEMA_INVALID')
+                # Explicit S1 corrupt projection negative, never persisted evidence.
+                invalid=deepcopy(state);invalid['fast_revisions'][bad['ref']]=bad['body']
+                invalid['fast_claim_links']={'S1-invalid':bad_link}
+                with self.assertRaises(FastMathError):project(bad['ref'],invalid)
+        self.assertEqual(project(old['ref'],state)['bindings'][0],original)
+
     def fixture(self):
         f,task,target,arg,sid=semantic_fixture()
         entries=six_entries(f.s,task,argument_ref=arg,support_ids=[sid])

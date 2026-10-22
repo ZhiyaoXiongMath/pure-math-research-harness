@@ -56,6 +56,85 @@ def reference_list(value, *, nonempty=False):
     check(len(value) == len(set(value)), 'Duplicate references')
 
 
+def revision_structure(entry):
+    """Check wire types without looking up or disclosing any referenced row."""
+    fields(entry, 'ref body'); text(entry['ref'], identifier=True)
+    row = entry['body']; fields(row, ENVELOPE)
+    for name in ('schema', 'kind', 'object_id', 'payload_sha256', 'body_sha256'):
+        text(row[name], identifier=True)
+    check(row['kind'] in KINDS, 'Unknown fast revision kind')
+    text(row['body']); text(row['reason'])
+    for name in ('predecessor', 'original_target_ref'):
+        if row[name] is not None: text(row[name], identifier=True)
+    fields(row['scope'], 'project_id instance_id mission_id')
+    fields(row['author_attempt'], 'request_id attempt_id')
+    for value in (*row['scope'].values(), *row['author_attempt'].values()): text(value, identifier=True)
+    reference_list(row['dependencies'])
+    p = row['payload']; fields(p, PAYLOAD[row['kind']])
+    for name in ('output_ref', 'start_ref', 'end_ref', 'unknown_ref', 'task_ref', 'upper_revision_ref',
+                 'upper_claim_slot', 'claim_fingerprint', 'statement_ref', 'argument_ref', 'policy_digest'):
+        if name in p and not (name in ('task_ref', 'argument_ref') and p[name] is None):
+            text(p[name], identifier=True)
+    for name in ('relation', 'direction', 'explanation_depth'):
+        if name in p: text(p[name], identifier=True)
+    for name in ('input_refs', 'source_refs', 'shared_context_refs', 'probe_refs', 'evidence_refs',
+                 'node_refs', 'transition_refs', 'frozen_input_refs', 'context_refs', 'support_ids',
+                 'applicability_refs', 'invalidation_refs'):
+        if name in p: reference_list(p[name])
+    if 'open_conditions' in p: check(type(p['open_conditions']) is list, 'Open conditions required')
+    if 'claim_slots' in p:
+        check(type(p['claim_slots']) is dict, 'Named claims required')
+        for name, slot in p['claim_slots'].items():
+            text(name, identifier=True)
+            fields(slot, 'statement_ref argument_ref statement_fields argument_fields context_fields')
+            text(slot['statement_ref'], identifier=True)
+            if slot['argument_ref'] is not None: text(slot['argument_ref'], identifier=True)
+            check(type(slot['statement_fields']) is dict and type(slot['context_fields']) is dict and
+                  (slot['argument_fields'] is None or type(slot['argument_fields']) is dict), 'Native projection fields required')
+    if row['kind'] == 'RefinementBinding':
+        assurance.validate_requirement(p['requirement'])
+        assurance.validate_scope(p['required_review_scope'])
+
+
+def validate_delta_structure(value):
+    """Closed input shape before authorization-sensitive reference traversal."""
+    fields(value, DELTA_FIELDS); count = bounded(value, MAX_DELTA)
+    fields(value['scope'], 'project_id instance_id mission_id')
+    for item in value['scope'].values(): text(item, identifier=True)
+    for name in ('schema', 'request_id', 'attempt_id', 'input_commit', 'capture_payload_path'):
+        text(value[name], identifier=True)
+    if value['original_target_ref'] is not None: text(value['original_target_ref'], identifier=True)
+    text(value['reason'])
+    if value['empty_reason'] is not None: text(value['empty_reason'])
+    for name, limit in (('revision_entries', MAX_REVISIONS), ('same_claim_links', MAX_LINKS)):
+        check(type(value[name]) is list, 'Proposal entries must be lists')
+        check(len(value[name]) <= limit, 'Proposal entry limit', 'FAST_LIMIT_EXCEEDED')
+    check(type(value['expected_selected']) is dict, 'Selected-revision CAS required')
+    for oid, previous in value['expected_selected'].items():
+        text(oid, identifier=True)
+        if previous is not None: text(previous, identifier=True)
+    check(type(value['read_guards']) is list, 'Read guards required')
+    for g in value['read_guards']:
+        fields(g, 'collection identity sha256 requirement policy_digest')
+        for name in ('collection', 'identity', 'sha256'): text(g[name], identifier=True)
+        if g['policy_digest'] is not None: text(g['policy_digest'], identifier=True)
+    for entry in value['revision_entries']: revision_structure(entry)
+    for link in value['same_claim_links']:
+        fields(link, LINK_FIELDS)
+        for item in link.values(): text(item, identifier=True)
+    return count
+
+
+def claim_identity(upper, slot_name):
+    """Machine identity of a declared claim, not a semantic equivalence test."""
+    identity = {key:upper[key] for key in ('kind', 'scope', 'original_target_ref', 'd0_ref')}
+    identity['slot'] = upper['payload'].get('claim_slots', {}).get(slot_name)
+    if upper['kind'] == 'Transition':
+        identity['arrow'] = {key:upper['payload'][key] for key in
+            ('start_ref', 'end_ref', 'relation', 'direction', 'shared_context_refs')}
+    return identity
+
+
 def scope(value, snapshot):
     fields(value, 'project_id instance_id mission_id')
     for x in value.values(): text(x, identifier=True)
@@ -121,6 +200,7 @@ def validate_slot(slot, snapshot):
 
 
 def validate_revision(entry, snapshot, revisions):
+    revision_structure(entry)
     fields(entry, 'ref body'); row = entry['body']; fields(row, ENVELOPE)
     bounded(row, MAX_BODY)
     check(row['schema'] == SCHEMA and row['kind'] in KINDS, 'Unknown fast revision schema/kind')
@@ -188,6 +268,7 @@ def validate_revision(entry, snapshot, revisions):
             check(type(p[name]) is list, 'Explicit map lists required')
         for route in p['routes']:
             fields(route, 'route_id node_refs transition_refs operator native_argument_ref')
+            text(route['operator'], identifier=True)
             check(route['operator'] in {'AND','OR'}, 'Explicit AND/OR required')
             reference_list(route['node_refs']); reference_list(route['transition_refs'])
         # Cycles contain stable navigation IDs only, never recursive exact hashes.
@@ -283,7 +364,7 @@ def required_guards(snapshot, entries, links=()):
 
 
 def validate_delta(value, snapshot, *, check_guards=True):
-    fields(value, DELTA_FIELDS); reference_entries=bounded(value, MAX_DELTA)
+    reference_entries=validate_delta_structure(value)
     check(value['schema'] == DELTA_SCHEMA and value['capture_payload_path'] == '/payload/fast_delta', 'Proposal schema/path')
     target(value, snapshot)
     for k in ('request_id','attempt_id','input_commit'): text(value[k], identifier=True)
@@ -322,6 +403,8 @@ def validate_delta(value, snapshot, *, check_guards=True):
               new['predecessor'] == link['old_upper_ref'], 'Reuse lineage differs')
         a = old['payload'].get('claim_slots', {}).get(link['old_slot']); b = new['payload'].get('claim_slots', {}).get(link['new_slot'])
         check(a is not None and a == b and claim_fingerprint(a) == link['claim_fingerprint'], 'Changed mathematical claim cannot reuse binding')
+        check(claim_identity(old, link['old_slot']) == claim_identity(new, link['new_slot']),
+              'Changed declared claim identity cannot reuse binding')
         check(binding['kind'] == 'RefinementBinding' and binding['payload']['upper_revision_ref'] == link['old_upper_ref'] and
               binding['payload']['upper_claim_slot'] == link['old_slot'], 'Invented binding target')
     # Existing linked bindings are validated again without retargeting them.

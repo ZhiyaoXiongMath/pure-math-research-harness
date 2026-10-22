@@ -2,7 +2,7 @@
 from copy import deepcopy
 from pmrh.domain import assurance
 from .model import check, claim_fingerprint, FastMathError
-from .validation import native_projection, native_refs, required_guards
+from .validation import native_projection, native_refs, required_guards, claim_identity
 
 
 def _relation_matches(upper, slot):
@@ -94,6 +94,8 @@ def project(ref, snapshot):
     for link_ref, link in snapshot.get('fast_claim_links', {}).items():
         if link['new_upper_ref'] != ref: continue
         binding = rows[link['source_binding_ref']]; old = rows[link['old_upper_ref']]
+        check(claim_identity(old, link['old_slot']) == claim_identity(upper, link['new_slot']),
+              'Changed declared claim identity cannot reuse binding')
         bindings.append(dict(binding_ref=link['source_binding_ref'], binding_target=link['old_upper_ref'],
             displayed_upper=ref, reuse_link_ref=link_ref, claim_slot=link['new_slot'],
             qualification=qualify_binding(binding, old, snapshot)))

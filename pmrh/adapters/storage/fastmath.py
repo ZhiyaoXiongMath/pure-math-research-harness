@@ -2,7 +2,7 @@
 from copy import deepcopy
 from pmrh.domain.primitives import canonical, sha, loads
 from pmrh.domain.fastmath.model import (PreparedFastDelta, FastReadContext, MAX_DELTA, check, revision_ref)
-from pmrh.domain.fastmath.validation import validate_delta, native_refs, fast_refs, fields, bounded, DELTA_FIELDS, required_guards
+from pmrh.domain.fastmath.validation import validate_delta, validate_delta_structure, native_refs, fast_refs, fields, bounded, DELTA_FIELDS, required_guards
 from pmrh.domain.fastmath.qualification import project
 from pmrh.ports.dto import core as C, specs as S, execution as X, enums as E, capability as K
 from pmrh.ports.capabilities import check_capabilities
@@ -44,6 +44,7 @@ def _capture(store, state, payload):
     digest = sha(canonical(value)); pref = D.ref(payload['proposal_ref'],state['project_id'])
     check(pref.sha256 == digest and pref.revision == 'sha256:'+digest and pref.object_id == 'fast-proposal:'+digest,
           'Proposal is not the exact original capture field','FAST_CAPTURE_MISMATCH')
+    validate_delta_structure(value)
     task = state['tasks'][request['task_id']]
     check(value['request_id'] == rid and value['attempt_id'] == spec.attempt_id == task['attempt_key'] and
           value['input_commit'] == task['knowledge_commit'] and value['scope'] == dict(project_id=state['project_id'],
@@ -211,6 +212,7 @@ class FastStorage:
             {'project_id':read_context.project_id,'instance_id':read_context.instance_id},service.binding_id,request_id=task['request_id'])
         request = current['requests'].get(task['request_id'])
         check(request is not None and not request['fenced'], 'Read request revoked','FAST_AUTHORITY_DENIED')
+        validate_delta_structure(delta)
         snapshot = current if as_of_commit==current['knowledge_commit'] else self.store.read_snapshot(as_of_commit)
         check(delta['input_commit']==task['knowledge_commit'] and delta['request_id']==task['request_id'] and
               delta['attempt_id']==task['attempt_key'],'Original input identity differs','FAST_CAPTURE_MISMATCH')

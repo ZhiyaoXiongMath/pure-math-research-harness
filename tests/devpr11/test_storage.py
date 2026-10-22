@@ -327,6 +327,159 @@ def fm19_combined_quantitative_capacity_case():
 
 
 class StorageTests(unittest.TestCase):
+    def test_source28_public_transition_reuse_rejection_and_display_restart(self):
+        """One genuine qualified arrow, rejected changes, and a display-only successor."""
+        import json
+        from research_studio import demo,input_delivery,knowledge_access as Q
+        from research_studio.task_tools import TaskTools
+        from research_studio.store import Store
+        from pmrh.domain import knowledge as K,assurance as A
+        from pmrh.domain.fastmath.model import FastReadContext
+        from .fixtures import scientific_worker,admit_scientific_response
+        from .test_domain import rehash
+        with tempfile.TemporaryDirectory() as tmp:
+            h=Harness(tmp);h.authorize(5,attempts=5,communication=True)
+            main=h.prepare();h.send(main);h.dispatch(main,'SENT')
+            target=h.store.read_snapshot()['instances'][h.iid]['target_ref']
+            # P1/PLAN can author this Context and comparison; P4 excludes Context.
+            h.dispatch_workers(main,1,label='source28-arrow-author',stage='P1',role='PLAN',duty='ESTABLISH')
+            author=h.prepare(actor='WORKER');h.slot(author);h.send(author);h.dispatch(author,'SENT')
+            self.assertEqual((author['task']['stage_id'],author['task']['role']),('P1','PLAN'))
+            self.assertTrue({'Context','Statement','Argument'}<=set(author['task']['permission_manifest']['allowed_record_kinds']))
+            envelope=json.loads(demo.response(author['task'],h.store.read_snapshot(),blob_get=h.store.read_blob))
+            body='For every integer n, 0 + n = n.';loc=K.locator(body)
+            premise=dict(op='NEW',local_key='premise',kind='Statement',context_refs=[],body=body,
+                data=dict(statement_locator=loc,scope_context_refs=[],hypothesis_locators=[],conclusion_locators=[loc],
+                    quantifier_locators=[loc],form='PROPOSITION',representation='AUTHORED',source_binding=None))
+            context_body='An additional synthetic mathematical context, not a display label.'
+            context_op=dict(op='NEW',local_key='extra_context',kind='Context',context_refs=[],body=context_body,
+                data=dict(definitions=[],objects=[],assumptions=[],quantifiers=[],
+                    conventions=[dict(key='source28_extra',locator=K.locator(context_body))],parent_context_refs=[]))
+            argument_body=('Let n be an arbitrary integer. The additive identity axiom gives n + 0 = n, '
+                'so the declared implication from 0 + n = n holds without additional assumptions. '
+                'This synthetic candidate requires an independent exact-scope review; it is not real mathematical certification.')
+            argument_op=dict(op='NEW',local_key='argument',kind='Argument',context_refs=[],body=argument_body,
+                data=dict(conclusion_ref=target,premise_bindings=[],
+                    steps=[dict(step_id='identity',locator=K.locator(argument_body),premise_refs=[])],
+                    discharged_assumptions=[],open_conditions=[],witness_bindings=[],mode='COMPARISON',
+                    mode_payload=dict(relation_type='IMPLIES',from_statement_ref='local:premise',to_statement_ref=target,
+                        direction_argument_refs=[],scope_context_refs=[])))
+            envelope['payload']['operations']=[premise,context_op,argument_op]
+            for effect in envelope['payload']['obligation_effects']:
+                effect['evidence_refs']=['local:premise','local:extra_context','local:'+argument_op['local_key']]
+            admit_scientific_response(h,author,envelope)
+            state=h.reopen()
+            self.assertEqual(state['requests'][author['spec'].request_id]['acceptance_state'],'ACCEPTED')
+            support=next(row for row in state['supports'].values()
+                if state['records'][row['argument_ref']]['data']['mode']=='COMPARISON')
+            sid=support['support_id'];argument=support['argument_ref']
+            start=state['records'][argument]['data']['mode_payload']['from_statement_ref']
+            context_ref=next(ref for ref,row in state['records'].items() if row['kind']=='Context' and
+                any(c['key']=='source28_extra' for c in row['data']['conventions']))
+            self.assertNotEqual(start,target)
+
+            def delivered(reader,ref,as_of=None,confirm=False):
+                command=h.command('COMMUNICATION_APPLIED',{})
+                frame={k:command[k] for k in ('operation_id','idempotency_key','scope','expected_head','owner_epoch','control_version')}
+                args={'ref':ref}
+                if as_of is not None:args['as_of_commit']=as_of
+                with h.control.native_context(h.service,**frame,grant_ref=h.grant(),manifest_ref=reader['manifest_ref']):
+                    did,response=TaskTools(h.store,reader['spec'].request_id,reader['spec'].execution_id).call('knowledge_get',args)
+                self.assertFalse(response['isError'],response)
+                saved=h.store.read_snapshot()['input_deliveries'][did]
+                self.assertEqual(h.store.read_blob(saved['response_ref']),canonical(response))
+                if confirm:
+                    self.assertTrue(saved['supplements'])
+                    command=h.command('COMMUNICATION_APPLIED',{})
+                    frame={k:command[k] for k in ('operation_id','idempotency_key','scope','expected_head','owner_epoch','control_version')}
+                    with h.control.native_context(h.service,**frame):
+                        input_delivery.confirm(h.store,reader['spec'].request_id,reader['spec'].execution_id,did)
+                    self.assertIn(ref,input_delivery.supplied_records(h.store.read_snapshot(),reader['task'],h.store.read_blob,live=True))
+                else:self.assertEqual(saved['supplements'],[])
+                return json.loads(response['content'][0]['text'])['result']
+
+            for ref in (start,context_ref,argument):delivered(main,ref,confirm=True)
+            review=scientific_worker(h,main,'source28-arrow-review',role='PROOF',inputs=[target,start,context_ref,argument])
+            self.assertNotEqual(review['spec'].request_id,author['spec'].request_id)
+            req=review['task']['required_assurance']
+            envelope=json.loads(demo.response(review['task'],h.store.read_snapshot(),blob_get=h.store.read_blob))
+            op=envelope['payload']['operations'][0]
+            op['body']='Synthetic independent whole-scope arrow review; no real mathematical certification.'
+            op['data'].update(verdict='SUPPORTED_WITHIN_SCOPE',unchecked=[],checked=[
+                dict(ref=row['target_ref'],locators=row['locators'],aspect=aspect,**{k:row[k] for k in A.SCOPE_META})
+                for row in req['required_scope'] for aspect in row['aspects']])
+            admit_scientific_response(h,review,envelope)
+            state=h.reopen();support=state['supports'][sid]
+            self.assertEqual(A.evaluate_requirement(state,sid,support['consumer_requirement'],support['policy_digest'])['result'],'QUALIFIED')
+            native=deepcopy(state['records']);supports=deepcopy(state['supports'])
+            entries=six_entries(state,main['task'],argument_ref=argument,support_ids=[sid]);old=entries[1];binding=entries[-1]
+            old['body']['payload'].update(start_ref=start,end_ref=target,relation='IMPLICATION',direction='FORWARD',missing_interface='')
+            rehash(old);binding['body']['payload'].update(upper_revision_ref=old['ref'],upper_claim_slot='arrow')
+            binding['body']['dependencies']=[old['ref'],target,argument];rehash(binding)
+
+            def capture_settle_apply(producer,proposal):
+                _,captured,args=h.capture_fast(producer,proposal)
+                raw=h.store.read_blob(args['capture_ref']['sha256'])
+                h.control.apply(h.command('SCIENCE_ADMITTED',dict(request_id=producer['spec'].request_id,
+                    capture_ref=args['capture_ref'])),h.service,grant_ref=h.grant(),manifest_ref=producer['manifest_ref'])
+                rejected=h.reopen()['requests'][producer['spec'].request_id]
+                self.assertEqual((rejected['execution_state'],rejected['acceptance_state']),('SETTLED','REJECTED_CONTRACT'))
+                h.observation(producer,'TERMINATED')
+                successor=h.prepare(actor='MAIN');h.send(successor);h.dispatch(successor,'SENT')
+                self.assertNotEqual(successor['spec'].request_id,producer['spec'].request_id)
+                applied,_=h.apply_fast(captured['proposal_ref'],successor);h.reopen()
+                self.assertEqual(h.store.read_blob(args['capture_ref']['sha256']),raw)
+                return successor,applied['commit']
+
+            successor,old_head=capture_settle_apply(main,delta_for(state,main['task'],[old,binding]))
+            old_view=Q.web_tool(Store(h.store.root),'get',{'ref':[old['ref']],'instance_id':[h.iid]})
+            self.assertEqual(old_view['derived']['bindings'][0]['qualification']['support_basis'],'QUALIFIED_WITHIN_EXACT_SCOPE')
+            original_binding=h.store.read_blob(binding['ref'][3:]);state=h.store.read_snapshot()
+            display=deepcopy(old);display['body'].update(predecessor=old['ref'],body='Clearer display of the identical qualified arrow.',
+                author_attempt=dict(request_id=successor['task']['request_id'],attempt_id=successor['task']['attempt_key']),reason='Display-only revision.')
+            display['body']['payload'].update(title='Same qualified arrow',explanatory_order=1);rehash(display)
+            link=dict(old_upper_ref=old['ref'],new_upper_ref=display['ref'],old_slot='arrow',new_slot='arrow',
+                claim_fingerprint=binding['body']['payload']['claim_fingerprint'],source_binding_ref=binding['ref'])
+            context=FastReadContext(h.project,h.iid,successor['task']['mission_id'],successor['task']['task_id'])
+            h.storage.fast.bind_read_context(context,h.service);service=h.store.fastmath_service();head=h.store._head()
+            for change in (dict(start_ref=target,end_ref=start),dict(relation='CONDITIONAL_IMPLICATION'),
+                           dict(relation='EQUIVALENCE',direction='BOTH'),dict(shared_context_refs=[context_ref])):
+                with self.subTest(rejected_arrow=change):
+                    bad=deepcopy(display);bad['body']['payload'].update(change);rehash(bad)
+                    bad_link={**link,'new_upper_ref':bad['ref']}
+                    with self.assertRaises(FastMathError) as caught:
+                        service.prepare_delta(delta_for(state,successor['task'],[bad],links=[bad_link]),
+                            read_context=context,as_of_commit=state['knowledge_commit'])
+                    self.assertEqual(caught.exception.code,'FAST_SCHEMA_INVALID')
+                    self.assertIn('Changed declared claim identity',str(caught.exception))
+                    self.assertEqual(h.store._head(),head)
+                    with self.assertRaises((FastMathError,PMRSError)):
+                        Q.get(Store(h.store.root),bad['ref'],instance_id=h.iid)
+            self.assertEqual(h.store.read_snapshot(),state)
+            reader,new_head=capture_settle_apply(successor,delta_for(state,successor['task'],[display],links=[link]))
+            reopened=Journal(h.store.root).read_snapshot()
+            self.assertEqual(reopened['fast_selected'][old['body']['object_id']],display['ref'])
+            self.assertEqual(reopened['records'],native);self.assertEqual(reopened['supports'],supports)
+            self.assertEqual(Q.web_tool(Store(h.store.root),'get',{'ref':[display['ref']],'instance_id':[h.iid],
+                'as_of_commit':[new_head]})['derived']['bindings'][0]['displayed_upper'],display['ref'])
+            for ref,pinned,shown in ((display['ref'],None,display['ref']),(old['ref'],old_head,old['ref'])):
+                args={'ref':[ref],'instance_id':[h.iid]}
+                if pinned is not None:args['as_of_commit']=[pinned]
+                human=Q.web_tool(Store(h.store.root),'get',args);tool=delivered(reader,ref,pinned)
+                self.assertEqual(tool['derived']['bindings'],human['derived']['bindings'])
+                row=human['derived']['bindings'][0]
+                self.assertEqual((row['binding_ref'],row['binding_target'],row['displayed_upper']),
+                    (binding['ref'],old['ref'],shown))
+                self.assertEqual(row['qualification']['support_basis'],'QUALIFIED_WITHIN_EXACT_SCOPE')
+                self.assertEqual(row['qualification'],old_view['derived']['bindings'][0]['qualification'])
+            self.assertEqual(h.store.read_blob(binding['ref'][3:]),original_binding)
+            self.assertEqual({row['ref'] for row in Q.history(Store(h.store.root),display['ref'],instance_id=h.iid)['objects']},
+                             {old['ref'],display['ref']})
+            for checkpoint in (h.store.root/'checkpoints').glob('*.json'):checkpoint.unlink()
+            replayed=Journal(h.store.root).read_snapshot()
+            self.assertEqual(replayed['fast_revisions'][binding['ref']],binding['body'])
+            self.assertEqual(replayed['fast_selected'][old['body']['object_id']],display['ref'])
+
     def test_FM01_FM15_FM24_original_six_revisions_restart_and_exact_hashes(self):
         with tempfile.TemporaryDirectory() as tmp:
             h=Harness(tmp);main,worker=h.running_pair()

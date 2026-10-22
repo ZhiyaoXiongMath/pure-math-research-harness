@@ -10,6 +10,64 @@ from .fixtures import Harness,six_entries,delta_for
 
 
 class ControlFastTests(unittest.TestCase):
+    def test_source28_prepare_malformed_delta_closed_and_current_authority(self):
+        from pmrh.domain.fastmath.model import FastReadContext, MAX_REVISIONS
+        with tempfile.TemporaryDirectory() as tmp:
+            h=Harness(tmp);main,worker=h.running_pair();state=h.store.read_snapshot()
+            context=FastReadContext(h.project,h.iid,worker['task']['mission_id'],worker['task']['task_id'])
+            session=h.session();h.storage.fast.bind_read_context(context,session)
+            service=h.store.fastmath_service();head=h.store._head()
+            good=delta_for(state,worker['task'],six_entries(state,worker['task']))
+            malformed=[('empty',{}),('null',None),('list',[])]
+            missing=deepcopy(good);missing.pop('input_commit');malformed.append(('missing-input',missing))
+            for path,value in [
+                (('scope',),None), (('input_commit',),[]), (('read_guards',),None),
+                (('read_guards',0),{}), (('read_guards',0,'identity'),[]),
+                (('expected_selected',),[]), (('expected_selected','module'),{}),
+                (('revision_entries',),{}), (('revision_entries',0),None),
+                (('revision_entries',0,'body'),[]), (('revision_entries',0,'body','kind'),[]),
+                (('revision_entries',0,'body','payload'),None),
+                (('revision_entries',0,'body','payload','claim_slots'),[]),
+                (('revision_entries',0,'body','payload','claim_slots','result'),{}),
+                (('revision_entries',0,'body','payload','claim_slots','result','statement_ref'),{}),
+                (('revision_entries',5,'body','payload','support_ids'),[[]]),
+                (('revision_entries',5,'body','payload','requirement'),None),
+                (('same_claim_links',),None), (('same_claim_links',),[{}]),
+            ]:
+                bad=deepcopy(good);parent=bad
+                for key in path[:-1]:parent=parent[key]
+                parent[path[-1]]=value;malformed.append((str(path),bad))
+            for name,bad in malformed:
+                with self.subTest(shape=name):
+                    with self.assertRaises(FastMathError) as caught:
+                        service.prepare_delta(bad,read_context=context,as_of_commit=state['knowledge_commit'])
+                    self.assertEqual(caught.exception.code,'FAST_SCHEMA_INVALID')
+                    self.assertEqual(h.store._head(),head)
+            empty=delta_for(state,worker['task'],[],empty_reason='No new evidence in this bounded attempt.')
+            for value in (empty,good):
+                prepared=service.prepare_delta(value,read_context=context,as_of_commit=state['knowledge_commit'])
+                self.assertEqual(prepared.raw,canonical(value))
+            oversized=deepcopy(empty);oversized['revision_entries']=[good['revision_entries'][4]]*(MAX_REVISIONS+1)
+            with self.assertRaises(FastMathError) as caught:
+                service.prepare_delta(oversized,read_context=context,as_of_commit=state['knowledge_commit'])
+            self.assertEqual(caught.exception.code,'FAST_LIMIT_EXCEEDED')
+            hidden=deepcopy(empty);hidden['reason']='KR-unavailable-private-reference'
+            with self.assertRaises(FastMathError) as caught:
+                service.prepare_delta(hidden,read_context=context,as_of_commit=state['knowledge_commit'])
+            self.assertEqual(caught.exception.code,'FAST_REF_UNAVAILABLE')
+            self.assertNotIn(hidden['reason'],str(caught.exception))
+            unregistered=FastReadContext(h.project,h.iid,worker['task']['mission_id'],worker['task']['task_id'])
+            with self.assertRaises(FastMathError) as caught:
+                service.prepare_delta({},read_context=unregistered,as_of_commit=state['knowledge_commit'])
+            self.assertEqual(caught.exception.code,'FAST_AUTHORITY_DENIED')
+            h.registry.revoke(session)
+            for value in ({},good):
+                with self.assertRaises(FastMathError) as caught:
+                    service.prepare_delta(value,read_context=context,as_of_commit=state['knowledge_commit'])
+                self.assertEqual(caught.exception.code,'FAST_AUTHORITY_DENIED')
+            self.assertEqual(h.store._head(),head)
+            self.assertEqual(h.reopen(),state)
+
     def test_FM23_FM25_PAUSED_worker_ingress_retains_without_MAIN_apply(self):
         with tempfile.TemporaryDirectory() as tmp:
             h=Harness(tmp);main,worker=h.running_pair();s=h.store.read_snapshot()
