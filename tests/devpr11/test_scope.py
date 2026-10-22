@@ -14,6 +14,85 @@ ROOT=Path(__file__).resolve().parents[2]
 
 
 class ScopeTests(unittest.TestCase):
+    def test_source37_closed_storage_timeout_and_unchanged_other_selectors(self):
+        from scripts.offline_fastmath import suite_timeout_seconds
+        self.assertEqual(suite_timeout_seconds('ci-storage'),3600)
+        for selector in ('default','ci-core','source04-affected','source07-affected','source09-affected',
+                'source10-affected','source11-affected','source11-query','source12-permission',
+                'source13-core','source13-business','source16-small','source17-affected','source18-affected',
+                'source19-capacity','source20-final-remaining','source21-affected','p01-large','p01-256',
+                'p01-256-plus-one','fm13-pilot','fm13-native-pilot'):
+            with self.subTest(selector=selector):self.assertEqual(suite_timeout_seconds(selector),1800)
+        for unknown in ('ci-storage-extra','ci','',None,3600,[]):
+            with self.subTest(selector=unknown):
+                with self.assertRaisesRegex(ValueError,'Unknown closed suite selector'):suite_timeout_seconds(unknown)
+
+    def test_source37_parent_timing_split_prefix_docstring_and_active_timeout(self):
+        from scripts.offline_fastmath import ParentTestTimings
+        timing=ParentTestTimings();name='tests.devpr11.test_storage.StorageTests.test_one'
+        first=b'test_one (tests.devpr11.test_storage.';second=b'StorageTests.test_one)'
+        self.assertFalse(timing.feed(first,1))
+        self.assertEqual(timing.snapshot(2)['status'],'UNKNOWN')
+        self.assertTrue(timing.feed(second,3))
+        active=timing.snapshot(9)
+        self.assertEqual(active['active_test_id'],name)
+        self.assertEqual(active['rows'][0]['elapsed_seconds'],6)
+        self.assertIsNone(active['rows'][0]['completion_observed_seconds'])
+        timing.feed(b'\nOriginal multi-line description ... ',10)
+        timing.feed(b'ok',11)
+        self.assertEqual(timing.snapshot(11)['rows'][0]['state'],'INCOMPLETE')
+        self.assertTrue(timing.feed(b'\n',12))
+        finished=timing.snapshot(12)
+        self.assertEqual(finished['rows'][0]['observed_result'],'ok')
+        self.assertEqual(finished['rows'][0]['elapsed_seconds'],9)
+        self.assertIsNone(finished['active_test_id'])
+        prefix=b'test_two (tests.devpr11.test_storage.StorageTests.test_two) ... '
+        original=bytes(prefix);timing.feed(prefix,14);timing.feed(b'partial progress',15)
+        active=timing.snapshot(20)
+        self.assertEqual(prefix,original)
+        self.assertEqual(active['active_test_id'],'tests.devpr11.test_storage.StorageTests.test_two')
+        self.assertEqual(active['rows'][-1]['elapsed_seconds'],6)
+        self.assertEqual(active['rows'][-1]['last_progress_observed_seconds'],15)
+        self.assertEqual(active['rows'][-1]['reason'],'no_completion_observed')
+        self.assertEqual(active['status'],'OBSERVATIONS_ONLY')
+
+    def test_source37_parent_timing_buffered_unknown_and_finite_limits(self):
+        from scripts.offline_fastmath import ParentTestTimings
+        timing=ParentTestTimings()
+        self.assertEqual(timing.snapshot(0)['rows'],[])
+        timing.feed(b'noise ... ok\n',1)
+        self.assertEqual(timing.snapshot(1)['status'],'UNKNOWN')
+        batch=(b'test_a (tests.devpr11.test_scope.ScopeTests.test_a) ... ok\n'
+               b'test_b (tests.devpr11.test_scope.ScopeTests.test_b) ... ERROR\n')
+        timing.feed(batch,5);rows=timing.snapshot(6)['rows']
+        self.assertEqual([r['observed_result'] for r in rows],['ok','ERROR'])
+        self.assertEqual([r['elapsed_seconds'] for r in rows],[0,0])
+        self.assertIn('Buffered/coalesced',timing.snapshot(6)['limitation'])
+        timing.feed(b'x'*(timing.MAX_LINE_BYTES+17),7)
+        limited=timing.snapshot(8)
+        self.assertTrue(limited['lines_truncated'])
+        self.assertLessEqual(len(timing.buffer),timing.MAX_LINE_BYTES)
+        timing.feed(b'ignored ... ok\n',9)
+        for n in range(timing.MAX_ROWS+1):
+            name='test_n'+str(n)
+            line=(name+' (tests.devpr11.test_scope.ScopeTests.'+name+') ... ok\n').encode()
+            timing.feed(line,10+n)
+        limited=timing.snapshot(2000)
+        self.assertEqual(len(limited['rows']),timing.MAX_ROWS)
+        self.assertTrue(limited['rows_truncated'])
+        timing.feed(b'test_last (tests.devpr11.test_scope.ScopeTests.test_last)',2001)
+        limited=timing.snapshot(2009)
+        self.assertEqual(len(limited['rows']),timing.MAX_ROWS)
+        self.assertEqual(limited['active_test_id'],'tests.devpr11.test_scope.ScopeTests.test_last')
+        self.assertEqual(limited['rows'][-1]['elapsed_seconds'],8)
+        timing.feed(b'\n  subtest detail ... FAIL\n',2010)
+        self.assertEqual(timing.snapshot(2010)['active_test_id'],limited['active_test_id'])
+        timing.feed(b'test_next (tests.devpr11.test_scope.ScopeTests.test_next)',2011)
+        previous=timing.snapshot(2012)['rows'][-2]
+        self.assertEqual(previous['state'],'INCOMPLETE')
+        self.assertEqual(previous['reason'],'next_prefix_without_completion')
+        self.assertIsNone(previous['completion_observed_seconds'])
+
     def test_source36_ci_partition_complete_disjoint_ordered_pair(self):
         from scripts.offline_fastmath import ci_partition_ids
         first='tests.devpr11.test_storage.StorageTests.test_first'

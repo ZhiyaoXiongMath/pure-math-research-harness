@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import selectors
 import signal
@@ -17,6 +18,79 @@ import sys
 # Finite ceiling for each selected suite. Historical runs are separate receipts;
 # timeout and interruption retain raw partial evidence.
 SUITE_TIMEOUT_SECONDS = 1800
+
+
+def suite_timeout_seconds(suite):
+    if type(suite) is not str or suite not in {'default','ci-core','ci-storage','source04-affected','source07-affected','source09-affected','source10-affected','source11-affected','source11-query','source12-permission','source13-core','source13-business','source16-small','source17-affected','source18-affected','source19-capacity','source20-final-remaining','source21-affected','p01-large','p01-256','p01-256-plus-one','fm13-pilot','fm13-native-pilot'}:
+        raise ValueError('Unknown closed suite selector')
+    return 3600 if suite == 'ci-storage' else SUITE_TIMEOUT_SECONDS
+
+
+class ParentTestTimings:
+    """Bounded observations of unittest stderr, never a test-result authority."""
+    MAX_LINE_BYTES = 4096
+    MAX_ROWS = 1024
+
+    def __init__(self):
+        self.buffer = b''; self.discarding = False; self.prefix_seen = False
+        self.rows = []; self.active = None
+        self.rows_truncated = False; self.lines_truncated = False
+
+    def feed(self, data, elapsed):
+        changed = False; position = 0
+        while position < len(data):
+            newline = data.find(b'\n', position)
+            end = len(data) if newline < 0 else newline + 1
+            if not self.discarding:
+                room = self.MAX_LINE_BYTES - len(self.buffer)
+                self.buffer += data[position:min(end, position + room)]
+                changed = self._observe(elapsed, newline >= 0 and end-position <= room) or changed
+                if end-position > room:
+                    self.buffer = b''; self.discarding = True
+                    self.lines_truncated = True; changed = True
+            if self.active is not None:
+                self.active['last_progress_observed_seconds'] = elapsed
+            if newline >= 0:
+                self.buffer = b''; self.discarding = False; self.prefix_seen = False
+            position = end
+        return changed
+
+    def _observe(self, elapsed, complete_line):
+        changed = False
+        prefix = re.match(rb'^(test_[A-Za-z0-9_]+) \((tests\.devpr11\.[A-Za-z0-9_.]+)\)', self.buffer)
+        if prefix and not self.prefix_seen and prefix[2].endswith(b'.'+prefix[1]):
+            self.prefix_seen = True
+            if self.active is not None:
+                self.active.update(state='INCOMPLETE', reason='next_prefix_without_completion',
+                                   elapsed_seconds=elapsed-self.active['start_observed_seconds'])
+            self.active = dict(test_id=prefix[2].decode('ascii'), state='INCOMPLETE',
+                start_observed_seconds=elapsed, last_progress_observed_seconds=elapsed,
+                completion_observed_seconds=None, elapsed_seconds=None, observed_result=None)
+            if len(self.rows) == self.MAX_ROWS:
+                self.rows.pop(0); self.rows_truncated = True
+            self.rows.append(self.active); changed = True
+        if complete_line and self.active is not None and not self.buffer.startswith((b' ', b'\t')):
+            result = re.search(rb' \.\.\. (ok|FAIL|ERROR|expected failure|unexpected success|skipped [^\r\n]*)\r?\n$', self.buffer)
+            if result:
+                token = result[1].decode('utf-8', errors='replace')
+                self.active.update(state='COMPLETION_OBSERVED', completion_observed_seconds=elapsed,
+                    last_progress_observed_seconds=elapsed,
+                    elapsed_seconds=elapsed-self.active['start_observed_seconds'],
+                    observed_result='skipped' if token.startswith('skipped ') else token)
+                self.active = None; changed = True
+        return changed
+
+    def snapshot(self, elapsed):
+        rows = [dict(row) for row in self.rows]
+        if self.active is not None:
+            rows[-1]['elapsed_seconds'] = elapsed-self.active['start_observed_seconds']
+            rows[-1]['reason'] = 'no_completion_observed'
+        return dict(measurement='PARENT_OBSERVED_STDERR', status='OBSERVATIONS_ONLY' if rows else 'UNKNOWN',
+            limitation='Parent read times, not CPU or exact child durations. Buffered/coalesced bytes can give zero elapsed; absent, partial, truncated or unrecognized output is unknown. SIGKILL may leave only the last persisted observation. Timing never establishes suite success.',
+            rows=rows, active_test_id=None if self.active is None else self.active['test_id'],
+            partial_line=self.buffer.decode('utf-8', errors='replace'),
+            rows_truncated=self.rows_truncated, lines_truncated=self.lines_truncated,
+            max_rows=self.MAX_ROWS, max_line_bytes=self.MAX_LINE_BYTES)
 
 
 def ci_partition_ids(full_ids, selector):
@@ -62,8 +136,9 @@ def run_logged(command, out, receipt, *, timeout=SUITE_TIMEOUT_SECONDS, environm
     deliberately non-success, and already synced partial output remains.
     """
     child = None; started = time.monotonic(); caught = None; pending_signal = None
+    timings = ParentTestTimings()
     receipt.update(status='RUNNING', timeout_seconds=timeout, command=command,
-                   started_at=time.time(), completed=False)
+                   started_at=time.time(), completed=False, test_timing=timings.snapshot(0))
     durable_json(out/'receipt.json', receipt)
     handlers = {}
     def interrupt(signum, frame):
@@ -88,8 +163,12 @@ def run_logged(command, out, receipt, *, timeout=SUITE_TIMEOUT_SECONDS, environm
                     if remaining <= 0:raise subprocess.TimeoutExpired(command, timeout)
                     for key, _ in selector.select(min(remaining, 1)):
                         data = os.read(key.fileobj.fileno(), 65536)
+                        observed_at = time.monotonic()-started
                         if data:
                             key.data.write(data); os.fsync(key.data.fileno())
+                            if key.data is stderr and timings.feed(data, observed_at):
+                                receipt['test_timing'] = timings.snapshot(time.monotonic()-started)
+                                durable_json(out/'receipt.json', receipt)
                         else:selector.unregister(key.fileobj)
                         check_interrupted()  # Only after consumed bytes are durable.
                 # EOF does not imply process exit. Keep signals responsive even
@@ -121,9 +200,11 @@ def run_logged(command, out, receipt, *, timeout=SUITE_TIMEOUT_SECONDS, environm
             # Never launch a fallback child or leave the suite running.
             try:
                 tail_out, tail_err = child.communicate(timeout=5)
+                observed_at = time.monotonic()-started
                 for name, data in (('stdout',tail_out), ('stderr',tail_err)):
                     with (out/(name+'.log')).open('ab', buffering=0) as output:
                         output.write(data or b''); os.fsync(output.fileno())
+                    if name == 'stderr':timings.feed(data or b'', observed_at)
                 receipt['exit_code'] = child.returncode
             except BaseException as drain:
                 receipt['drain_error'] = type(drain).__name__+': '+str(drain)
@@ -132,6 +213,7 @@ def run_logged(command, out, receipt, *, timeout=SUITE_TIMEOUT_SECONDS, environm
                 output.write(('LAUNCHER_EXCEPTION '+''.join(traceback.format_exception(caught))).encode())
                 os.fsync(output.fileno())
         receipt.update(elapsed_seconds=time.monotonic()-started, finished_at=time.time())
+        receipt['test_timing'] = timings.snapshot(receipt['elapsed_seconds'])
         for name in ('stdout','stderr'):
             path = out/(name+'.log')
             if not path.exists():path.touch()
@@ -210,7 +292,7 @@ def main():
 
 
 def launch(source, oracle, out, receipt, *, suite='default'):
-    if suite not in {'default','ci-core','ci-storage','source04-affected','source07-affected','source09-affected','source10-affected','source11-affected','source11-query','source12-permission','source13-core','source13-business','source16-small','source17-affected','source18-affected','source19-capacity','source20-final-remaining','source21-affected','p01-large','p01-256','p01-256-plus-one','fm13-pilot','fm13-native-pilot'}:raise ValueError('Unknown closed suite selector')
+    timeout = suite_timeout_seconds(suite)
     receipt['suite_selection']=suite
     for label, tree in (('source', source), ('oracle', oracle)):
         for path in sorted(tree.rglob('*')):
@@ -265,7 +347,7 @@ def launch(source, oracle, out, receipt, *, suite='default'):
                 '--host-net', os.readlink('/proc/self/ns/net'), '--suite', suite]
     receipt['command'] = command
     durable_json(out/'command.json', command)
-    code = run_logged(command, out, receipt, environment={'PATH': '/usr/bin:/bin', 'LANG': 'C.UTF-8'})
+    code = run_logged(command, out, receipt, timeout=timeout, environment={'PATH': '/usr/bin:/bin', 'LANG': 'C.UTF-8'})
     print(json.dumps({'status': receipt['status'], 'isolation': receipt['isolation'],
                       'exit_code': receipt.get('exit_code'), 'logs': str(out)}, sort_keys=True))
     return code

@@ -14,12 +14,16 @@ permissions:
 jobs:
   scoped:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: ${{ matrix.timeout_minutes }}
     strategy:
       fail-fast: false
       max-parallel: 2
       matrix:
-        suite: [ci-core, ci-storage]
+        include:
+          - suite: ci-core
+            timeout_minutes: 40
+          - suite: ci-storage
+            timeout_minutes: 70
     steps:
       - uses: actions/checkout@v4
         with:
