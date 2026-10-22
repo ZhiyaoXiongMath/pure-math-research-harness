@@ -1,5 +1,9 @@
 """Shared native publication and descriptor-confined reads; no runtime imports."""
 from __future__ import annotations
+from contextlib import contextmanager
+from dataclasses import dataclass
+import hashlib
+from typing import Protocol
 import errno,json,os,stat,tempfile,shutil
 from pathlib import Path, PurePosixPath
 from datetime import datetime, timezone
@@ -162,6 +166,44 @@ def _reason(exc):
 def _observed_at():
     return datetime.now(timezone.utc).isoformat(timespec='microseconds').replace('+00:00', 'Z')
 
+@dataclass
+class _BodyReadBudget:
+    """One query's body payload and separately counted EOF integrity probes."""
+    remaining_bytes: int = 4294967296
+    remaining_files: int = 64
+    integrity_probe_bytes: int = 0
+    integrity_probe_attempts: int = 0
+
+    def __post_init__(self):
+        self._validate()
+
+    def _validate(self):
+        for value,maximum in ((self.remaining_bytes,4294967296),(self.remaining_files,64),
+                              (self.integrity_probe_bytes,64),(self.integrity_probe_attempts,64)):
+            if type(value) is not int or not 0 <= value <= maximum:
+                raise _Unavailable('BODY_BUDGET_INVALID')
+        if self.integrity_probe_bytes > self.integrity_probe_attempts:
+            raise _Unavailable('BODY_BUDGET_INVALID')
+
+
+@dataclass(frozen=True)
+class _VerifiedBodyRead:
+    sha256: str
+    size: int
+    result: object
+
+
+class _BodyVisitor(Protocol):
+    """Trusted private accumulator, never a serialized/plugin callback.
+
+    feed retains tentative bounded data only; it cannot deliver results.
+    finish is called only after full EOF, expected SHA and unchanged stat.
+    """
+    def feed(self, chunk: bytes, byte_offset: int) -> None: ...
+    def finish(self) -> object: ...
+    def abort(self) -> None: ...
+
+
 class _ConfinedReader:
     """Private, query-lifetime POSIX reader; every component uses O_NOFOLLOW.
 
@@ -198,7 +240,9 @@ class _ConfinedReader:
         os.close(self.fd)
         self.fd = None
 
-    def read(self, relative, maximum=64 * 1024**2, *, missing_ok=False):
+    def _open_regular(self, relative: str):
+        # Validate eagerly, before callers debit an attempted file. Opening is
+        # deferred until __enter__, after that debit. Both read paths share it.
         if self.fd is None:
             raise _Unavailable('READ_CONTEXT_CLOSED')
         if not isinstance(relative, str) or not relative or '\x00' in relative or '\\' in relative:
@@ -206,20 +250,42 @@ class _ConfinedReader:
         path = PurePosixPath(relative)
         if path.is_absolute() or '..' in path.parts or str(path) != relative or relative == '.':
             raise _Unavailable('PATH_UNSAFE')
+        @contextmanager
+        def opened():
+            fd = os.dup(self.fd)
+            try:
+                for part in path.parts[:-1]:
+                    nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+                    os.close(fd)
+                    fd = nxt
+                file_fd = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
+                try:
+                    before = os.fstat(file_fd)
+                    if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+                        raise _Unavailable('UNSAFE_FILE_TYPE')
+                    yield file_fd, before
+                finally:
+                    os.close(file_fd)
+            finally:
+                os.close(fd)
+        return opened()
+
+    def _check_unchanged(self, fd: int, before, *, identity: bool = False) -> None:
+        after = os.fstat(fd)
+        if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
+                after.st_size, after.st_mtime_ns, after.st_ctime_ns):
+            raise _Unavailable('FILE_CHANGED_DURING_READ')
+        if identity and ((before.st_dev, before.st_ino) != (after.st_dev, after.st_ino)
+                         or not stat.S_ISREG(after.st_mode) or after.st_nlink != 1):
+            raise _Unavailable('FILE_CHANGED_DURING_READ')
+
+    def read(self, relative, maximum=64 * 1024**2, *, missing_ok=False):
+        opening = self._open_regular(relative)
         if self.remaining_files <= 0:
             raise _Unavailable('QUERY_READ_LIMIT')
         self.remaining_files -= 1
-        fd = os.dup(self.fd)
         try:
-            for part in path.parts[:-1]:
-                nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
-                os.close(fd)
-                fd = nxt
-            file_fd = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
-            try:
-                before = os.fstat(file_fd)
-                if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
-                    raise _Unavailable('UNSAFE_FILE_TYPE')
+            with opening as (file_fd, before):
                 limit = min(maximum, self.remaining_bytes)
                 if before.st_size > limit:
                     raise _Unavailable('QUERY_READ_LIMIT')
@@ -233,17 +299,61 @@ class _ConfinedReader:
                     size += len(chunk)
                     if size > limit:
                         raise _Unavailable('QUERY_READ_LIMIT')
-                after = os.fstat(file_fd)
-                if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
-                        after.st_size, after.st_mtime_ns, after.st_ctime_ns):
-                    raise _Unavailable('FILE_CHANGED_DURING_READ')
+                self._check_unchanged(file_fd, before)
                 self.remaining_bytes -= size
                 return b''.join(chunks)
-            finally:
-                os.close(file_fd)
         except FileNotFoundError:
             if missing_ok:
                 return None
             raise
-        finally:
-            os.close(fd)
+
+    def read_verified_body(self, expected_sha256: str, *, budget: _BodyReadBudget,
+                           visitor: _BodyVisitor, maximum: int = 4294967296) -> _VerifiedBodyRead:
+        """Authenticate the complete pinned blob before releasing visitor output.
+
+        Payload <=4GiB/query, <=64 attempted files; a separate real read(1)
+        proves EOF per blob even at the exact payload limit. No public chunks.
+        Failed streams charge bytes actually read and discard tentative data.
+        """
+        try:
+            require(type(expected_sha256) is str and len(expected_sha256)==64 and
+                    all(c in '0123456789abcdef' for c in expected_sha256),
+                    'BLOB_ID_INVALID', 'Expected SHA-256 digest')
+            if type(budget) is not _BodyReadBudget or type(maximum) is not int or not 0 <= maximum <= 4294967296:
+                raise _Unavailable('BODY_BUDGET_INVALID')
+            budget._validate()
+            opening = self._open_regular('blobs/'+expected_sha256)
+            if budget.remaining_files <= 0:
+                raise _Unavailable('QUERY_READ_LIMIT')
+            budget.remaining_files -= 1
+            with opening as (file_fd, before):
+                if before.st_size > min(maximum,budget.remaining_bytes):
+                    raise _Unavailable('QUERY_READ_LIMIT')
+                size = 0; digest = hashlib.sha256(); visitor_error = None
+                while size < before.st_size:
+                    chunk = os.read(file_fd,min(65536,before.st_size-size))
+                    if not chunk:
+                        raise _Unavailable('BLOB_CHANGED')
+                    budget.remaining_bytes -= len(chunk)
+                    digest.update(chunk)
+                    if visitor_error is None:
+                        try:visitor.feed(chunk,size)
+                        except Exception as exc:visitor_error = exc
+                    size += len(chunk)
+                if budget.integrity_probe_attempts >= 64:
+                    raise _Unavailable('QUERY_READ_LIMIT')
+                budget.integrity_probe_attempts += 1
+                extra = os.read(file_fd,1)
+                budget.integrity_probe_bytes += len(extra)
+                if extra:
+                    raise _Unavailable('BLOB_CHANGED')
+                self._check_unchanged(file_fd,before,identity=True)
+                if size != before.st_size or digest.hexdigest() != expected_sha256:
+                    raise _Unavailable('BLOB_CHANGED')
+                if visitor_error is not None:raise visitor_error
+                result = visitor.finish()
+                return _VerifiedBodyRead(expected_sha256,size,result)
+        except BaseException:
+            try:visitor.abort()
+            except BaseException:pass  # Preserve the original failure verbatim.
+            raise

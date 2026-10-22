@@ -16,9 +16,9 @@ from pathlib import Path
 import re
 import sys
 try:
-    from scripts import domain_scope, storage_scope, control_scope
+    from scripts import domain_scope, storage_scope, control_scope, fastmath_scope
 except ModuleNotFoundError:
-    import domain_scope, storage_scope, control_scope
+    import domain_scope, storage_scope, control_scope, fastmath_scope
 
 IGNORED_DIRS = {".git", ".venv", "venv", "__pycache__", ".tox", "build", "dist"}
 LAYERS = {"domain", "ports", "application", "orchestration", "adapters",
@@ -384,6 +384,12 @@ def run(root: Path, policy: dict) -> dict:
                      set(control.get('changed_paths', ())) == control_scope.PATHS)
     if control_valid:
         permitted |= control_scope.PATHS
+    fast = policy.get('devpr11_fastmath_bridge', {})
+    fast_valid = (fast.get('baseline') == fastmath_scope.PARENT and
+        set(fast.get('changed_paths', ())) == set(fastmath_scope.SYMBOLS) | fastmath_scope.WHOLE and
+        {(r.get('source'),r.get('target')) for r in fast.get('direct_edges', ())} == fastmath_scope.EDGES)
+    if fast_valid:
+        permitted |= set(fastmath_scope.SYMBOLS) | fastmath_scope.WHOLE
     inventory, discrepancies = manifest_sources(root, permitted)
     violations, legacy_blocks = [], []
     bridge_edges = {(row['source'], row['target']) for row in bridge.get('direct_edges', ())
@@ -421,6 +427,14 @@ def run(root: Path, policy: dict) -> dict:
         violations.append({'reason': 'invalid_devpr06_control_allowlist'})
     if control_valid and control_edges == control_scope.EDGES:
         bridge_edges |= control_edges
+    if fast_valid:
+        try:
+            fastmath_scope.verify(root)
+        except (ValueError,OSError) as exc:
+            violations.append({'reason':'invalid_devpr11_stage','detail':str(exc)})
+        bridge_edges |= fastmath_scope.EDGES
+    else:
+        violations.append({'reason':'invalid_devpr11_exact_scope'})
     violation_keys = set()
     for filename in source_nodes:
         if layer(filename) == "unclassified":

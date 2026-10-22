@@ -25,11 +25,13 @@ def event(event_type,payload,*,event_id=None):
     # Only lifecycle boundaries carry the clock metadata consumed below.
     # Strict business-event payloads retain their exact registered fields.
     if event_type in {'PREPARE','RESERVE','SENT','CAPTURE','UNKNOWN','SETTLE'}:payload.setdefault('issued_at',now())
+    if event_type=='SETTLE':
+        from pmrh.domain.native_settlement import event as settle_event
+        return settle_event(payload,event_id=event_id)
     e={'actor':'host','capability_ref':'CAP-HOST','event_type':event_type,'payload':payload}
     e['event_id']=event_id or identity(e,'EXEC-EVENT-');return e
 
-def _request(s,rid):
-    require(rid in s.get('requests',{}),'REQUEST_UNKNOWN',rid);return s['requests'][rid]
+from pmrh.domain.native_settlement import _request as _request
 
 
 
@@ -199,6 +201,9 @@ def replan_unsent_materials(store,instance_id,binding_id,source_selections,reaso
     return {**result,'binding_id':binding_id,'model_calls':0,'source_selections':deepcopy(source_selections)}
 
 def apply_event(snapshot,e,blob_get=None,*,historical=False):
+    if e.get('event_type')=='SETTLE':
+        from pmrh.domain.native_settlement import apply_event as settle
+        return settle(snapshot,e)
     old=snapshot.get('execution_events',{}).get(e.get('event_id'))
     if old:
         require(old==e,'ALREADY_SETTLED_CONTENT_CONFLICT','Execution event identity conflict');return deepcopy(snapshot)
@@ -358,14 +363,6 @@ def apply_event(snapshot,e,blob_get=None,*,historical=False):
                           'synthetic':r['execution_kind']=='SYNTHETIC_TEST_ONLY','integrity_valid':True,
                           'policy_digest':task.get('policy_digest'),'capture_ref':p['capture_ref']}
                 s.setdefault('review_executions',{})[r['execution_id']]=evidence
-    elif kind=='SETTLE':
-        r=_request(s,p['request_id'])
-        require(r['execution_state'] in {'CAPTURED','SETTLED'},'EXECUTION_TRANSITION_INVALID','Capture must precede settlement')
-        require(p.get('acceptance_state') in {'ACCEPTED','REJECTED_STALE','REJECTED_CONTRACT','EXACT_DUPLICATE'},'EXECUTION_EVENT_INVALID','Exact admission disposition required')
-        if r['execution_state']=='SETTLED':require(r['receipt_ref']==p.get('receipt_ref'),'ALREADY_SETTLED_CONTENT_CONFLICT','Original settlement required')
-        else:
-            r.update(execution_state='SETTLED',acceptance_state=p['acceptance_state'],receipt_ref=p.get('receipt_ref'),admission_error=p.get('error'))
-            if p.get('diagnostic'):r['admission_diagnostic']=deepcopy(p['diagnostic'])
     elif kind=='ADMISSION_RECHECKED':
         r=_request(s,p['request_id'])
         require(p.get('schema')=='pmrs.admission-recheck/1' and p.get('task_id')==r['task_id'] and p.get('execution_id')==r['execution_id']

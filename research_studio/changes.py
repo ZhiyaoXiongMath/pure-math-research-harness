@@ -108,9 +108,8 @@ def validate_response(task,snapshot,raw,mode='preflight',blob_get=None):
 def _validate(task,snapshot,raw,mode,blob_get,allocations):
     envelope=C.bounded_json(raw)
     if task.get('repair_kind')=='FORMAT':_format_science_unchanged(task,snapshot,envelope,blob_get)
-    if task.get('response_contract_revision')==C.AUTHORING_REVISION:C.validate_authoring(envelope,task,snapshot)
-    C.fields(envelope,C.ENVELOPE_FIELDS,'ResponseEnvelope')
-    require(envelope['schema']==C.RESPONSE_SCHEMA and envelope['task_id']==task['task_id'] and envelope['request_id']==task['request_id'],'RESPONSE_SCHEMA_INVALID','Frozen task/request/schema differs')
+    from pmrh.domain.native_response import validate_entry
+    validate_entry(task,snapshot,envelope)
     duplicate=_raw_duplicate(task,snapshot,raw)
     if duplicate:return duplicate
     require(task.get('schema')==C.TASK_SCHEMA,'RESPONSE_SCHEMA_INVALID','Frozen final task required')
@@ -564,60 +563,16 @@ def prepare_result_family(snapshot,family):
     return result
 
 
-_FORMAT_WIRE_FIELDS=frozenset({'schema','task_id','request_id','base_knowledge_commit','read_set_digest','query_guard_digest','write_guard_digest'})
+from pmrh.domain.native_response import _FORMAT_WIRE_FIELDS as _FORMAT_WIRE_FIELDS
 
 
-def _repair_kcs(envelope):
-    require(isinstance(envelope,dict) and isinstance(envelope.get('payload'),dict),'REPAIR_SCIENCE_UNVERIFIABLE','An exact object payload is required to preserve science')
-    if envelope.get('payload_kind')=='KNOWLEDGE_CHANGE':return envelope['payload']
-    if envelope.get('payload_kind')=='SURVEY_RESULT':
-        require(isinstance(envelope['payload'].get('knowledge_change'),dict),'REPAIR_SCIENCE_UNVERIFIABLE','Survey must retain its native knowledge change')
-        return envelope['payload']['knowledge_change']
-    require(envelope.get('payload_kind') in {'REPORT_OUTPUT','REPORT_REVIEW'},'REPAIR_SCIENCE_UNVERIFIABLE','Unknown original payload kind')
-    return None
+from pmrh.domain.native_response import _repair_kcs as _repair_kcs
 
 
-def _resolve_projection_locators(envelope):
-    """Only the registered local-body locator representation is normalized."""
-    value=deepcopy(envelope);kcs=_repair_kcs(value);bodies={}
-    if kcs is not None:
-        for field in ('operations','obligation_effects','new_obligation_proposals'):
-            require(isinstance(kcs.get(field),list),'REPAIR_SCIENCE_UNVERIFIABLE','Original '+field+' must have a unique list interpretation')
-        for op in kcs['operations']:
-            require(isinstance(op,dict),'REPAIR_SCIENCE_UNVERIFIABLE','Original operation is not uniquely typed')
-            if op.get('op') in {'NEW','REVISE'}:
-                row=op if op['op']=='NEW' else op.get('new_record')
-                require(isinstance(row,dict) and isinstance(row.get('body'),str) and isinstance(op.get('local_key'),str),'REPAIR_SCIENCE_UNVERIFIABLE','Exact original scientific body required')
-                require(op['local_key'] not in bodies,'REPAIR_SCIENCE_UNVERIFIABLE','Duplicate local body identity')
-                bodies[op['local_key']]=row['body'].encode('utf-8')
-    def walk(v):
-        if isinstance(v,list):return [walk(x) for x in v]
-        if not isinstance(v,dict):return v
-        if set(v)==C.LOCATOR_FIELDS and isinstance(v['blob_hash'],str) and v['blob_hash'].startswith('body:'):
-            require(v['blob_hash'][5:] in bodies,'REPAIR_SCIENCE_UNVERIFIABLE','Unbound local body')
-            raw=bodies[v['blob_hash'][5:]]
-            try:actual=knowledge.locator(raw,v['start'],v['end'],v['unit'])
-            except (C.PMRSError,TypeError,IndexError) as exc:raise C.PMRSError('REPAIR_SCIENCE_UNVERIFIABLE','Invalid original local-body locator') from exc
-            require(v['quoted_sha256'] is None or v['quoted_sha256']==actual['quoted_sha256'],'REPAIR_SCIENCE_UNVERIFIABLE','Conflicting original quotation digest')
-            return actual
-        return {k:walk(x) for k,x in v.items()}
-    return walk(value)
+from pmrh.domain.native_response import _resolve_projection_locators as _resolve_projection_locators
 
 
-def science_projection(raw_or_envelope):
-    """Versioned, exhaustive science projection; unknown fields stay locked.
-
-    Everything except registered transport identity fields is scientific for
-    FORMAT purposes. No premise, account, proposal or nested Survey field is
-    selectively omitted. Unparseable JSON and duplicate keys are never proof.
-    """
-    envelope=C.bounded_json(raw_or_envelope) if isinstance(raw_or_envelope,(str,bytes)) else deepcopy(raw_or_envelope)
-    value=_resolve_projection_locators(envelope)
-    for key in ('schema','task_id','request_id'):value.pop(key,None)
-    kcs=_repair_kcs(value)
-    if kcs is not None:
-        for key in _FORMAT_WIRE_FIELDS:kcs.pop(key,None)
-    return {'schema':C.SCIENCE_PROJECTION_REVISION,'content':value}
+from pmrh.domain.native_response import science_projection as science_projection
 
 
 def _wire_repair(envelope,task):
@@ -646,6 +601,9 @@ def validator_identity():
              root.parent/'pmrh/application/unit_of_work.py', root.parent/'pmrh/application/read_projections.py',
              root.parent/'pmrh/application/control.py']
     moved += sorted((root.parent/'pmrh/adapters/storage').glob('*.py'))
+    moved += sorted((domain/'fastmath').glob('*.py'))
+    moved += [domain/'native_response.py', domain/'native_settlement.py', root/'research_audit.py', root/'version.py']
+    moved += [root.parent/'pmrh/application/fastmath.py', root/'knowledge_access.py', root/'task_tools.py']
     # Storage replay and UoW use DTO decoding, validation and wire budgets.
     # The ports initializer imports interfaces, registering every DTO module.
     ports = root.parent/'pmrh/ports'
@@ -655,10 +613,7 @@ def validator_identity():
     return {'revision':'pmrs.admission-validator/3','modules':fingerprints}
 
 
-def _error_diagnostic(exc):
-    if getattr(exc,'diagnostic',None):return deepcopy(exc.diagnostic)
-    category='STRUCTURE' if exc.code in {'RESPONSE_SCHEMA_INVALID','UNKNOWN_FIELD','DUPLICATE_JSON_KEY'} else 'AUTHORIZATION' if exc.code=='AUTHORIZATION_REQUIRED' else 'SCIENTIFIC_SEMANTICS'
-    return {'code':exc.code,'category':category,'pointer':'/','expected':exc.message,'actual':None,'frozen_binding':None,'format_repair_eligible':False,'reason':'No registered pure representation repair has been proved.'}
+from pmrh.domain.native_response import _error_diagnostic as _error_diagnostic
 
 
 def format_repair_evidence(task,snapshot,raw,blob_get=None):
@@ -675,7 +630,12 @@ def format_repair_evidence(task,snapshot,raw,blob_get=None):
         'contract_revision':C.AUTHORING_REVISION,'projection_revision':C.SCIENCE_PROJECTION_REVISION,
         'validator_revision':validator_identity(),'diagnostics':[],'allowed_transforms':['FROZEN_WIRE_BINDINGS','LOCAL_BODY_LOCATOR_CODEC'],'projection_digest':None}
     try:
-        original=C.bounded_json(raw);projection=science_projection(original)
+        original=C.bounded_json(raw)
+        from pmrh.domain.native_response import early_projection_failure
+        early=early_projection_failure(task,original)
+        if early is not None:
+            proof['diagnostics']=[early];proof['reason']=early['expected'];return proof
+        projection=science_projection(original)
         proof['projection_digest']=C.digest(projection)
         schema_issues=C.schema_diagnostics(original,C.authoring_contract(task,snapshot)['response_schema'])
         proof['diagnostics']=schema_issues

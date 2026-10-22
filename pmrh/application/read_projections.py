@@ -3,32 +3,13 @@ from copy import deepcopy
 from pmrh.domain.primitives import require, identity
 from pmrh.domain.relations import premise_closure
 
-def _cost(snapshot,request):
-    # Unknown usage retains the full authorization reservation, never zero.
-    if 'admission' in request:
-        return 0 if request['admission']['charge']=='RELEASED' else 1
-    if request['execution_state']=='CANCELLED_BEFORE_SEND':return 0
-    return request.get('reserved_calls',1)
+from pmrh.domain.native_settlement import _cost as _cost
 
-def budget_remaining(snapshot,grant_id):
-    grant=snapshot.get('budget_grants',{}).get(grant_id,{})
-    if grant.get('explicit_unlimited') is True:return float('inf')
-    maximum=grant.get('max_calls',0)
-    used=sum(_cost(snapshot,r) for r in snapshot.get('requests',{}).values() if r.get('budget_grant_id')==grant_id)
-    return maximum-used if any('ownership' in i for i in snapshot.get('instances',{}).values()) else max(0,maximum-used)
+from pmrh.domain.native_settlement import budget_remaining as budget_remaining
 
-def project_remaining(snapshot):
-    budget=snapshot.get('project_budget',{'max_calls':0})
-    if budget.get('explicit_unlimited') is True:return aggregate_project_remaining(snapshot)
-    remaining=budget.get('max_calls',0)-sum(_cost(snapshot,r) for r in snapshot.get('requests',{}).values() if r.get('budget_domain','SCIENCE')=='SCIENCE')
-    return min(aggregate_project_remaining(snapshot),remaining if any('ownership' in i for i in snapshot.get('instances',{}).values()) else max(0,remaining))
+from pmrh.domain.native_settlement import project_remaining as project_remaining
 
-def aggregate_project_remaining(snapshot):
-    """An optional explicitly configured total includes every request domain."""
-    budget=snapshot.get('project_total_budget')
-    if not budget or budget.get('explicit_unlimited') is True:return float('inf')
-    remaining=budget.get('max_calls',0)-sum(_cost(snapshot,r) for r in snapshot.get('requests',{}).values())
-    return remaining if any('ownership' in i for i in snapshot.get('instances',{}).values()) else max(0,remaining)
+from pmrh.domain.native_settlement import aggregate_project_remaining as aggregate_project_remaining
 
 def control_releasable(request):
     admission=request.get('admission')
@@ -83,9 +64,9 @@ def native_view(snapshot,iid):
         'goal_id_semantics':'Native API exposes threadId and createdAt, not an opaque Goal ID.',
         'turns':[deepcopy(t) for t in snapshot.get('native_main_turns',{}).values() if t['instance_id']==iid]}
 
-def strategy_id(iid):return identity(iid,'STRATEGY-')
+from pmrh.domain.native_settlement import strategy_id as strategy_id
 
-def strategy_current(s,iid):return s.get('strategies',{}).get(strategy_id(iid))
+from pmrh.domain.native_settlement import strategy_current as strategy_current
 
 def effective_guidance(s,iid):
     rows=[d for d in s.get('human_directions',{}).values() if d['instance_id']==iid]

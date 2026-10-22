@@ -4,6 +4,8 @@ import json
 import re
 from .primitives import PMRSError, require, canonical, sha
 
+RESPONSE_SCHEMA = "pmrs.response/4.2.2"
+
 CHANGE_SCHEMA = 'pmrs.knowledge-change/1'
 
 RECORD_SCHEMA = 'pmrs.knowledge-record/1'

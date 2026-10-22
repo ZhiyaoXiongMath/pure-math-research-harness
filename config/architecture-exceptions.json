@@ -904,5 +904,139 @@
         "remove_by": "DEV-PR-10"
       }
     ]
+  },
+  "devpr11_fastmath_bridge": {
+    "baseline": "48b445f4370922d5535f7b6c4641066bd82fcfdc",
+    "changed_paths": [
+      "config/architecture-exceptions.json",
+      "pmrh/adapters/storage/control.py",
+      "pmrh/adapters/storage/format.py",
+      "pmrh/adapters/storage/io.py",
+      "pmrh/adapters/storage/journal.py",
+      "pmrh/adapters/storage/pool.py",
+      "pmrh/application/control.py",
+      "pmrh/application/read_projections.py",
+      "pmrh/domain/contracts.py",
+      "research_studio/changes.py",
+      "research_studio/contracts.py",
+      "research_studio/execution.py",
+      "research_studio/knowledge_access.py",
+      "research_studio/research_audit.py",
+      "research_studio/storage_compat.py",
+      "research_studio/store.py",
+      "research_studio/strategy.py",
+      "research_studio/task_tools.py",
+      "research_studio/version.py",
+      "scripts/architecture_deps.py",
+      "scripts/check_legacy_scope.py",
+      "scripts/control_scope.py",
+      "scripts/storage_scope.py"
+    ],
+    "direct_edges": [
+      {
+        "source": "research_studio/changes.py",
+        "target": "pmrh/domain/native_response.py",
+        "consumer": "Native response and SETTLE mechanical reexport",
+        "reason": "Root scope04 single pure source; original native semantics retained",
+        "owner": "DEV-PR-11",
+        "remove_by": "DEV-PR-11"
+      },
+      {
+        "source": "research_studio/contracts.py",
+        "target": "pmrh/domain/native_response.py",
+        "consumer": "Native response and SETTLE mechanical reexport",
+        "reason": "Root scope04 single pure source; original native semantics retained",
+        "owner": "DEV-PR-11",
+        "remove_by": "DEV-PR-11"
+      },
+      {
+        "source": "research_studio/execution.py",
+        "target": "pmrh/domain/native_settlement.py",
+        "consumer": "Native response and SETTLE mechanical reexport",
+        "reason": "Root scope04 single pure source; original native semantics retained",
+        "owner": "DEV-PR-11",
+        "remove_by": "DEV-PR-11"
+      },
+      {
+        "source": "research_studio/knowledge_access.py",
+        "target": "pmrh/adapters/storage/io.py",
+        "consumer": "DEV11 exact authorized knowledge and trusted combined assembly",
+        "reason": "Frozen combined fast capability; no new native qualification policy",
+        "owner": "DEV-PR-11",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/knowledge_access.py",
+        "target": "pmrh/adapters/storage/journal.py",
+        "consumer": "DEV11 exact authorized knowledge and trusted combined assembly",
+        "reason": "Frozen combined fast capability; no new native qualification policy",
+        "owner": "DEV-PR-11",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/knowledge_access.py",
+        "target": "pmrh/domain/fastmath/qualification.py",
+        "consumer": "DEV11 exact authorized knowledge and trusted combined assembly",
+        "reason": "Frozen combined fast capability; no new native qualification policy",
+        "owner": "DEV-PR-11",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/knowledge_access.py",
+        "target": "pmrh/domain/fastmath/validation.py",
+        "consumer": "DEV11 exact authorized knowledge and trusted combined assembly",
+        "reason": "Frozen combined fast capability; no new native qualification policy",
+        "owner": "DEV-PR-11",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/research_audit.py",
+        "target": "pmrh/domain/native_response.py",
+        "consumer": "Native response and SETTLE mechanical reexport",
+        "reason": "Root scope04 single pure source; original native semantics retained",
+        "owner": "DEV-PR-11",
+        "remove_by": "DEV-PR-11"
+      },
+      {
+        "source": "research_studio/research_audit.py",
+        "target": "pmrh/domain/native_settlement.py",
+        "consumer": "Native response and SETTLE mechanical reexport",
+        "reason": "Root scope04 single pure source; original native semantics retained",
+        "owner": "DEV-PR-11",
+        "remove_by": "DEV-PR-11"
+      },
+      {
+        "source": "research_studio/storage_compat.py",
+        "target": "pmrh/adapters/storage/control_fast.py",
+        "consumer": "DEV11 exact authorized knowledge and trusted combined assembly",
+        "reason": "Frozen combined fast capability; no new native qualification policy",
+        "owner": "DEV-PR-11",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/storage_compat.py",
+        "target": "pmrh/application/fastmath.py",
+        "consumer": "DEV11 exact authorized knowledge and trusted combined assembly",
+        "reason": "Frozen combined fast capability; no new native qualification policy",
+        "owner": "DEV-PR-11",
+        "remove_by": "DEV-PR-18"
+      },
+      {
+        "source": "research_studio/strategy.py",
+        "target": "pmrh/domain/native_response.py",
+        "consumer": "Native response and SETTLE mechanical reexport",
+        "reason": "Root scope04 single pure source; original native semantics retained",
+        "owner": "DEV-PR-11",
+        "remove_by": "DEV-PR-11"
+      },
+      {
+        "source": "research_studio/version.py",
+        "target": "pmrh/domain/contracts.py",
+        "consumer": "Native response and SETTLE mechanical reexport",
+        "reason": "Root scope04 single pure source; original native semantics retained",
+        "owner": "DEV-PR-11",
+        "remove_by": "DEV-PR-11"
+      }
+    ]
   }
 }

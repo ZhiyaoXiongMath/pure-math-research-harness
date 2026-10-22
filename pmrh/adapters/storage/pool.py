@@ -161,7 +161,7 @@ class Pool:
                 store = Journal(reader.root, reader=reader)
                 history = store.history(); state = store.read_snapshot()
                 check(state['project_id'] == row['project_id'] and history[0][0]['commit'] == row['genesis_commit'])
-                if history[-1][1]['schema'] == SCHEMA:
+                if history[-1][1]['schema'] in (SCHEMA, 'pmrh.control-fast.commit/1'):
                     check(store._control_index.profile['pool_id'] == self.pool_id, 'AUTHORIZATION_REQUIRED')
                 else:
                     # Registration precedes activation. Only the exact fresh

@@ -14,7 +14,7 @@ class Store(LegacyWriters, Journal):
 
     def commit(self, validated, expected_relevant_guards=None, *, admission_recheck=None):
         """Route control-profile captures through the single admission gate."""
-        if self.history()[-1][1]['schema'] == 'pmrh.commit/2':
+        if self.history()[-1][1]['schema'] in ('pmrh.commit/2', 'pmrh.control-fast.commit/1'):
             from pmrh.adapters.storage.control import exact
             task = getattr(validated, '_task', None)
             require(type(task) is dict and getattr(validated, '_raw', None) is not None and admission_recheck is None,
@@ -30,3 +30,9 @@ class Store(LegacyWriters, Journal):
 
     def _read_file(self, path, *args, **kwargs):
         return read(path, *args, **kwargs)
+
+    def fastmath_service(self):
+        from .storage_compat import assemble_fastmath
+        service = getattr(self, '_control_service', None)
+        require(service is not None, 'AUTHORIZATION_REQUIRED', 'Trusted control assembly required')
+        return assemble_fastmath(service)

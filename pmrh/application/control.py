@@ -46,6 +46,17 @@ class AuthorityRegistry:
         self._sessions[session]['acting_request_id'] = acting_request_id
         return session
 
+    def register_fast_ingress(self, *, request_id, **authentication):
+        """Trusted broker assembly only, for one already authenticated request."""
+        checked(not authentication.get('human') and not authentication.get('proposal_only') and
+                authentication.get('owner_id') is None)
+        checked(set(authentication['actions']) == {'FAST_PROPOSAL_CAPTURED', 'RECOVER_RECEIPT'})
+        checked(authentication.get('request_ids') == {request_id})
+        session = self.authenticate(**authentication)
+        self._sessions[session]['fast_capture_ingress'] = request_id
+        self._sessions[session]['acting_request_id'] = request_id
+        return session
+
     def acting_request(self, session):
         checked(type(session) is Session and session in self._sessions)
         return self._sessions[session]['acting_request_id']
@@ -125,7 +136,7 @@ class Control:
         checked(frame is not None)
         command = {key: deepcopy(frame[key]) for key in ('operation_id', 'idempotency_key', 'scope',
                    'expected_head', 'owner_epoch', 'control_version')}
-        command.update(schema='pmrh.control-event/1', type=action, payload=deepcopy(payload))
+        command.update(schema=self.storage.event_schema, type=action, payload=deepcopy(payload))
         return self.apply(command, frame['session'], grant_ref=frame['grant_ref'], manifest_ref=frame['manifest_ref'])
 
     def apply(self, command, session, *, grant_ref=None, manifest_ref=None):
