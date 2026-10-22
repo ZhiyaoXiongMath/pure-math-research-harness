@@ -1,0 +1,1546 @@
+{
+  "schema": "pmrh.development-ledger/1",
+  "snapshot_date": "2026-10-21",
+  "observed_utc": "2026-10-21 13:30:58 UTC",
+  "observed_main": "4239f15ad1233cc89cd6556cec284951b5fc2e3e",
+  "nature": "Dated frozen evidence index; not a live status mirror, authorization token, proof authority or substitute for explicit human decisions.",
+  "evidence_source": "Global control supplied primary GitHub metadata at the unchanged observed_utc cutoff and reused prior audit receipts. A later verified private-decision supplement changes only DEV06 final-head Controller disposition; no renewed GitHub fetch, product tests or independent review. Isolated GOV-02 Developer made no live query.",
+  "public_grant": {
+    "id": "HUMAN-PROGRAM-GRANT-20261021",
+    "date": "2026-10-21",
+    "sha256": "a2e8e60b1f85736a66960827772f68ed03f380dbf3400f5e7df6eb4179704611",
+    "effective": "IMMEDIATE_FROM_EXPLICIT_HUMAN_DECISION_NOT_GOV02_MERGE",
+    "granted_scope": [
+      "GOV-02 governance/state",
+      "DEV06 closeout",
+      "DEV07–14 bounded development",
+      "DEV18 integrated acceptance and release-candidate preparation"
+    ],
+    "separate_human_decisions": [
+      "Each PR merge",
+      "Formal tag/Release",
+      "DEV15 experiment execution",
+      "DEV16 backend adoption and implementation",
+      "DEV17 migration tool development and actual migration"
+    ],
+    "excluded": [
+      "Real scientific research",
+      "Paid product-model calls",
+      "Old project recovery",
+      "Budget increases",
+      "Production activation"
+    ],
+    "public_contract": "PROGRAM-CONTROL.md"
+  },
+  "role_policy": {
+    "global_control": {
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "tenure": "PERSISTS_ACROSS_PACKAGE_HANDOFFS",
+      "architecture_arbiter": true
+    },
+    "package_controller": {
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "tenure": "SEPARATELY_APPOINTED_BOUNDED_PACKAGE_NO_SELF_APPOINTED_SUCCESSOR"
+    },
+    "developer": {
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "scope": "ENFORCED_SCOPED_WRITES_BLOCKED_TASK_NETWORK"
+    },
+    "independent_reviewer": {
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "scope": "FRESH_INDEPENDENT_CONTEXT_READ_ONLY_SOURCE_AND_PACKET_SCRATCH_WRITES_BLOCKED_TASK_NETWORK"
+    },
+    "verification": "Actual runtime/thread/turn/model/effort/approval/permission evidence, parent and child filesystem/network probes, independent Controller second gate and frozen packet before substantive source work. Stop on mismatch/rejection; no silent fallback. Disclose Controller host privileges. Policy does not assert historical configurations."
+  },
+  "governance_package": {
+    "id": "GOV-02",
+    "authorization": "AUTHORIZED_UNDER_PROGRAM_GRANT",
+    "base": "4239f15ad1233cc89cd6556cec284951b5fc2e3e",
+    "delivery": "AUTHORED_IN_SCRATCH_NOT_COMMITTED_BY_DEVELOPER",
+    "independent_review": "NOT_YET_RECORDED",
+    "main_acceptance": "NOT_YET_RECORDED",
+    "pr": null,
+    "final_head": null,
+    "merge": "NOT_MERGED_IN_THIS_SNAPSHOT",
+    "handoff": "NOT_DECLARED",
+    "roles": {
+      "controller": "APPOINTED_GOV02_CONTROLLER_PER_TASK_NO_PRIVATE_ID_PUBLISHED",
+      "developer": "APPOINTED_ISOLATED_GOV02_DEVELOPER_ACTUAL_GATES_VERIFIED",
+      "reviewer": "NOT_APPOINTED_IN_FROZEN_PACKET"
+    },
+    "owned_paths": [
+      "AGENTS.md",
+      "CONTRIBUTING.md",
+      "docs/development/MAIN-OPERATING-PROTOCOL.md",
+      "docs/development/PROJECT-STATE.md",
+      "docs/development/PROGRAM-CONTROL.md",
+      "docs/development/DEVELOPMENT-LEDGER.json"
+    ],
+    "next_gate": "Controller inspect/copy allowed bytes, commit, commission fresh independent final-head full-delta review, separate MAIN disposition, human merge and verified handoff; later facts recorded externally."
+  },
+  "scheduling": {
+    "default": "SEQUENTIAL_PRODUCT_IMPLEMENTATION",
+    "current_disjoint_assignments": [
+      "GOV-02 six documentation paths on frozen main",
+      "DEV06 read-only final-head closeout private evidence",
+      "DEV07 global read-only interface/consumer preflight private evidence; no implementation appointment"
+    ],
+    "future_parallelism_requires": [
+      "Recorded file/interface ownership",
+      "Exact frozen bases and update policy",
+      "Dependency and merge order",
+      "Global control as architecture arbiter",
+      "Independent package gates before coding"
+    ]
+  },
+  "optional_decisions": {
+    "DEV-PR-15": "PENDING_HUMAN_DECISION",
+    "DEV-PR-16": "PENDING_HUMAN_DECISION",
+    "DEV-PR-17": "PENDING_HUMAN_DECISION",
+    "formal_tag_release": "PENDING_HUMAN_DECISION",
+    "allowed_dispositions_when_decided": [
+      "adopt",
+      "do-not-adopt",
+      "defer"
+    ],
+    "no_disposition_inferred": true
+  },
+  "preserved_limits": [
+    "DEV01 separately retrievable MAIN acceptance unavailable.",
+    "PR5 independent historical document review NOT_RETRIEVED.",
+    "REV02-HELPER-01 INCONCLUSIVE / NOT_EXECUTED; never sole authority.",
+    "Historical archive merge alone does not establish review/acceptance/HANDOFF COMPLETE.",
+    "DEV06 local005 cause UNKNOWN; local001–008 history retained."
+  ],
+  "not_executed": [
+    "Full 58+46 product aggregate",
+    "Real backend transport",
+    "Production activation",
+    "Real research/project access",
+    "Scientific migration",
+    "Product test reruns by GOV-02 Developer"
+  ],
+  "management_inference": "NOT_MEASURED",
+  "acceptance_baseline": {
+    "definition_change": "NONE",
+    "aggregate": "NOT_EXECUTED",
+    "blanket_pass": false,
+    "refs": [
+      "ACCEPTANCE-BASELINE.md",
+      "ACCEPTANCE-ADDENDUM-04-11-12.md"
+    ]
+  },
+  "packages": [
+    {
+      "id": "DEV-PR-01",
+      "description": "Safe AST baseline and isolated test entrypoint",
+      "scope": "Static AST dependencies and isolated synthetic offline baseline; no complete OS sandbox or dynamic-import certification.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "Phase 0 independently accepted; separate authorization",
+        "mandatory_packages": [],
+        "additional_conditions": [
+          "Phase 0 independently accepted; historical separate authorization"
+        ],
+        "interface_alignment": [],
+        "conditional_packages": []
+      },
+      "status": {
+        "authorization": "HISTORICAL_PACKAGE_GRANT_RECORDED",
+        "implementation": "IMPLEMENTED_HISTORICAL_SCOPED",
+        "testing": "TESTED_HISTORICAL_SCOPED",
+        "independent_review": "REVIEWED_HISTORICAL_SCOPED",
+        "main_acceptance": "REPORTED_HISTORICAL_ACCEPTANCE_SEPARATE_RECORD_UNAVAILABLE",
+        "github_merge": "MERGED",
+        "handoff": "HISTORICAL_DOCUMENT_PRESENT_COMPLETION_NOT_ASSERTED"
+      },
+      "roles": {
+        "controller": "HISTORICAL_ROLE_EVIDENCE_IN_REFERENCES_NO_ID_OR_CONFIGURATION_RECONSTRUCTED",
+        "developer": "HISTORICAL_ROLE_EVIDENCE_IN_REFERENCES_NO_ID_OR_CONFIGURATION_RECONSTRUCTED",
+        "reviewer": "HISTORICAL_ROLE_EVIDENCE_IN_REFERENCES_NO_ID_OR_CONFIGURATION_RECONSTRUCTED"
+      },
+      "authorization": {
+        "source": "HISTORICAL_EXPLICIT_PACKAGE_GRANT_AS_RECORDED_IN_BASELINE",
+        "scope": "Static AST dependencies and isolated synthetic offline baseline; no complete OS sandbox or dynamic-import certification.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROJECT-STATE.md",
+          "handoffs/DEV-PR-01.md"
+        ]
+      },
+      "source_identity": {
+        "base": "977e866d64bba5cf7b5549f17a3d4b5599a4c20a",
+        "head": "f8f93e962100010489946f4d82e302ea187c9874",
+        "merge": "5d1b34d27bfbc171b2c5041973db8e8c1406a4b1",
+        "github_pr": 2,
+        "evidence": "BASELINE_HISTORICAL_RECORDS"
+      },
+      "public_evidence_refs": [
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/2",
+        "handoffs/DEV-PR-01.md",
+        "reviews/DEV-PR-01-INDEPENDENT-RE-REVIEW.md",
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38234570618"
+      ],
+      "acceptance_mapping": {
+        "status": "REUSE_SCOPED_CONTRACT_RECEIPTS_NO_AGGREGATE_PASS",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md"
+        ]
+      },
+      "unresolved_limits": [
+        "Separately retrievable MAIN acceptance record unavailable; reported acceptance is not recreated.",
+        "Independent Chat review is not a native GitHub Review.",
+        "Python guards are not an OS sandbox; dynamic AST coverage is bounded."
+      ],
+      "next_gate": "Retain scoped historical receipts and unresolved limits; verify dependency/handoff evidence at successor freeze without reconstructing missing historical decisions."
+    },
+    {
+      "id": "DEV-PR-02",
+      "description": "Ports, DTO and explicit error contracts",
+      "scope": "Versioned ports, DTOs, explicit errors and fake contract tests; no real runtime/provider implementation.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "01",
+        "mandatory_packages": [
+          "DEV-PR-01"
+        ],
+        "additional_conditions": [],
+        "interface_alignment": [],
+        "conditional_packages": []
+      },
+      "status": {
+        "authorization": "HISTORICAL_PACKAGE_GRANT_RECORDED",
+        "implementation": "IMPLEMENTED_HISTORICAL_SCOPED",
+        "testing": "TESTED_HISTORICAL_SCOPED",
+        "independent_review": "REVIEWED_HISTORICAL_SCOPED",
+        "main_acceptance": "MAIN_ACCEPTED_HISTORICAL_SCOPED",
+        "github_merge": "MERGED",
+        "handoff": "HISTORICAL_DOCUMENT_PRESENT_COMPLETION_NOT_ASSERTED"
+      },
+      "roles": {
+        "controller": "HISTORICAL_ROLE_EVIDENCE_IN_REFERENCES_NO_ID_OR_CONFIGURATION_RECONSTRUCTED",
+        "developer": "HISTORICAL_ROLE_EVIDENCE_IN_REFERENCES_NO_ID_OR_CONFIGURATION_RECONSTRUCTED",
+        "reviewer": "HISTORICAL_ROLE_EVIDENCE_IN_REFERENCES_NO_ID_OR_CONFIGURATION_RECONSTRUCTED"
+      },
+      "authorization": {
+        "source": "HISTORICAL_EXPLICIT_PACKAGE_GRANT_AS_RECORDED_IN_BASELINE",
+        "scope": "Versioned ports, DTOs, explicit errors and fake contract tests; no real runtime/provider implementation.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROJECT-STATE.md",
+          "handoffs/DEV-PR-02.md"
+        ]
+      },
+      "source_identity": {
+        "base": "efd2be4e93ca8f1ee9f6a03fa53df6a1f008c8fb",
+        "head": "bdc698873999d3fc1773e76588339276ddc581ca",
+        "merge": "e1cb2dd76d9b5f8651750d6bd89d0b44819b6515",
+        "github_pr": 4,
+        "evidence": "BASELINE_HISTORICAL_RECORDS"
+      },
+      "public_evidence_refs": [
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/4",
+        "handoffs/DEV-PR-02.md",
+        "DEV-PR-02-MAIN-ACCEPTANCE.md",
+        "reviews/DEV-PR-02-INDEPENDENT-RE-REVIEW-R3.md",
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38367753519"
+      ],
+      "acceptance_mapping": {
+        "status": "REUSE_SCOPED_CONTRACT_RECEIPTS_NO_AGGREGATE_PASS",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md"
+        ]
+      },
+      "unresolved_limits": [
+        "REV02-HELPER-01 remains accepted nonblocking INCONCLUSIVE / NOT_EXECUTED, never sole integrity/merge authority.",
+        "PR5 historical independent documentation review is NOT_RETRIEVED.",
+        "No retroactive archival acceptance or HANDOFF COMPLETE inference."
+      ],
+      "next_gate": "Retain scoped historical receipts and unresolved limits; verify dependency/handoff evidence at successor freeze without reconstructing missing historical decisions."
+    },
+    {
+      "id": "DEV-PR-03",
+      "description": "Read-only queries separated from reconciliation",
+      "scope": "Confined read-only query MVP; not certification of all legacy I/O.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "01; align interfaces with 02",
+        "mandatory_packages": [
+          "DEV-PR-01"
+        ],
+        "additional_conditions": [
+          "Align interfaces with DEV-PR-02"
+        ],
+        "interface_alignment": [
+          "DEV-PR-02"
+        ],
+        "conditional_packages": []
+      },
+      "status": {
+        "authorization": "HISTORICAL_PACKAGE_GRANT_RECORDED",
+        "implementation": "IMPLEMENTED_HISTORICAL_SCOPED",
+        "testing": "TESTED_HISTORICAL_SCOPED",
+        "independent_review": "REVIEWED_HISTORICAL_SCOPED",
+        "main_acceptance": "MAIN_ACCEPTED_HISTORICAL_SCOPED",
+        "github_merge": "MERGED",
+        "handoff": "HISTORICAL_DOCUMENT_PRESENT_COMPLETION_NOT_ASSERTED"
+      },
+      "roles": {
+        "controller": "HISTORICAL_ROLE_EVIDENCE_IN_REFERENCES_NO_ID_OR_CONFIGURATION_RECONSTRUCTED",
+        "developer": "HISTORICAL_ROLE_EVIDENCE_IN_REFERENCES_NO_ID_OR_CONFIGURATION_RECONSTRUCTED",
+        "reviewer": "HISTORICAL_ROLE_EVIDENCE_IN_REFERENCES_NO_ID_OR_CONFIGURATION_RECONSTRUCTED"
+      },
+      "authorization": {
+        "source": "HISTORICAL_EXPLICIT_PACKAGE_GRANT_AS_RECORDED_IN_BASELINE",
+        "scope": "Confined read-only query MVP; not certification of all legacy I/O.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROJECT-STATE.md",
+          "handoffs/DEV-PR-03.md"
+        ]
+      },
+      "source_identity": {
+        "base": "507ea4baca2782ab0da13ab949bc4424fc707694",
+        "head": "c4ea8bc93b2018f30f04a5c5df7d1a8b1a653525",
+        "merge": "bd5c957798355296248e2c9fbc1ebdf63a1861eb",
+        "github_pr": 6,
+        "evidence": "BASELINE_HISTORICAL_RECORDS"
+      },
+      "public_evidence_refs": [
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/6",
+        "handoffs/DEV-PR-03.md",
+        "DEV-PR-03-MAIN-ACCEPTANCE.md",
+        "reviews/DEV-PR-03-GENERAL-REVIEW-R2.md",
+        "reviews/DEV-PR-03-SECURITY-REVIEW-R2.md",
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38502114213"
+      ],
+      "acceptance_mapping": {
+        "status": "REUSE_SCOPED_CONTRACT_RECEIPTS_NO_AGGREGATE_PASS",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md"
+        ]
+      },
+      "unresolved_limits": [
+        "PR5 missing historical review is not repaired by DEV03 baseline preflight or dependency acceptance.",
+        "Bounded query/no-write scope excludes broader legacy I/O; no separate actual merge-SHA CI asserted."
+      ],
+      "next_gate": "Retain scoped historical receipts and unresolved limits; verify dependency/handoff evidence at successor freeze without reconstructing missing historical decisions."
+    },
+    {
+      "id": "DEV-PR-04",
+      "description": "Mathematical domain kernel extraction",
+      "scope": "Existing pure mathematical domain-rule extraction with aliases and FORMAT fingerprint update; no new fast-object database or strategy loop.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "02",
+        "mandatory_packages": [
+          "DEV-PR-02"
+        ],
+        "additional_conditions": [],
+        "interface_alignment": [],
+        "conditional_packages": []
+      },
+      "status": {
+        "authorization": "HISTORICAL_PACKAGE_GRANT_RECORDED",
+        "implementation": "IMPLEMENTED_HISTORICAL_SCOPED",
+        "testing": "TESTED_HISTORICAL_SCOPED",
+        "independent_review": "REVIEWED_HISTORICAL_SCOPED",
+        "main_acceptance": "MAIN_ACCEPTED_HISTORICAL_SCOPED",
+        "github_merge": "MERGED",
+        "handoff": "HISTORICAL_DOCUMENT_PRESENT_COMPLETION_NOT_ASSERTED"
+      },
+      "roles": {
+        "controller": "HISTORICAL_ROLE_EVIDENCE_IN_REFERENCES_NO_ID_OR_CONFIGURATION_RECONSTRUCTED",
+        "developer": "HISTORICAL_ROLE_EVIDENCE_IN_REFERENCES_NO_ID_OR_CONFIGURATION_RECONSTRUCTED",
+        "reviewer": "HISTORICAL_ROLE_EVIDENCE_IN_REFERENCES_NO_ID_OR_CONFIGURATION_RECONSTRUCTED"
+      },
+      "authorization": {
+        "source": "HISTORICAL_EXPLICIT_PACKAGE_GRANT_AS_RECORDED_IN_BASELINE",
+        "scope": "Existing pure mathematical domain-rule extraction with aliases and FORMAT fingerprint update; no new fast-object database or strategy loop.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROJECT-STATE.md",
+          "handoffs/DEV-PR-04.md"
+        ]
+      },
+      "source_identity": {
+        "base": "f724c06b54b157abe580cdf046f4fc08bb01c144",
+        "head": "acf7cd6e6b3c093459564487a44dbeb56845cc79",
+        "merge": "1a85ba643d77420ffb7303665a9f9d31a1cca14c",
+        "github_pr": 9,
+        "evidence": "BASELINE_HISTORICAL_RECORDS"
+      },
+      "public_evidence_refs": [
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/9",
+        "handoffs/DEV-PR-04.md",
+        "records/DEV-PR-04-MAIN-ACCEPTANCE-ORIGINAL.json",
+        "reviews/DEV-PR-04-INDEPENDENT-REVIEW.md",
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38705408611"
+      ],
+      "acceptance_mapping": {
+        "status": "REUSE_SCOPED_CONTRACT_RECEIPTS_NO_AGGREGATE_PASS",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md",
+          "ACCEPTANCE-ADDENDUM-04-11-12.md"
+        ]
+      },
+      "unresolved_limits": [
+        "Software extraction does not implement DEV11 fast objects or DEV12 strategic loop.",
+        "Review rendering is path-normalized; original acceptance record is separately archived."
+      ],
+      "next_gate": "Retain scoped historical receipts and unresolved limits; verify dependency/handoff evidence at successor freeze without reconstructing missing historical decisions."
+    },
+    {
+      "id": "DEV-PR-05",
+      "description": "Journal/blob Store and UnitOfWork adapters",
+      "scope": "Bounded disk storage and observation ports with explicitly approved synthetic persistence extension; no production migration.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "04",
+        "mandatory_packages": [
+          "DEV-PR-04"
+        ],
+        "additional_conditions": [],
+        "interface_alignment": [],
+        "conditional_packages": []
+      },
+      "status": {
+        "authorization": "HISTORICAL_PACKAGE_GRANT_RECORDED",
+        "implementation": "IMPLEMENTED_HISTORICAL_SCOPED",
+        "testing": "TESTED_HISTORICAL_SCOPED",
+        "independent_review": "REVIEWED_HISTORICAL_SCOPED",
+        "main_acceptance": "MAIN_ACCEPTED_HISTORICAL_SCOPED",
+        "github_merge": "MERGED",
+        "handoff": "HISTORICAL_DOCUMENT_PRESENT_COMPLETION_NOT_ASSERTED"
+      },
+      "roles": {
+        "controller": "HISTORICAL_ROLE_EVIDENCE_IN_REFERENCES_NO_ID_OR_CONFIGURATION_RECONSTRUCTED",
+        "developer": "HISTORICAL_ROLE_EVIDENCE_IN_REFERENCES_NO_ID_OR_CONFIGURATION_RECONSTRUCTED",
+        "reviewer": "HISTORICAL_ROLE_EVIDENCE_IN_REFERENCES_NO_ID_OR_CONFIGURATION_RECONSTRUCTED"
+      },
+      "authorization": {
+        "source": "HISTORICAL_EXPLICIT_PACKAGE_GRANT_AS_RECORDED_IN_BASELINE",
+        "scope": "Bounded disk storage and observation ports with explicitly approved synthetic persistence extension; no production migration.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROJECT-STATE.md",
+          "handoffs/DEV-PR-05.md"
+        ]
+      },
+      "source_identity": {
+        "base": "2c65af1a407c159d6768867bf25c03566c4657c1",
+        "head": "68de9fa7db55c51ffad27e498e928ab6788cb817",
+        "merge": "25176107f552cbec2abe1b05c03b87a38d610f39",
+        "github_pr": 11,
+        "evidence": "BASELINE_HISTORICAL_RECORDS"
+      },
+      "public_evidence_refs": [
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/11",
+        "handoffs/DEV-PR-05.md",
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/11#issuecomment-6193171124",
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/11#issuecomment-6193187147",
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/38740633013",
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/12"
+      ],
+      "acceptance_mapping": {
+        "status": "REUSE_SCOPED_CONTRACT_RECEIPTS_NO_AGGREGATE_PASS",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md",
+          "ACCEPTANCE-ADDENDUM-04-11-12.md"
+        ]
+      },
+      "unresolved_limits": [
+        "Fixed storage capacity and bounded crash checks do not certify universal power-loss behavior.",
+        "Synthetic pmrh.commit/1 extension does not authorize production activation, downgrade or migration.",
+        "PR12 archive merge does not independently supply historical archive review/acceptance/handoff completion evidence."
+      ],
+      "next_gate": "Retain scoped historical receipts and unresolved limits; verify dependency/handoff evidence at successor freeze without reconstructing missing historical decisions."
+    },
+    {
+      "id": "DEV-PR-06",
+      "description": "Control, MAIN epoch, admission and outbox",
+      "scope": "Synthetic local control, MAIN epoch/fencing, admission and outbox; H0 product acceptance and four-file CI repair delivery are distinct.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "02, 05",
+        "mandatory_packages": [
+          "DEV-PR-02",
+          "DEV-PR-05"
+        ],
+        "additional_conditions": [],
+        "interface_alignment": [],
+        "conditional_packages": []
+      },
+      "status": {
+        "authorization": "AUTHORIZED_UNDER_PROGRAM_GRANT",
+        "implementation": "IMPLEMENTED_SYNTHETIC_DELIVERY",
+        "testing": "TESTED_SCOPED_RECEIPTS_REUSED",
+        "independent_review": "REPAIR_RECOMMENDATION_RECORDED_SEPARATE_FROM_PRODUCT_ACCEPTANCE",
+        "main_acceptance": "ACCEPTED_SCOPED_PREMERGE",
+        "github_merge": "OPEN_UNMERGED",
+        "handoff": "NOT_DECLARED",
+        "merge_readiness": "READY_FOR_USER_MERGE_DECISION"
+      },
+      "roles": {
+        "controller": "ORIGINAL_PRODUCT_CONTROLLER_REPORTED_IN_PR13; SEPARATE_NEW_CLOSEOUT_CONTROLLER_ACTUAL_GPT_6_ASTRA_HIGH_VERIFIED_BY_GLOBAL_CONTROL; DECISION_DEV06_CLOSEOUT_20261021_PRIVATE_SOURCE",
+        "developer": "HISTORICAL_DELIVERY_AND_REPAIR_ROLES_REPORTED_IN_PR13; NO_NEW_IMPLEMENTATION_APPOINTMENT_HERE",
+        "reviewer": "INDEPENDENT_REPAIR_REVIEW_REPORTED_IN_PR13; REUSED_BY_NEW_CLOSEOUT_CONTROLLER_DECISION; NO_INDEPENDENT_REVIEW_RERUN"
+      },
+      "authorization": {
+        "source": "HUMAN-PROGRAM-GRANT-20261021",
+        "scope": "DEV06 closeout only under the program grant. Original product implementation and bounded CI repair used their separately recorded prior authorizations; this grant does not retroactively authorize or accept them.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROGRAM-CONTROL.md"
+        ]
+      },
+      "source_identity": {
+        "base": "4239f15ad1233cc89cd6556cec284951b5fc2e3e",
+        "head": "0a552d93fb2518fdc03697f21e560ec1db312999",
+        "merge": null,
+        "github_pr": 13,
+        "evidence": "FROZEN_CURRENT_PUBLIC_FACTS"
+      },
+      "public_evidence_refs": [
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/13",
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595721914",
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595721871",
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595722065",
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595722202",
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595722138",
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595721970",
+        "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595721989"
+      ],
+      "acceptance_mapping": {
+        "status": "REUSE_SCOPED_CONTRACT_RECEIPTS_NO_AGGREGATE_PASS",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md",
+          "ACCEPTANCE-ADDENDUM-04-11-12.md"
+        ]
+      },
+      "unresolved_limits": [
+        "local005 cause remains UNKNOWN; local001–008 failure/incomplete history preserved.",
+        "Scoped final-head readiness remains subject to human merge, verified handoff and invalidation on changed head/base/owned interface/authority, new finding, superseding failed CI or evidence mismatch.",
+        "H0 acceptance is not silently rebound to the repair head.",
+        "No actual merge SHA or merge-SHA CI while PR13 is open.",
+        "Metadata refresh reuses prior artifact audit; no new full artifact audit by GOV-02."
+      ],
+      "next_gate": "Human merge decision while scoped final-head acceptance remains valid, then actual main/CI provenance readback and verified handoff; no DEV07 implementation before these gates and its own appointment/freeze.",
+      "evidence_detail": {
+        "original_product_acceptance": {
+          "head": "261195fa78f1243326119876a94b9f32219b4b26",
+          "status": "MAIN_ACCEPTED_ORIGINAL_LOCAL_OFFLINE_SYNTHETIC_SCOPE_ONLY",
+          "validation": "validation009: 116/116; 43 requirement items",
+          "actual_controller_reported": "gpt-6-astra/high",
+          "public_ref": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/13"
+        },
+        "repair": {
+          "head": "0a552d93fb2518fdc03697f21e560ec1db312999",
+          "scope": "FOUR_CI_GUARD_FILES_PRODUCT_BYTES_UNCHANGED",
+          "independent_recommendation": "APPROVE_FOR_MAIN_ACCEPTANCE",
+          "findings": 0,
+          "review_kind": "INDEPENDENT_PRIVATE_REVIEW_NOT_NATIVE_GITHUB_REVIEW",
+          "actual_reviewer_reported": "gpt-6-astra/xhigh",
+          "separate_delivery_decision": "ACCEPTED_FOR_AUTHORIZED_CI_REMEDIATION_DELIVERY",
+          "final_product_acceptance_at_repair_decision": "NOT_YET_RECORDED"
+        },
+        "local_full_suites": {
+          "DEV05": {
+            "passed": 43,
+            "total": 43
+          },
+          "DEV06": {
+            "passed": 119,
+            "total": 119
+          },
+          "overlapping_methods": 35,
+          "source": "Reused supplied original S2 evidence, not executed by GOV-02"
+        },
+        "current_ci": {
+          "workflows": 7,
+          "jobs": 12,
+          "result": "COMPLETED_SUCCESS",
+          "runs": [
+            {
+              "id": 39595721914,
+              "name": "PMRH Phase 0 safe offline checks",
+              "status": "completed",
+              "conclusion": "success",
+              "url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595721914",
+              "jobs": [
+                {
+                  "id": 119207398500,
+                  "name": "phase0-static",
+                  "status": "completed",
+                  "conclusion": "success"
+                }
+              ]
+            },
+            {
+              "id": 39595721871,
+              "name": "PMRH DEV-PR-01 AST and synthetic offline guard",
+              "status": "completed",
+              "conclusion": "success",
+              "url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595721871",
+              "jobs": [
+                {
+                  "id": 119207398465,
+                  "name": "architecture-and-offline",
+                  "status": "completed",
+                  "conclusion": "success"
+                }
+              ]
+            },
+            {
+              "id": 39595722065,
+              "name": "PMRH DEV-PR-02 versioned contracts",
+              "status": "completed",
+              "conclusion": "success",
+              "url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595722065",
+              "jobs": [
+                {
+                  "id": 119207400718,
+                  "name": "contracts (3.13)",
+                  "status": "completed",
+                  "conclusion": "success"
+                },
+                {
+                  "id": 119207401174,
+                  "name": "contracts (3.11)",
+                  "status": "completed",
+                  "conclusion": "success"
+                }
+              ]
+            },
+            {
+              "id": 39595722202,
+              "name": "PMRH DEV-PR-04 pure domain extraction",
+              "status": "completed",
+              "conclusion": "success",
+              "url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595722202",
+              "jobs": [
+                {
+                  "id": 119207399980,
+                  "name": "domain (3.11)",
+                  "status": "completed",
+                  "conclusion": "success"
+                },
+                {
+                  "id": 119207400383,
+                  "name": "domain (3.13)",
+                  "status": "completed",
+                  "conclusion": "success"
+                }
+              ]
+            },
+            {
+              "id": 39595722138,
+              "name": "PMRH DEV-PR-03 confined read-only queries",
+              "status": "completed",
+              "conclusion": "success",
+              "url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595722138",
+              "jobs": [
+                {
+                  "id": 119207400098,
+                  "name": "queries (3.11)",
+                  "status": "completed",
+                  "conclusion": "success"
+                },
+                {
+                  "id": 119207400375,
+                  "name": "queries (3.13)",
+                  "status": "completed",
+                  "conclusion": "success"
+                }
+              ]
+            },
+            {
+              "id": 39595721970,
+              "name": "PMRH DEV-PR-05 bounded disk storage",
+              "status": "completed",
+              "conclusion": "success",
+              "url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595721970",
+              "jobs": [
+                {
+                  "id": 119207399207,
+                  "name": "storage (3.13)",
+                  "status": "completed",
+                  "conclusion": "success"
+                },
+                {
+                  "id": 119207399381,
+                  "name": "storage (3.11)",
+                  "status": "completed",
+                  "conclusion": "success"
+                }
+              ]
+            },
+            {
+              "id": 39595721989,
+              "name": "PMRH DEV-PR-06 synthetic control admission",
+              "status": "completed",
+              "conclusion": "success",
+              "url": "https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39595721989",
+              "jobs": [
+                {
+                  "id": 119207398766,
+                  "name": "control (3.13)",
+                  "status": "completed",
+                  "conclusion": "success"
+                },
+                {
+                  "id": 119207399230,
+                  "name": "control (3.11)",
+                  "status": "completed",
+                  "conclusion": "success"
+                }
+              ]
+            }
+          ],
+          "DEV02_to_DEV06_checkout": "0a552d93fb2518fdc03697f21e560ec1db312999",
+          "Phase0_DEV01_temporary_merge": "2fa9fac802d83e8e72bebf0da36212cfab7677e0",
+          "temporary_merge_same_tree": true,
+          "temporary_merge_is_actual_merge": false,
+          "actual_merge_sha": null,
+          "actual_merge_sha_ci": "NOT_APPLICABLE_PR_UNMERGED"
+        },
+        "audit_reuse": {
+          "prior_checkout_logs": 12,
+          "prior_artifact_zips": 11,
+          "prior_source_archives": 10,
+          "fresh_work": "GLOBAL_METADATA_REFRESH_ONLY",
+          "new_full_artifact_audit": "NOT_EXECUTED_BY_GOV02"
+        },
+        "failure_history": {
+          "local001_to_008": "FAILURE_INCOMPLETE_HISTORY_PRESERVED",
+          "local005_cause": "UNKNOWN"
+        },
+        "fresh_controller_final_head_disposition": "ACCEPTED_SCOPED_PREMERGE",
+        "closeout_decision": {
+          "decision_id": "DEV06-CLOSEOUT-20261021",
+          "decision_at": "2026-10-21T13:36:35.874566+00:00",
+          "source_sha256": "5f3447a007d233d92b2940557ac4958fd4257d624665faf0696f7b4bd0463cd4",
+          "accepted_head": "0a552d93fb2518fdc03697f21e560ec1db312999",
+          "base_main": "4239f15ad1233cc89cd6556cec284951b5fc2e3e",
+          "accepted_tree": "97f1bb72b20c5b55b7259b8ff7b596e1d43bb2f7",
+          "disposition": "ACCEPTED_SCOPED_PREMERGE",
+          "status": "READY_FOR_USER_MERGE_DECISION",
+          "controller_actual": "gpt-6-astra/high; verified by global control",
+          "scope": "Approved local/offline synthetic DEV06 plus separately tested and independently reviewed four-file CI repair; new scoped final-head Controller decision, not retroactive rebind of H0 acceptance",
+          "invalidated_by": "Changed head/base/owned interface/authority, new finding, superseding failed CI or evidence mismatch",
+          "supplement_verified_at": "2026-10-21T13:39:53.644980+00:00",
+          "source_visibility": "PRIVATE_ORIGINAL; PUBLIC_ID_DATE_DIGEST_ARE_CONTROLLER_ATTESTED_PROVENANCE; NOT_CLAIMED_AS_PUBLIC_PR13_CONTENT",
+          "global_verification": "All 26 referenced evidence digests, report and actual runtime verified by global control.",
+          "package_controller_verification": "Source decision digest verified.",
+          "product_tests_rerun": false,
+          "independent_review_rerun": false,
+          "separate_from": [
+            "H0 original product acceptance",
+            "Four-file repair independent recommendation",
+            "Bounded CI-remediation delivery decision"
+          ],
+          "human_merge": "PENDING_HUMAN_DECISION_OPEN_UNMERGED",
+          "handoff": "NOT_COMPLETE"
+        }
+      }
+    },
+    {
+      "id": "DEV-PR-07",
+      "description": "Codex AgentRunner / ModelProvider boundary",
+      "scope": "Bounded Codex AgentRunner/ModelProvider boundary; exact implementation scope and consumers await freeze; no paid product-model calls.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "02, 06",
+        "mandatory_packages": [
+          "DEV-PR-02",
+          "DEV-PR-06"
+        ],
+        "additional_conditions": [],
+        "interface_alignment": [],
+        "conditional_packages": []
+      },
+      "status": {
+        "authorization": "AUTHORIZED_UNDER_PROGRAM_GRANT",
+        "implementation": "NOT_STARTED",
+        "testing": "NOT_EXECUTED",
+        "independent_review": "NOT_EXECUTED",
+        "main_acceptance": "NOT_YET_RECORDED",
+        "github_merge": "NOT_STARTED",
+        "handoff": "NOT_STARTED"
+      },
+      "roles": {
+        "controller": "NOT_APPOINTED",
+        "developer": "NOT_APPOINTED",
+        "reviewer": "NOT_APPOINTED"
+      },
+      "authorization": {
+        "source": "HUMAN-PROGRAM-GRANT-20261021",
+        "scope": "Bounded Codex AgentRunner/ModelProvider boundary; exact implementation scope and consumers await freeze; no paid product-model calls.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROGRAM-CONTROL.md"
+        ]
+      },
+      "source_identity": {
+        "base": null,
+        "head": null,
+        "merge": null,
+        "github_pr": null,
+        "evidence": "NOT_FROZEN"
+      },
+      "public_evidence_refs": [
+        "ROADMAP.md",
+        "PROGRAM-CONTROL.md",
+        "ACCEPTANCE-BASELINE.md"
+      ],
+      "acceptance_mapping": {
+        "status": "EXACT_IDS_AND_POSITIVE_REJECTION_CASES_REQUIRED_AT_PACKAGE_FREEZE",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md",
+          "ACCEPTANCE-ADDENDUM-04-11-12.md"
+        ]
+      },
+      "unresolved_limits": [
+        "Package roles, exact baseline, owned interfaces/files and detailed acceptance/test plan are NOT_FROZEN; authorization is not implementation."
+      ],
+      "next_gate": "DEV06 scoped final-head acceptance is recorded; human DEV06 merge and verified handoff remain pending, followed by global appointment and exact DEV07 package freeze before implementation, with acceptance remaining valid.",
+      "preparation": {
+        "status": "GLOBAL_READ_ONLY_PREFLIGHT",
+        "scope": "Interface/consumer preparation only; private evidence",
+        "product_start": false,
+        "package_roles": "NOT_APPOINTED",
+        "implementation_dependency": "DEV06 scoped final-head acceptance recorded; human merge and verified handoff pending; DEV07 appointment/freeze still required. Changed head/base/owned interface/authority or superseding adverse evidence requires renewed disposition."
+      },
+      "package_freeze": "NOT_FROZEN"
+    },
+    {
+      "id": "DEV-PR-08",
+      "description": "Headless Supervisor and event wakeup",
+      "scope": "Headless Supervisor/event wakeup within a frozen bounded package; no scientific scheduling authority.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "07",
+        "mandatory_packages": [
+          "DEV-PR-07"
+        ],
+        "additional_conditions": [],
+        "interface_alignment": [],
+        "conditional_packages": []
+      },
+      "status": {
+        "authorization": "AUTHORIZED_UNDER_PROGRAM_GRANT",
+        "implementation": "NOT_STARTED",
+        "testing": "NOT_EXECUTED",
+        "independent_review": "NOT_EXECUTED",
+        "main_acceptance": "NOT_YET_RECORDED",
+        "github_merge": "NOT_STARTED",
+        "handoff": "NOT_STARTED"
+      },
+      "roles": {
+        "controller": "NOT_APPOINTED",
+        "developer": "NOT_APPOINTED",
+        "reviewer": "NOT_APPOINTED"
+      },
+      "authorization": {
+        "source": "HUMAN-PROGRAM-GRANT-20261021",
+        "scope": "Headless Supervisor/event wakeup within a frozen bounded package; no scientific scheduling authority.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROGRAM-CONTROL.md"
+        ]
+      },
+      "source_identity": {
+        "base": null,
+        "head": null,
+        "merge": null,
+        "github_pr": null,
+        "evidence": "NOT_FROZEN"
+      },
+      "public_evidence_refs": [
+        "ROADMAP.md",
+        "PROGRAM-CONTROL.md",
+        "ACCEPTANCE-BASELINE.md"
+      ],
+      "acceptance_mapping": {
+        "status": "EXACT_IDS_AND_POSITIVE_REJECTION_CASES_REQUIRED_AT_PACKAGE_FREEZE",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md",
+          "ACCEPTANCE-ADDENDUM-04-11-12.md"
+        ]
+      },
+      "unresolved_limits": [
+        "Package roles, exact baseline, owned interfaces/files and detailed acceptance/test plan are NOT_FROZEN; authorization is not implementation."
+      ],
+      "next_gate": "Verify mandatory predecessors and handoffs; global control appoints roles and freezes bounded package before implementation under existing grant.",
+      "package_freeze": "NOT_FROZEN"
+    },
+    {
+      "id": "DEV-PR-09",
+      "description": "CLI event reading and safe diagnostics",
+      "scope": "CLI event reading and safe diagnostics under confined query/control contracts.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "03, 06, 08",
+        "mandatory_packages": [
+          "DEV-PR-03",
+          "DEV-PR-06",
+          "DEV-PR-08"
+        ],
+        "additional_conditions": [],
+        "interface_alignment": [],
+        "conditional_packages": []
+      },
+      "status": {
+        "authorization": "AUTHORIZED_UNDER_PROGRAM_GRANT",
+        "implementation": "NOT_STARTED",
+        "testing": "NOT_EXECUTED",
+        "independent_review": "NOT_EXECUTED",
+        "main_acceptance": "NOT_YET_RECORDED",
+        "github_merge": "NOT_STARTED",
+        "handoff": "NOT_STARTED"
+      },
+      "roles": {
+        "controller": "NOT_APPOINTED",
+        "developer": "NOT_APPOINTED",
+        "reviewer": "NOT_APPOINTED"
+      },
+      "authorization": {
+        "source": "HUMAN-PROGRAM-GRANT-20261021",
+        "scope": "CLI event reading and safe diagnostics under confined query/control contracts.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROGRAM-CONTROL.md"
+        ]
+      },
+      "source_identity": {
+        "base": null,
+        "head": null,
+        "merge": null,
+        "github_pr": null,
+        "evidence": "NOT_FROZEN"
+      },
+      "public_evidence_refs": [
+        "ROADMAP.md",
+        "PROGRAM-CONTROL.md",
+        "ACCEPTANCE-BASELINE.md"
+      ],
+      "acceptance_mapping": {
+        "status": "EXACT_IDS_AND_POSITIVE_REJECTION_CASES_REQUIRED_AT_PACKAGE_FREEZE",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md",
+          "ACCEPTANCE-ADDENDUM-04-11-12.md"
+        ]
+      },
+      "unresolved_limits": [
+        "Package roles, exact baseline, owned interfaces/files and detailed acceptance/test plan are NOT_FROZEN; authorization is not implementation."
+      ],
+      "next_gate": "Verify mandatory predecessors and handoffs; global control appoints roles and freezes bounded package before implementation under existing grant.",
+      "package_freeze": "NOT_FROZEN"
+    },
+    {
+      "id": "DEV-PR-10",
+      "description": "Observer/Advisor with controlled guidance",
+      "scope": "Observer/advisor proposals and controlled guidance; no canonical scientific write or unauthenticated HUMAN guidance.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "09",
+        "mandatory_packages": [
+          "DEV-PR-09"
+        ],
+        "additional_conditions": [],
+        "interface_alignment": [],
+        "conditional_packages": []
+      },
+      "status": {
+        "authorization": "AUTHORIZED_UNDER_PROGRAM_GRANT",
+        "implementation": "NOT_STARTED",
+        "testing": "NOT_EXECUTED",
+        "independent_review": "NOT_EXECUTED",
+        "main_acceptance": "NOT_YET_RECORDED",
+        "github_merge": "NOT_STARTED",
+        "handoff": "NOT_STARTED"
+      },
+      "roles": {
+        "controller": "NOT_APPOINTED",
+        "developer": "NOT_APPOINTED",
+        "reviewer": "NOT_APPOINTED"
+      },
+      "authorization": {
+        "source": "HUMAN-PROGRAM-GRANT-20261021",
+        "scope": "Observer/advisor proposals and controlled guidance; no canonical scientific write or unauthenticated HUMAN guidance.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROGRAM-CONTROL.md"
+        ]
+      },
+      "source_identity": {
+        "base": null,
+        "head": null,
+        "merge": null,
+        "github_pr": null,
+        "evidence": "NOT_FROZEN"
+      },
+      "public_evidence_refs": [
+        "ROADMAP.md",
+        "PROGRAM-CONTROL.md",
+        "ACCEPTANCE-BASELINE.md"
+      ],
+      "acceptance_mapping": {
+        "status": "EXACT_IDS_AND_POSITIVE_REJECTION_CASES_REQUIRED_AT_PACKAGE_FREEZE",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md",
+          "ACCEPTANCE-ADDENDUM-04-11-12.md"
+        ]
+      },
+      "unresolved_limits": [
+        "Package roles, exact baseline, owned interfaces/files and detailed acceptance/test plan are NOT_FROZEN; authorization is not implementation."
+      ],
+      "next_gate": "Verify mandatory predecessors and handoffs; global control appoints roles and freezes bounded package before implementation under existing grant.",
+      "package_freeze": "NOT_FROZEN"
+    },
+    {
+      "id": "DEV-PR-11",
+      "description": "Fast-math objects and RefinementBinding",
+      "scope": "First-class fast objects and precise RefinementBinding grounded in slow evidence; no graph-as-proof semantics.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "04, 05",
+        "mandatory_packages": [
+          "DEV-PR-04",
+          "DEV-PR-05"
+        ],
+        "additional_conditions": [],
+        "interface_alignment": [],
+        "conditional_packages": []
+      },
+      "status": {
+        "authorization": "AUTHORIZED_UNDER_PROGRAM_GRANT",
+        "implementation": "NOT_STARTED",
+        "testing": "NOT_EXECUTED",
+        "independent_review": "NOT_EXECUTED",
+        "main_acceptance": "NOT_YET_RECORDED",
+        "github_merge": "NOT_STARTED",
+        "handoff": "NOT_STARTED"
+      },
+      "roles": {
+        "controller": "NOT_APPOINTED",
+        "developer": "NOT_APPOINTED",
+        "reviewer": "NOT_APPOINTED"
+      },
+      "authorization": {
+        "source": "HUMAN-PROGRAM-GRANT-20261021",
+        "scope": "First-class fast objects and precise RefinementBinding grounded in slow evidence; no graph-as-proof semantics.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROGRAM-CONTROL.md"
+        ]
+      },
+      "source_identity": {
+        "base": null,
+        "head": null,
+        "merge": null,
+        "github_pr": null,
+        "evidence": "NOT_FROZEN"
+      },
+      "public_evidence_refs": [
+        "ROADMAP.md",
+        "PROGRAM-CONTROL.md",
+        "ACCEPTANCE-BASELINE.md"
+      ],
+      "acceptance_mapping": {
+        "status": "EXACT_IDS_AND_POSITIVE_REJECTION_CASES_REQUIRED_AT_PACKAGE_FREEZE",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md",
+          "ACCEPTANCE-ADDENDUM-04-11-12.md"
+        ]
+      },
+      "unresolved_limits": [
+        "Package roles, exact baseline, owned interfaces/files and detailed acceptance/test plan are NOT_FROZEN; authorization is not implementation."
+      ],
+      "next_gate": "Verify mandatory predecessors and handoffs; global control appoints roles and freezes bounded package before implementation under existing grant.",
+      "package_freeze": "NOT_FROZEN"
+    },
+    {
+      "id": "DEV-PR-12",
+      "description": "MAIN/worker slow+fast delivery contract",
+      "scope": "Research MAIN decision input and linked Worker slow/fast/attempt delivery; no fixed scientific pipeline or extra Research MAIN.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "07, 10, 11",
+        "mandatory_packages": [
+          "DEV-PR-07",
+          "DEV-PR-10",
+          "DEV-PR-11"
+        ],
+        "additional_conditions": [],
+        "interface_alignment": [],
+        "conditional_packages": []
+      },
+      "status": {
+        "authorization": "AUTHORIZED_UNDER_PROGRAM_GRANT",
+        "implementation": "NOT_STARTED",
+        "testing": "NOT_EXECUTED",
+        "independent_review": "NOT_EXECUTED",
+        "main_acceptance": "NOT_YET_RECORDED",
+        "github_merge": "NOT_STARTED",
+        "handoff": "NOT_STARTED"
+      },
+      "roles": {
+        "controller": "NOT_APPOINTED",
+        "developer": "NOT_APPOINTED",
+        "reviewer": "NOT_APPOINTED"
+      },
+      "authorization": {
+        "source": "HUMAN-PROGRAM-GRANT-20261021",
+        "scope": "Research MAIN decision input and linked Worker slow/fast/attempt delivery; no fixed scientific pipeline or extra Research MAIN.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROGRAM-CONTROL.md"
+        ]
+      },
+      "source_identity": {
+        "base": null,
+        "head": null,
+        "merge": null,
+        "github_pr": null,
+        "evidence": "NOT_FROZEN"
+      },
+      "public_evidence_refs": [
+        "ROADMAP.md",
+        "PROGRAM-CONTROL.md",
+        "ACCEPTANCE-BASELINE.md"
+      ],
+      "acceptance_mapping": {
+        "status": "EXACT_IDS_AND_POSITIVE_REJECTION_CASES_REQUIRED_AT_PACKAGE_FREEZE",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md",
+          "ACCEPTANCE-ADDENDUM-04-11-12.md"
+        ]
+      },
+      "unresolved_limits": [
+        "Package roles, exact baseline, owned interfaces/files and detailed acceptance/test plan are NOT_FROZEN; authorization is not implementation."
+      ],
+      "next_gate": "Verify mandatory predecessors and handoffs; global control appoints roles and freezes bounded package before implementation under existing grant.",
+      "package_freeze": "NOT_FROZEN"
+    },
+    {
+      "id": "DEV-PR-13",
+      "description": "Reports and TRH/FDH delivery service",
+      "scope": "Qualified snapshot reports and TRH/FDH delivery with human P14/formal D5 controls.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "05, 09, 12",
+        "mandatory_packages": [
+          "DEV-PR-05",
+          "DEV-PR-09",
+          "DEV-PR-12"
+        ],
+        "additional_conditions": [],
+        "interface_alignment": [],
+        "conditional_packages": []
+      },
+      "status": {
+        "authorization": "AUTHORIZED_UNDER_PROGRAM_GRANT",
+        "implementation": "NOT_STARTED",
+        "testing": "NOT_EXECUTED",
+        "independent_review": "NOT_EXECUTED",
+        "main_acceptance": "NOT_YET_RECORDED",
+        "github_merge": "NOT_STARTED",
+        "handoff": "NOT_STARTED"
+      },
+      "roles": {
+        "controller": "NOT_APPOINTED",
+        "developer": "NOT_APPOINTED",
+        "reviewer": "NOT_APPOINTED"
+      },
+      "authorization": {
+        "source": "HUMAN-PROGRAM-GRANT-20261021",
+        "scope": "Qualified snapshot reports and TRH/FDH delivery with human P14/formal D5 controls.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROGRAM-CONTROL.md"
+        ]
+      },
+      "source_identity": {
+        "base": null,
+        "head": null,
+        "merge": null,
+        "github_pr": null,
+        "evidence": "NOT_FROZEN"
+      },
+      "public_evidence_refs": [
+        "ROADMAP.md",
+        "PROGRAM-CONTROL.md",
+        "ACCEPTANCE-BASELINE.md"
+      ],
+      "acceptance_mapping": {
+        "status": "EXACT_IDS_AND_POSITIVE_REJECTION_CASES_REQUIRED_AT_PACKAGE_FREEZE",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md",
+          "ACCEPTANCE-ADDENDUM-04-11-12.md"
+        ]
+      },
+      "unresolved_limits": [
+        "Package roles, exact baseline, owned interfaces/files and detailed acceptance/test plan are NOT_FROZEN; authorization is not implementation."
+      ],
+      "next_gate": "Verify mandatory predecessors and handoffs; global control appoints roles and freezes bounded package before implementation under existing grant.",
+      "package_freeze": "NOT_FROZEN"
+    },
+    {
+      "id": "DEV-PR-14",
+      "description": "Remove self-built Web UI after equivalence",
+      "scope": "Remove self-built Web UI only after safe functional equivalence of all UI-hosted duties.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "08, 10, 13 and equivalence gate",
+        "mandatory_packages": [
+          "DEV-PR-08",
+          "DEV-PR-10",
+          "DEV-PR-13"
+        ],
+        "additional_conditions": [
+          "Demonstrated functional equivalence before UI removal"
+        ],
+        "interface_alignment": [],
+        "conditional_packages": []
+      },
+      "status": {
+        "authorization": "AUTHORIZED_UNDER_PROGRAM_GRANT",
+        "implementation": "NOT_STARTED",
+        "testing": "NOT_EXECUTED",
+        "independent_review": "NOT_EXECUTED",
+        "main_acceptance": "NOT_YET_RECORDED",
+        "github_merge": "NOT_STARTED",
+        "handoff": "NOT_STARTED"
+      },
+      "roles": {
+        "controller": "NOT_APPOINTED",
+        "developer": "NOT_APPOINTED",
+        "reviewer": "NOT_APPOINTED"
+      },
+      "authorization": {
+        "source": "HUMAN-PROGRAM-GRANT-20261021",
+        "scope": "Remove self-built Web UI only after safe functional equivalence of all UI-hosted duties.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROGRAM-CONTROL.md"
+        ]
+      },
+      "source_identity": {
+        "base": null,
+        "head": null,
+        "merge": null,
+        "github_pr": null,
+        "evidence": "NOT_FROZEN"
+      },
+      "public_evidence_refs": [
+        "ROADMAP.md",
+        "PROGRAM-CONTROL.md",
+        "ACCEPTANCE-BASELINE.md"
+      ],
+      "acceptance_mapping": {
+        "status": "EXACT_IDS_AND_POSITIVE_REJECTION_CASES_REQUIRED_AT_PACKAGE_FREEZE",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md"
+        ]
+      },
+      "unresolved_limits": [
+        "Package roles, exact baseline, owned interfaces/files and detailed acceptance/test plan are NOT_FROZEN; authorization is not implementation."
+      ],
+      "next_gate": "Verify mandatory predecessors and handoffs; global control appoints roles and freezes bounded package before implementation under existing grant.",
+      "package_freeze": "NOT_FROZEN"
+    },
+    {
+      "id": "DEV-PR-15",
+      "description": "Optional orchestration/runner offline evaluation",
+      "scope": "Read-only proposal allowed; offline experiment execution requires a separate human decision.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "07; separate experiment authorization",
+        "mandatory_packages": [
+          "DEV-PR-07"
+        ],
+        "additional_conditions": [
+          "Separate human experiment authorization"
+        ],
+        "interface_alignment": [],
+        "conditional_packages": []
+      },
+      "status": {
+        "authorization": "PENDING_HUMAN_DECISION",
+        "implementation": "NOT_STARTED",
+        "testing": "NOT_EXECUTED",
+        "independent_review": "NOT_EXECUTED",
+        "main_acceptance": "NOT_YET_RECORDED",
+        "github_merge": "NOT_STARTED",
+        "handoff": "NOT_STARTED"
+      },
+      "roles": {
+        "controller": "NOT_APPOINTED",
+        "developer": "NOT_APPOINTED",
+        "reviewer": "NOT_APPOINTED"
+      },
+      "authorization": {
+        "source": "SEPARATE_HUMAN_DECISION_REQUIRED",
+        "scope": "Read-only proposal allowed; offline experiment execution requires a separate human decision.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROGRAM-CONTROL.md"
+        ]
+      },
+      "source_identity": {
+        "base": null,
+        "head": null,
+        "merge": null,
+        "github_pr": null,
+        "evidence": "NOT_FROZEN"
+      },
+      "public_evidence_refs": [
+        "ROADMAP.md",
+        "PROGRAM-CONTROL.md",
+        "ACCEPTANCE-BASELINE.md"
+      ],
+      "acceptance_mapping": {
+        "status": "EXACT_IDS_AND_POSITIVE_REJECTION_CASES_REQUIRED_AT_PACKAGE_FREEZE",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md"
+        ]
+      },
+      "unresolved_limits": [
+        "Optional execution/adoption/migration decision is pending; no implementation or rejection is inferred."
+      ],
+      "next_gate": "Separate human decision for reserved scope, recorded disposition where applicable, dependencies and appointments/package freeze before execution.",
+      "package_freeze": "NOT_FROZEN"
+    },
+    {
+      "id": "DEV-PR-16",
+      "description": "Conditional accepted backend adapter",
+      "scope": "Read-only adoption proposal allowed; backend adoption and implementation require separate human decisions.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "15 formal adoption decision; separate authorization",
+        "mandatory_packages": [
+          "DEV-PR-15"
+        ],
+        "additional_conditions": [
+          "DEV-PR-15 formal adoption decision; separate human implementation authorization"
+        ],
+        "interface_alignment": [],
+        "conditional_packages": []
+      },
+      "status": {
+        "authorization": "PENDING_HUMAN_DECISION",
+        "implementation": "NOT_STARTED",
+        "testing": "NOT_EXECUTED",
+        "independent_review": "NOT_EXECUTED",
+        "main_acceptance": "NOT_YET_RECORDED",
+        "github_merge": "NOT_STARTED",
+        "handoff": "NOT_STARTED"
+      },
+      "roles": {
+        "controller": "NOT_APPOINTED",
+        "developer": "NOT_APPOINTED",
+        "reviewer": "NOT_APPOINTED"
+      },
+      "authorization": {
+        "source": "SEPARATE_HUMAN_DECISION_REQUIRED",
+        "scope": "Read-only adoption proposal allowed; backend adoption and implementation require separate human decisions.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROGRAM-CONTROL.md"
+        ]
+      },
+      "source_identity": {
+        "base": null,
+        "head": null,
+        "merge": null,
+        "github_pr": null,
+        "evidence": "NOT_FROZEN"
+      },
+      "public_evidence_refs": [
+        "ROADMAP.md",
+        "PROGRAM-CONTROL.md",
+        "ACCEPTANCE-BASELINE.md"
+      ],
+      "acceptance_mapping": {
+        "status": "EXACT_IDS_AND_POSITIVE_REJECTION_CASES_REQUIRED_AT_PACKAGE_FREEZE",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md"
+        ]
+      },
+      "unresolved_limits": [
+        "Optional execution/adoption/migration decision is pending; no implementation or rejection is inferred."
+      ],
+      "next_gate": "Separate human decision for reserved scope, recorded disposition where applicable, dependencies and appointments/package freeze before execution.",
+      "package_freeze": "NOT_FROZEN"
+    },
+    {
+      "id": "DEV-PR-17",
+      "description": "Authorized copy-only scientific data migration",
+      "scope": "Read-only migration proposal allowed; tool development and actual copy-only migration require separate human decisions; no real project access granted.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "05, 06, 11; separate migration authorization",
+        "mandatory_packages": [
+          "DEV-PR-05",
+          "DEV-PR-06",
+          "DEV-PR-11"
+        ],
+        "additional_conditions": [
+          "Separate human authorization for migration tooling and actual migration"
+        ],
+        "interface_alignment": [],
+        "conditional_packages": []
+      },
+      "status": {
+        "authorization": "PENDING_HUMAN_DECISION",
+        "implementation": "NOT_STARTED",
+        "testing": "NOT_EXECUTED",
+        "independent_review": "NOT_EXECUTED",
+        "main_acceptance": "NOT_YET_RECORDED",
+        "github_merge": "NOT_STARTED",
+        "handoff": "NOT_STARTED"
+      },
+      "roles": {
+        "controller": "NOT_APPOINTED",
+        "developer": "NOT_APPOINTED",
+        "reviewer": "NOT_APPOINTED"
+      },
+      "authorization": {
+        "source": "SEPARATE_HUMAN_DECISION_REQUIRED",
+        "scope": "Read-only migration proposal allowed; tool development and actual copy-only migration require separate human decisions; no real project access granted.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROGRAM-CONTROL.md"
+        ]
+      },
+      "source_identity": {
+        "base": null,
+        "head": null,
+        "merge": null,
+        "github_pr": null,
+        "evidence": "NOT_FROZEN"
+      },
+      "public_evidence_refs": [
+        "ROADMAP.md",
+        "PROGRAM-CONTROL.md",
+        "ACCEPTANCE-BASELINE.md"
+      ],
+      "acceptance_mapping": {
+        "status": "EXACT_IDS_AND_POSITIVE_REJECTION_CASES_REQUIRED_AT_PACKAGE_FREEZE",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md"
+        ]
+      },
+      "unresolved_limits": [
+        "Optional execution/adoption/migration decision is pending; no implementation or rejection is inferred."
+      ],
+      "next_gate": "Separate human decision for reserved scope, recorded disposition where applicable, dependencies and appointments/package freeze before execution.",
+      "package_freeze": "NOT_FROZEN"
+    },
+    {
+      "id": "DEV-PR-18",
+      "description": "Integrated headless product and release",
+      "scope": "Integrated headless acceptance and release-candidate preparation only; no formal release, production activation or real-model research evaluation granted.",
+      "dependencies": {
+        "source": "ROADMAP.md",
+        "original_predecessor_text": "14; explicit disposition of 17; 16 only if adopted",
+        "mandatory_packages": [
+          "DEV-PR-14"
+        ],
+        "additional_conditions": [
+          "Explicit human disposition of DEV-PR-17",
+          "DEV-PR-16 required only if adopted",
+          "Separate human formal tag/Release decision"
+        ],
+        "interface_alignment": [],
+        "conditional_packages": [
+          {
+            "id": "DEV-PR-16",
+            "condition": "IF_ADOPTED"
+          }
+        ]
+      },
+      "status": {
+        "authorization": "AUTHORIZED_UNDER_PROGRAM_GRANT",
+        "implementation": "NOT_STARTED",
+        "testing": "NOT_EXECUTED",
+        "independent_review": "NOT_EXECUTED",
+        "main_acceptance": "NOT_YET_RECORDED",
+        "github_merge": "NOT_STARTED",
+        "handoff": "NOT_STARTED"
+      },
+      "roles": {
+        "controller": "NOT_APPOINTED",
+        "developer": "NOT_APPOINTED",
+        "reviewer": "NOT_APPOINTED"
+      },
+      "authorization": {
+        "source": "HUMAN-PROGRAM-GRANT-20261021",
+        "scope": "Integrated headless acceptance and release-candidate preparation only; no formal release, production activation or real-model research evaluation granted.",
+        "not_retroactive": true,
+        "merge_permission": "SEPARATE_HUMAN_DECISION",
+        "refs": [
+          "PROGRAM-CONTROL.md"
+        ]
+      },
+      "source_identity": {
+        "base": null,
+        "head": null,
+        "merge": null,
+        "github_pr": null,
+        "evidence": "NOT_FROZEN"
+      },
+      "public_evidence_refs": [
+        "ROADMAP.md",
+        "PROGRAM-CONTROL.md",
+        "ACCEPTANCE-BASELINE.md"
+      ],
+      "acceptance_mapping": {
+        "status": "EXACT_IDS_AND_POSITIVE_REJECTION_CASES_REQUIRED_AT_PACKAGE_FREEZE",
+        "refs": [
+          "ACCEPTANCE-BASELINE.md",
+          "ACCEPTANCE-ADDENDUM-04-11-12.md"
+        ]
+      },
+      "unresolved_limits": [
+        "Package roles, exact baseline, owned interfaces/files and detailed acceptance/test plan are NOT_FROZEN; authorization is not implementation."
+      ],
+      "next_gate": "Verify mandatory predecessors and handoffs; global control appoints roles and freezes bounded package before implementation under existing grant. Explicit DEV17 disposition and conditional DEV16 dependency remain binding; formal release requires a separate human decision.",
+      "package_freeze": "NOT_FROZEN"
+    }
+  ],
+  "decision_supplement": {
+    "verified_at": "2026-10-21T13:39:53.644980+00:00",
+    "decision_id": "DEV06-CLOSEOUT-20261021",
+    "decision_at": "2026-10-21T13:36:35.874566+00:00",
+    "source_sha256": "5f3447a007d233d92b2940557ac4958fd4257d624665faf0696f7b4bd0463cd4",
+    "source_visibility": "PRIVATE_ORIGINAL_CONTROLLER_ATTESTED_PUBLIC_ID_DATE_DIGEST_NOT_PUBLIC_PR13_CONTENT",
+    "supersedes": "ONLY_DEV06_PENDING_FINAL_HEAD_CONTROLLER_DISPOSITION; ORIGINAL_PACKET_RETAINED",
+    "github_metadata_cutoff_unchanged": "2026-10-21 13:30:58 UTC",
+    "validation": "Global control verified all 26 evidence digests, report and actual runtime; package Controller verified source decision digest.",
+    "product_tests_rerun": false,
+    "independent_review_rerun": false
+  }
+}
