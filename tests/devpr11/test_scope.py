@@ -14,6 +14,119 @@ ROOT=Path(__file__).resolve().parents[2]
 
 
 class ScopeTests(unittest.TestCase):
+    def test_source32_exact_symbol_uniqueness_rejects_shadow_bindings(self):
+        data=G.oracle(ROOT);path='pmrh/domain/contracts.py'
+        original=base64.b64decode(data['files'][path]['bytes_base64']);current=(ROOT/path).read_bytes()
+        self.assertEqual(G.preintegration(path,current,ROOT),original)
+        for suffix in (
+                b"RESPONSE_SCHEMA = 'wrong'\n",
+                b"RESPONSE_SCHEMA: str = 'wrong'\n",
+                b"RESPONSE_SCHEMA: str\n",
+                b"RESPONSE_SCHEMA = other = 'wrong'\n",
+                b"other = RESPONSE_SCHEMA = 'wrong'\n",
+                b"RESPONSE_SCHEMA, other = 'wrong', None\n",
+                b"def RESPONSE_SCHEMA(): return 'wrong'\n",
+                b"async def RESPONSE_SCHEMA(): return 'wrong'\n",
+                b"class RESPONSE_SCHEMA: pass\n",
+                b"from synthetic import wrong as RESPONSE_SCHEMA\n",
+                b"from synthetic import RESPONSE_SCHEMA\n"):
+            with self.subTest(binding=suffix):
+                with self.assertRaisesRegex(ValueError,'Duplicate exact native symbol: RESPONSE_SCHEMA'):
+                    G.preintegration(path,current+b'\n'+suffix,ROOT)
+        # Actual wrapper and reexport identities must also remain unique.
+        for path,name,suffix in (
+                ('research_studio/changes.py','_validate',b'\ndef _validate(*args): return None\n'),
+                ('research_studio/contracts.py','authoring_contract',
+                 b'\nfrom pmrh.domain.native_response import authoring_contract as authoring_contract\n')):
+            current=(ROOT/path).read_bytes();original=base64.b64decode(data['files'][path]['bytes_base64'])
+            self.assertTrue(G.verify_file(path,original,current))
+            with self.assertRaisesRegex(ValueError,'Duplicate exact native symbol: '+name):
+                G.verify_file(path,original,current+suffix)
+        # Isolated valid binding forms are parsed only, never executed/imported.
+        for raw in (b'value = 1\n',b'value: int = 1\n',b'def value(): pass\n',
+                    b'async def value(): pass\n',b'class value: pass\n',
+                    b'from synthetic import original as value\n',b'from synthetic import value\n',
+                    b'@staticmethod\ndef value(): pass\n'):
+            with self.subTest(unique=raw):
+                self.assertEqual(ast.dump(G._symbol_node(raw,'value')),ast.dump(ast.parse(raw).body[0]))
+                with self.assertRaisesRegex(ValueError,'Missing exact native symbol: absent'):
+                    G._symbol_node(raw,'absent')
+
+    def test_source31_scope06_exact_files_and_inherited_guard(self):
+        data=G.oracle(ROOT)
+        for path in ('scripts/domain_scope.py','tests/devpr05/test_extraction_boundaries.py'):
+            with self.subTest(path=path):
+                original=base64.b64decode(data['files'][path]['bytes_base64'])
+                current=(ROOT/path).read_bytes()
+                self.assertTrue(G.verify_file(path,original,current))
+                self.assertEqual(G.preintegration(path,current,ROOT),original)
+                for before,after in ((original+b'\n',current),(original,current+b'\n# extra guard/test byte\n'),
+                                     (original,current.replace(b'fastmath_scope.preintegration(',b'forged_preintegration(',1))):
+                    self.assertNotEqual((before,after),(original,current))
+                    with self.assertRaisesRegex(ValueError,'exact Scope06'):
+                        G.verify_file(path,before,after)
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);self.oracle_root(root)
+            path=root/'scripts/domain_scope.py';current=path.read_bytes()
+            for bad in (base64.b64decode(data['files']['scripts/domain_scope.py']['bytes_base64']),current+b'\n'):
+                path.write_bytes(bad)
+                with self.assertRaisesRegex(ValueError,'Inherited guard'):G.oracle(root)
+            path.write_bytes(current)
+            oracle=root/'scripts/fastmath_scope_preintegration.json'
+            oracle.write_bytes(oracle.read_bytes()+b'\n')
+            with self.assertRaisesRegex(ValueError,'Root-pinned'):G.oracle(root)
+
+    def test_source31_native_source_spans_and_direct_domain_guard(self):
+        from scripts import domain_scope
+        data=G.oracle(ROOT)
+        self.assertEqual(sum(map(len,G.SCOPE04_SYMBOL_SHA256.values())),36)
+        for path in ('research_studio/changes.py','research_studio/contracts.py'):
+            current=(ROOT/path).read_bytes();parent=base64.b64decode(data['files'][path]['bytes_base64'])
+            tree=ast.parse(current)
+            # This is the original DEV04 direct caller, with its pre-extraction imports removed.
+            original=ast.unparse(ast.Module(body=[n for n in tree.body if not
+                (isinstance(n,ast.ImportFrom) and (n.module or '').startswith('pmrh.domain.'))],type_ignores=[]))
+            domain_scope.verify_sections(path,original,current)
+            self.assertTrue(G.verify_file(path,parent,current))
+            # Source locations may move; each pinned symbol's complete bytes must not.
+            self.assertTrue(G.verify_file(path,parent,b'# preceding comment shifts line numbers\n'+current))
+            reexport=G.SCOPE04_REEXPORTS[path][0].encode()
+            changed=current.replace(reexport,reexport.replace(b' as ',b' as unauthorized_'),1)
+            self.assertNotEqual(changed,current)
+            with self.assertRaises(ValueError):domain_scope.verify_sections(path,original,changed)
+            with self.assertRaises(ValueError):G.verify_file(path,parent,changed)
+            # Even an AST-equivalent trailing comment changes the frozen source span.
+            changed=current.replace(reexport+b'\n',reexport+b' # unapproved bytes\n',1)
+            self.assertNotEqual(changed,current)
+            with self.assertRaisesRegex(ValueError,'exact native extraction'):G.verify_file(path,parent,changed)
+            if path=='research_studio/changes.py':
+                node=G._symbol_node(current,'_validate');lines=current.splitlines(keepends=True)
+                for position,addition in ((node.body[0].lineno-1,b'    unauthorized_writer_change = True\n'),
+                                          (node.lineno-1,b'@staticmethod\n')):
+                    modified=lines[:];modified.insert(position,addition);changed=b''.join(modified)
+                    with self.assertRaisesRegex(ValueError,'exact native extraction'):G.verify_file(path,parent,changed)
+                    with self.assertRaisesRegex(ValueError,'Non-domain legacy section changed'):
+                        domain_scope.verify_sections(path,original,changed)
+
+    def test_source31_shared_constant_and_unrelated_domain_remain_exact(self):
+        data=G.oracle(ROOT);path='pmrh/domain/contracts.py'
+        original=base64.b64decode(data['files'][path]['bytes_base64']);current=(ROOT/path).read_bytes()
+        self.assertEqual(G.preintegration(path,current,ROOT),original)
+        for changed in (current.replace(b'pmrs.response/4.2.2',b'pmrs.response/forged',1),
+                        current+b'\nUNAUTHORIZED_DOMAIN_SYMBOL = True\n'):
+            self.assertNotEqual(changed,current)
+            with self.assertRaises(ValueError):G.preintegration(path,changed,ROOT)
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);self.oracle_root(root)
+            for relative in set(data['baseline_file_sha256'])|G.PATHS:
+                destination=root/relative;destination.parent.mkdir(parents=True,exist_ok=True)
+                destination.write_bytes((ROOT/relative).read_bytes())
+            self.assertEqual(G.verify(root)['status'],'PASS')
+            path=root/'pmrh/domain/knowledge.py';raw=path.read_bytes()
+            path.write_bytes(raw+b'\nUNRELATED_DOMAIN_CHANGE = True\n')
+            with self.assertRaisesRegex(ValueError,'Unowned baseline file changed: pmrh/domain/knowledge.py'):
+                G.verify(root)
+
     def oracle_root(self,path):
         data=G.oracle(ROOT)
         for relative in ('scripts/fastmath_scope_preintegration.json',*data['inherited_guard_hashes']):
@@ -22,7 +135,7 @@ class ScopeTests(unittest.TestCase):
         return data
 
     def test_FM22_exact_pinned_oracle_and_missing_swapped_forged_rejection(self):
-        self.assertEqual(len(G.PATHS),46)
+        self.assertEqual(len(G.PATHS),48)
         self.assertNotIn('scripts/fastmath_scope_preintegration.json',G.PATHS)
         self.assertEqual(G.verify(ROOT)['parent'],G.PARENT)
         with tempfile.TemporaryDirectory() as tmp:

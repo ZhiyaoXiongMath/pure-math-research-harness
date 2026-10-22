@@ -203,6 +203,19 @@ EDGES = frozenset({('research_studio/assurance.py', 'pmrh/domain/assurance.py'),
 
 def verify_sections(path, original, current):
     before, after = ast.parse(original), ast.parse(current)
+    # Compose only the exact DEV11 reexports, then retain every DEV04 check.
+    # The caller-supplied current bytes must pass the root-pinned stage too.
+    fastmath_scope = None
+    if path in ('research_studio/changes.py', 'research_studio/contracts.py'):
+        from scripts import fastmath_scope as fast_scope
+        reexports = {ast.dump(ast.parse(row).body[0], include_attributes=False)
+                     for row in fast_scope.SCOPE04_REEXPORTS[path]}
+        if any(ast.dump(n, include_attributes=False) in reexports for n in after.body):
+            fastmath_scope = fast_scope
+            before.body = [n for n in before.body
+                           if ast.dump(n, include_attributes=False) not in reexports]
+            after.body = [n for n in after.body
+                          if ast.dump(n, include_attributes=False) not in reexports]
     allowed_imports = {ast.dump(ast.parse(row).body[0], include_attributes=False)
                        for row in IMPORTS[path]}
     def dump(node):
@@ -238,3 +251,8 @@ def verify_sections(path, original, current):
         return result
     if trim(before) != trim(after, allowed_imports):
         raise ValueError('Non-domain legacy section changed: ' + path)
+    if fastmath_scope is not None:
+        try:
+            fastmath_scope.preintegration(path, current.encode() if isinstance(current, str) else current)
+        except ValueError as exc:
+            raise ValueError('Non-domain legacy section changed: ' + path) from exc

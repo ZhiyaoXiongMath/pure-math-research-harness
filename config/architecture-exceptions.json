@@ -930,7 +930,9 @@
       "scripts/architecture_deps.py",
       "scripts/check_legacy_scope.py",
       "scripts/control_scope.py",
-      "scripts/storage_scope.py"
+      "scripts/domain_scope.py",
+      "scripts/storage_scope.py",
+      "tests/devpr05/test_extraction_boundaries.py"
     ],
     "direct_edges": [
       {
