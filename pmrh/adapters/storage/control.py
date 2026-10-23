@@ -944,6 +944,39 @@ def scan(store, history, apply_delta, *, combined=False):
             check(confined.history() == history)
             return scan(confined, history, apply_delta, combined=combined)
     from pmrh.ports.dto.wire import _decode_dto
+
+    def copy_snapshot(value, memo):
+        # Replay states are JSON graphs. Keep every mutable snapshot detached,
+        # with one fresh memo per snapshot; no cross-state structural sharing.
+        kind = type(value)
+        if kind in (str, int, float, bool, type(None)):
+            return value
+        key = id(value)
+        if key in memo:
+            return memo[key]
+        if kind is dict:
+            result = {}; memo[key] = result
+            for name, item in value.items():
+                result[name if type(name) is str else deepcopy(name, memo)] = copy_snapshot(item, memo)
+            return result
+        if kind is list:
+            result = []; memo[key] = result
+            result.extend(copy_snapshot(item, memo) for item in value)
+            return result
+        return deepcopy(value, memo)
+
+    checked_json = set()
+    def read_scan_json(wire):
+        # Reads and debits are never cached. Reparse even a hit so no mutable
+        # JSON container is shared with another caller or historical state.
+        raw = read_ref(store, wire, index.project)
+        value = loads(raw, maximum=MAX_JSON_BYTES)
+        if raw not in checked_json:
+            check(canonical(value) == raw)
+            _wire_budget(value, wire=True)
+            checked_json.add(raw)
+        return value
+
     first = next(i for i, (_, entry) in enumerate(history) if entry['schema'] == schema)
     state = validate_prefix(store, history[:first])
     index = ControlIndex(state['project_id'])
@@ -953,7 +986,7 @@ def scan(store, history, apply_delta, *, combined=False):
         for name in ('knowledge_delta_ref', 'control_delta_ref', 'report_delta_ref', 'registry_delta_ref'):
             if prefix_entry[name]:
                 apply_delta(prefix_state, loads(store.read_blob(prefix_entry[name])))
-        index.states[prefix_head['commit']] = deepcopy(prefix_state)
+        index.states[prefix_head['commit']] = copy_snapshot(prefix_state, {})
     replay_prior_commit = history[first-1][0]['commit']
 
     raw_fields=frozenset('raw_output_ref raw_event_ref raw_event_refs raw_evidence_ref raw_evidence_refs evidence_refs request_evidence_refs termination_evidence_refs test_receipt_refs principal_ref authn_evidence_ref authority_ref producer_ref binding_ref backend_binding_ref runner_binding_ref reason_ref takeover_evidence_refs endpoint_ref credential_ref capture_ref'.split())
@@ -967,6 +1000,10 @@ def scan(store, history, apply_delta, *, combined=False):
     native_blobs=set()
     # Only pure decoded values are reused within this scan; reads stay fresh.
     specs_by_raw={}
+    # A cached ExactRef is pure metadata, never closure/authority evidence.
+    # Add at most one signature per actual successful closure byte read.
+    checked_refs={}
+    ref_names=('schema_version', 'dto_type', 'project_id', 'object_id', 'revision', 'sha256')
     def native_blob(digest):
         if digest not in native_blobs:
             store.read_blob(digest)
@@ -974,8 +1011,15 @@ def scan(store, history, apply_delta, *, combined=False):
     def closure(value, iid, raw_reference=False):
         if isinstance(value, dict):
             if value.get('dto_type') == 'ExactRef':
-                r = ref(value, index.project)
-                key = canonical(value)
+                signature = (tuple(value[name] for name in ref_names)
+                    if type(value) is dict and len(value) == len(ref_names) and
+                    all(type(value.get(name)) is str for name in ref_names) else None)
+                known = checked_refs.get(signature) if signature is not None else None
+                if known is None:
+                    r = ref(value, index.project)
+                    key = canonical(value)
+                else:
+                    r, key = known
                 check(index.refs.get(key, iid) == iid, 'AUTHORIZATION_REQUIRED')
                 index.refs[key] = iid
                 if r.sha256 in index.closure:
@@ -983,6 +1027,8 @@ def scan(store, history, apply_delta, *, combined=False):
                     if raw_reference or r.sha256 in parsed_closure:return
                 index.closure.add(r.sha256)
                 raw = store._read_blob(r.sha256, 1024**2 if raw_reference else MAX_JSON_BYTES)
+                if signature is not None and known is None:
+                    checked_refs[signature] = (r, key)
                 closure_sizes[r.sha256]=len(raw)
                 if raw_reference:return
                 parsed_closure.add(r.sha256)
@@ -1017,7 +1063,7 @@ def scan(store, history, apply_delta, *, combined=False):
         action = event['type']; p = event['payload']
         if index.profile is None:
             check(action == 'ACTIVATED' and event['owner_epoch'] == event['control_version'] == 0)
-            profile = read_json(store, p['profile_ref'], index.project)
+            profile = read_scan_json(p['profile_ref'])
             if combined:
                 from .control_fast import unwrap_profile
                 profile = unwrap_profile(profile)
@@ -1047,7 +1093,7 @@ def scan(store, history, apply_delta, *, combined=False):
         for request in state.get('requests', {}).values():
             if request.get('capture_ref'):
                 native_blob(request['capture_ref'])
-        decision = read_json(store, event['decision_ref'], index.project); validate_record(decision, combined=combined)
+        decision = read_scan_json(event['decision_ref']); validate_record(decision, combined=combined)
         check(decision['kind'] == 'DECISION' and decision['action'] == action and decision['scope'] == event['scope'])
         bare = {k: v for k, v in event.items() if k != 'decision_ref'}
         check(decision['payload_sha256'] == sha(canonical(bare)))
@@ -1092,7 +1138,7 @@ def scan(store, history, apply_delta, *, combined=False):
                 _wire_budget(spec_wire, wire=True)
                 spec = _decode_dto(S.AgentInvocationSpec, spec_wire)
                 specs_by_raw[spec_raw] = spec
-            reservation = read_json(store, call['reservation_ref'], index.project); validate_record(reservation)
+            reservation = read_scan_json(call['reservation_ref']); validate_record(reservation)
             check(reservation['kind'] == 'RESERVATION' and reservation['identity'] == spec.identity().to_wire())
             check(reservation['grant_ref'] == spec.budget_grant_ref.to_wire() and spec.reservation_ref.to_wire() == call['reservation_ref'])
             check((call['owner_epoch'], call['control_version']) == (spec.owner_epoch, spec.expected_control_version) ==
@@ -1109,7 +1155,7 @@ def scan(store, history, apply_delta, *, combined=False):
             if spec.role is E.AgentRole.MAIN:check(spec.logical_agent_id=='MAIN-'+request['instance_id'])
         if action=='CALL_PREPARED':
             validate_call_effects(store, index, before, state, event, decision)
-            task=read_json(store,p['task_ref'],index.project);request=state['requests'][task['request_id']]
+            task=read_scan_json(p['task_ref']);request=state['requests'][task['request_id']]
             check(state['tasks'][task['task_id']]==task and task['task_id'] not in before['tasks'])
             check(set(state['tasks'])==set(before['tasks'])|{task['task_id']})
             check(set(state['requests'])==set(before['requests'])|{task['request_id']})
@@ -1125,7 +1171,7 @@ def scan(store, history, apply_delta, *, combined=False):
         if action == 'EXECUTION_RECEIVED':
             intake_index(index, store, p['receipt'])
         elif action == 'INBOX_PAGE_RECEIVED':
-            page = V.RunnerEventPage.from_wire(read_json(store, p['page_ref'], index.project))
+            page = V.RunnerEventPage.from_wire(read_scan_json(p['page_ref']))
             request = state['requests'][p['request_id']]
             previous = before['requests'][p['request_id']]['execution_inbox']['cursor']['after_sequence']
             current = request['execution_inbox']['cursor']['after_sequence']
@@ -1143,7 +1189,7 @@ def scan(store, history, apply_delta, *, combined=False):
             receipt = receipt_for(state, event, head)
         index.operations[event['operation_id']] = dict(command=bare, receipt=receipt, decision=decision)
         index.keys[event['idempotency_key']] = event['operation_id']
-        index.states[head['commit']] = deepcopy(state)
+        index.states[head['commit']] = copy_snapshot(state, {})
         replay_prior_commit = head['commit']
     return index
 

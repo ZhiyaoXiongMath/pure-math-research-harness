@@ -205,6 +205,156 @@ class ControlFastTests(unittest.TestCase):
                             if failure == 'corruption': blob_path.write_bytes(original)
                 self.assertEqual(Journal(h.store.root).read_snapshot(), expected)
 
+    def test_source43_replay_pure_checks_keep_fresh_json_and_detached_history(self):
+        import sys
+        from unittest.mock import patch
+        from tests.devpr06.test_control import Harness as NativeHarness
+        from pmrh.adapters.storage.io import _ConfinedReader
+        from pmrh.adapters.storage.journal import Journal, _apply_delta
+        read_ref, loads, budget, ref = D.read_ref, D.loads, D._wire_budget, D.ref
+        for factory in (NativeHarness, Harness):
+            with self.subTest(profile=factory.__module__), tempfile.TemporaryDirectory() as tmp:
+                h = factory(tmp); h.authorize(1); prepared = h.prepare(); h.pause()
+                journal = Journal(h.store.root); expected = journal.read_snapshot()
+                history = journal.history(); combined = factory is Harness
+                reservation_ref = prepared['spec'].reservation_ref.to_wire()
+                reservation_raw = h.store.read_blob(reservation_ref['sha256'])
+                reservation = loads(reservation_raw)
+                reference = {}; expected_states = {}
+                for head, entry in history:
+                    for name in ('knowledge_delta_ref', 'control_delta_ref', 'report_delta_ref', 'registry_delta_ref'):
+                        if entry[name]: _apply_delta(reference, loads(h.store.read_blob(entry[name])))
+                    expected_states[head['commit']] = deepcopy(reference)
+                head_bytes = (h.store.root/'HEAD').read_bytes()
+                with _ConfinedReader(h.store.root) as reader:
+                    store = Journal(h.store.root, reader=reader)
+                    for _ in range(2):
+                        reads, parsed, checked, references = [], [], [], []
+
+                        def read_current(store, wire, project, *, maximum=D.MAX_JSON_BYTES):
+                            selected = sys._getframe(1).f_code.co_name == 'read_scan_json' and wire == reservation_ref
+                            before = (reader.remaining_files, reader.remaining_bytes)
+                            raw = read_ref(store, wire, project, maximum=maximum)
+                            if selected: reads.append((before, (reader.remaining_files, reader.remaining_bytes), raw))
+                            return raw
+
+                        def parse_current(raw, *, maximum=64*1024**2):
+                            value = loads(raw, maximum=maximum)
+                            if sys._getframe(1).f_code.co_name == 'read_scan_json' and raw == reservation_raw:
+                                parsed.append(value)
+                            return value
+
+                        def budget_current(value, *, wire):
+                            if sys._getframe(1).f_code.co_name == 'read_scan_json' and value == reservation:
+                                checked.append(value)
+                            return budget(value, wire=wire)
+
+                        def reference_current(value, project=None, *, nullable=False):
+                            if sys._getframe(1).f_code.co_name == 'closure' and value == prepared['spec_ref']:
+                                references.append(deepcopy(value))
+                            return ref(value, project, nullable=nullable)
+
+                        with patch.object(D, 'read_ref', read_current), patch.object(D, 'loads', parse_current), patch.object(D, '_wire_budget', budget_current), patch.object(D, 'ref', reference_current):
+                            index = D.scan(store, history, _apply_delta, combined=combined)
+                        self.assertEqual(len(reads), 2); self.assertEqual(len(parsed), 2)
+                        self.assertEqual(len(checked), 1); self.assertEqual(references, [prepared['spec_ref']])
+                        self.assertIsNot(parsed[0], parsed[1])
+                        self.assertIsNot(parsed[0]['identity'], parsed[1]['identity'])
+                        for before, after, raw in reads:
+                            self.assertEqual(raw, reservation_raw)
+                            self.assertEqual(before[0] - after[0], 1)
+                            self.assertEqual(before[1] - after[1], len(raw))
+                        self.assertEqual(index.states, expected_states)
+
+                        def mutable_ids(value):
+                            found, seen = set(), set()
+                            def visit(item):
+                                if type(item) not in (dict, list, tuple) or id(item) in seen: return
+                                seen.add(id(item))
+                                if type(item) in (dict, list): found.add(id(item))
+                                for child in (item.values() if type(item) is dict else item): visit(child)
+                            visit(value)
+                            return found
+
+                        owned = mutable_ids(history) | mutable_ids(expected)
+                        for state in index.states.values():
+                            current = mutable_ids(state)
+                            self.assertTrue(owned.isdisjoint(current))
+                            owned.update(current)
+                        last = history[-1][0]['commit']
+                        index.states[last]['capabilities']['CAP-HUMAN']['actions'].append('caller-only')
+                        for commit, state in index.states.items():
+                            if commit != last: self.assertEqual(state, expected_states[commit])
+                        parsed[0]['identity']['logical_agent_id'] = 'caller-only'
+                        self.assertEqual(parsed[1], reservation)
+                self.assertEqual((h.store.root/'HEAD').read_bytes(), head_bytes)
+                self.assertEqual(Journal(h.store.root).read_snapshot(), expected)
+
+    def test_source43_json_check_hits_preserve_fresh_read_and_validation_failures(self):
+        import sys
+        from unittest.mock import patch
+        from tests.devpr06.test_control import Harness as NativeHarness
+        from pmrh.adapters.storage.io import _ConfinedReader, _Unavailable
+        from pmrh.adapters.storage.journal import Journal, _apply_delta
+        read_ref, budget = D.read_ref, D._wire_budget
+        for factory in (NativeHarness, Harness):
+            with self.subTest(profile=factory.__module__), tempfile.TemporaryDirectory() as tmp:
+                h = factory(tmp); h.authorize(1); prepared = h.prepare(); h.pause()
+                journal = Journal(h.store.root); expected = journal.read_snapshot()
+                history = journal.history(); combined = factory is Harness
+                reference = prepared['spec'].reservation_ref.to_wire()
+                blob_path = h.store.root/'blobs'/reference['sha256']
+                original = blob_path.read_bytes(); value = D.loads(original)
+                noncanonical = h.blob('source43-noncanonical', original + b' ', raw=True)
+                head_bytes = (h.store.root/'HEAD').read_bytes()
+                for failure in ('corruption', 'file-quota', 'byte-quota', 'changed-canonical'):
+                    with self.subTest(failure=failure):
+                        reads, checked = [], []
+
+                        def budget_current(item, *, wire):
+                            if sys._getframe(1).f_code.co_name == 'read_scan_json' and item == value:
+                                checked.append(item)
+                            return budget(item, wire=wire)
+
+                        def read_current(store, wire, project, *, maximum=D.MAX_JSON_BYTES):
+                            if sys._getframe(1).f_code.co_name != 'read_scan_json' or wire != reference:
+                                return read_ref(store, wire, project, maximum=maximum)
+                            selected = wire
+                            if reads:
+                                self.assertEqual(len(reads), 1); self.assertEqual(len(checked), 1)
+                                if failure == 'corruption': blob_path.write_bytes(original[:-1] + b' ')
+                                elif failure == 'file-quota': reader.remaining_files = 0
+                                elif failure == 'byte-quota': reader.remaining_bytes = len(original) - 1
+                                else: selected = noncanonical
+                            row = [(reader.remaining_files, reader.remaining_bytes)]; reads.append(row)
+                            try:
+                                return read_ref(store, selected, project, maximum=maximum)
+                            finally:
+                                row.append((reader.remaining_files, reader.remaining_bytes))
+
+                        try:
+                            with _ConfinedReader(h.store.root) as reader:
+                                store = Journal(h.store.root, reader=reader)
+                                with patch.object(D, 'read_ref', read_current), patch.object(D, '_wire_budget', budget_current):
+                                    error = _Unavailable if failure in ('file-quota', 'byte-quota') else PMRSError
+                                    with self.assertRaises(error) as caught:
+                                        D.scan(store, history, _apply_delta, combined=combined)
+                            if failure in ('file-quota', 'byte-quota'):
+                                self.assertEqual(caught.exception.reason, 'QUERY_READ_LIMIT')
+                            else:
+                                self.assertEqual(caught.exception.code, 'BLOB_CHANGED' if failure == 'corruption' else 'CONTROL_INVALID')
+                            self.assertEqual(len(reads), 2); self.assertEqual(len(checked), 1)
+                            self.assertEqual(reads[0][0][0] - reads[0][1][0], 1)
+                            self.assertEqual(reads[0][0][1] - reads[0][1][1], len(original))
+                            before, after = reads[1]
+                            self.assertEqual(before[0] - after[0], 0 if failure == 'file-quota' else 1)
+                            charged = len(original) + 1 if failure == 'changed-canonical' else len(original) if failure == 'corruption' else 0
+                            self.assertEqual(before[1] - after[1], charged)
+                            self.assertEqual((h.store.root/'HEAD').read_bytes(), head_bytes)
+                        finally:
+                            if failure == 'corruption': blob_path.write_bytes(original)
+                self.assertEqual(Journal(h.store.root).read_snapshot(), expected)
+
     def test_source39_native_and_combined_replay_snapshot_isolation(self):
         from tests.devpr06.test_control import Harness as NativeHarness
         from pmrh.adapters.storage.journal import Journal, _persistent
