@@ -943,6 +943,7 @@ def scan(store, history, apply_delta, *, combined=False):
             confined = Journal(reader.root, reader=reader)
             check(confined.history() == history)
             return scan(confined, history, apply_delta, combined=combined)
+    from pmrh.ports.dto.wire import _decode_dto
     first = next(i for i, (_, entry) in enumerate(history) if entry['schema'] == schema)
     state = validate_prefix(store, history[:first])
     index = ControlIndex(state['project_id'])
@@ -1081,7 +1082,8 @@ def scan(store, history, apply_delta, *, combined=False):
         for request in state['requests'].values():
             call = request['admission']
             closure(call, iid);closure(request['execution_inbox'], iid)
-            spec = S.AgentInvocationSpec.from_wire(read_json(store, call['spec_ref'], index.project))
+            # read_json already budgeted this fresh, unmodified wire value.
+            spec = _decode_dto(S.AgentInvocationSpec, read_json(store, call['spec_ref'], index.project))
             reservation = read_json(store, call['reservation_ref'], index.project); validate_record(reservation)
             check(reservation['kind'] == 'RESERVATION' and reservation['identity'] == spec.identity().to_wire())
             check(reservation['grant_ref'] == spec.budget_grant_ref.to_wire() and spec.reservation_ref.to_wire() == call['reservation_ref'])

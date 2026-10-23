@@ -10,6 +10,65 @@ from .fixtures import Harness,six_entries,delta_for
 
 
 class ControlFastTests(unittest.TestCase):
+    def test_source41_scan_spec_errors_match_public_decode_after_read_json(self):
+        from unittest.mock import patch
+        from tests.devpr06.test_control import Harness as NativeHarness
+        from pmrh.adapters.storage.journal import Journal, _apply_delta, _persistent
+        from pmrh.ports.dto import enums as E, specs as S, wire as W
+        original_read_json = D.read_json
+        for factory in (NativeHarness, Harness):
+            with self.subTest(profile=factory.__module__), tempfile.TemporaryDirectory() as tmp:
+                h = factory(tmp); h.authorize(1); prepared = h.prepare()
+                journal = Journal(h.store.root); expected = journal.read_snapshot()
+                history = journal.history(); combined = factory is Harness
+                head_bytes = (h.store.root/'HEAD').read_bytes()
+                index = D.scan(journal, history, _apply_delta, combined=combined)
+                self.assertEqual(index.states[history[-1][0]['commit']], _persistent(expected))
+                good = prepared['spec'].to_wire()
+                wrong_schema = dict(good, schema_version='unsupported', dto_type='ModelSelection')
+                wrong_type = dict(good, dto_type='ModelSelection')
+                missing = dict(good, unexpected=None); missing.pop('request_id')
+                semantic = dict(good, owner_epoch=0)
+                deep = None
+                for _ in range(W.MAX_WIRE_DEPTH + 1): deep = [deep]
+                # Conflicting schema/type defects must not precede the first
+                # structural budget; a non-object still rejects with its old code.
+                cases = [
+                    ('non-object', [], E.ErrorCode.TYPE_MISMATCH),
+                    ('schema-before-identity', wrong_schema, E.ErrorCode.UNSUPPORTED_SCHEMA_VERSION),
+                    ('fixed-dto-identity', wrong_type, E.ErrorCode.INVALID_WIRE),
+                    ('missing-before-extra', missing, E.ErrorCode.MISSING_FIELD),
+                    ('constructor-semantic', semantic, E.ErrorCode.INVALID_FIELD),
+                    ('depth-before-schema', dict(wrong_schema, unexpected=deep), E.ErrorCode.INVALID_FIELD),
+                    ('array-before-root-type', [None]*(W.MAX_TUPLE_ITEMS + 1), E.ErrorCode.INVALID_FIELD),
+                ]
+                for name, value, code in cases:
+                    with self.subTest(case=name):
+                        replacement = h.blob('source41:'+name, value)
+                        with self.assertRaises(W.ContractViolation) as oracle:
+                            S.AgentInvocationSpec.from_wire(original_read_json(h.store, replacement, h.project))
+                        self.assertEqual(oracle.exception.code, code)
+                        selected = []
+
+                        def select_spec_blob(store, reference, project):
+                            if reference == prepared['spec_ref'] and not selected:
+                                selected.append(reference)
+                                # Inject only the reference at scan's first spec
+                                # conversion. Authenticate, parse and budget the
+                                # replacement using the actual read_json reader.
+                                return original_read_json(store, replacement, project)
+                            return original_read_json(store, reference, project)
+
+                        with patch.object(D, 'read_json', side_effect=select_spec_blob):
+                            with self.assertRaises(W.ContractViolation) as caught:
+                                D.scan(journal, history, _apply_delta, combined=combined)
+                        self.assertEqual(selected, [prepared['spec_ref']])
+                        self.assertIs(type(caught.exception), type(oracle.exception))
+                        self.assertEqual(caught.exception.code, oracle.exception.code)
+                        self.assertEqual(str(caught.exception), str(oracle.exception))
+                        self.assertEqual((h.store.root/'HEAD').read_bytes(), head_bytes)
+                self.assertEqual(Journal(h.store.root).read_snapshot(), expected)
+
     def test_source39_native_and_combined_replay_snapshot_isolation(self):
         from tests.devpr06.test_control import Harness as NativeHarness
         from pmrh.adapters.storage.journal import Journal, _persistent
