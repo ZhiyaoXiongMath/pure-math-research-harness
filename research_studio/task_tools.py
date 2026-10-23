@@ -41,11 +41,18 @@ def tool_definitions(actor_kind=None):
       ('research_messages_ack','Record viewing, adoption, rejection or a clarification need. USED requires resulting native record refs.',
        _schema({'message_id':_text(),'disposition':{'type':'string','enum':['VIEWED','USED','REJECTED','NEEDS_CLARIFICATION']},'reason':_text(),'record_refs':_refs()},['message_id','disposition','reason'])),
       ('research_messages_withdraw','Append a withdrawal of your original candidate message; never delete its evidence.',_schema({'message_id':_text(),'reason':_text()},['message_id','reason'])),
-      ('knowledge_search','Search the authorized native view. Results are bounded navigation and do not establish scientific support.',
-       _schema({'query':{'type':'string','maxLength':512},'kind':_text(),'target_ref':_text(),'route_ref':_text(),'limit':{'type':'integer','minimum':1,'maximum':20},'cursor':{'type':'integer','minimum':0}})),
-      ('knowledge_get','Read exact native scientific/source content and current support state. Entire response must fit the frozen dynamic allowance.',_schema({'ref':_text()},['ref'])),
-      ('knowledge_dependencies','Read typed premise dependencies within this request scope.',_schema({'ref':_text()},['ref'])),
-      ('knowledge_history','Read exact revision history and withdrawals within this request scope.',_schema({'ref':_text()},['ref']))]
+      ('knowledge_search','Search exact authorized bodies with bounded continuation and explicit per-call coverage.',
+       _schema({'query':{'type':'string','maxLength':512},'kind':_text(),'target_ref':_text(),'route_ref':_text(),
+                'limit':{'type':'integer','minimum':1,'maximum':20},'cursor':{'type':'integer','minimum':0},
+                'continuation':{'type':'string','maxLength':4096},'as_of_commit':_text()})),
+      ('knowledge_get','Read an exact authorized native or fast revision; assurance is claim-scoped.',
+       _schema({'ref':_text(),'as_of_commit':_text(),'body_range':_schema({'start':{'type':'integer','minimum':0,'maximum':4294967295},'end':{'type':'integer','minimum':1,'maximum':4294967296},'unit':{'type':'string','enum':['UTF8_BYTE']}},['start','end','unit'])},['ref'])),
+      ('knowledge_dependencies','Read exact authorized dependencies with bounded continuation.',
+       _schema({'ref':_text(),'as_of_commit':_text(),'continuation':{'type':'string','maxLength':4096},
+                'cursor':{'type':'integer','minimum':0},'limit':{'type':'integer','minimum':1,'maximum':32}},['ref'])),
+      ('knowledge_history','Read exact revision history without replacing historical identities.',
+       _schema({'ref':_text(),'as_of_commit':_text(),'continuation':{'type':'string','maxLength':4096},
+                'cursor':{'type':'integer','minimum':0},'limit':{'type':'integer','minimum':1,'maximum':32}},['ref']))]
     if actor_kind=='MAIN':
         from .incidents import OPTIONS
         defs.extend([
@@ -149,7 +156,9 @@ class TaskTools:
                 result['event_refs']=[e['event_id'] for e in receipt.get('events',[])]
                 result['receipt_scope']='EXACT_CONTROL_RECEIPT; full proposal and events retained in native history'
             elif name=='main_communication_revise':result=comm.revise_links(*bound,**args)
-            elif name.startswith('knowledge_'):result=getattr(knowledge,name[len('knowledge_'):])(self.store,task=self.task,**args)
+            elif name.startswith('knowledge_'):
+                current_task=self.store.read_snapshot()['tasks'][self.task['task_id']]
+                result=getattr(knowledge,name[len('knowledge_'):])(self.store,task=current_task,**args)
             elif name.startswith('runtime_'):
                 from . import incidents
                 result=incidents.task_tool(self.store,self.request_id,name,args)

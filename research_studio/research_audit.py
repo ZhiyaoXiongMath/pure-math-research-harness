@@ -9,8 +9,8 @@ import re
 from .util import now, identity, sha, require, loads
 
 MAPS=frozenset({'research_clocks','research_audit_events','research_checkpoints','research_audits','research_guidance'})
-DEFAULT_POLICY={'light_check_seconds':1800,'full_audit_seconds':14400,'observation_seconds':60}
-PROGRESS={'SIGNIFICANT','LIMITED_REAL','NO_REAL_PROGRESS','NOT_EVALUATED','INSUFFICIENT_EVIDENCE','IN_PROGRESS'}
+from pmrh.domain.native_settlement import DEFAULT_POLICY as DEFAULT_POLICY
+from pmrh.domain.native_response import PROGRESS as PROGRESS
 
 def verified_runtime_contexts(s,task,blob_get,*,live=False):
     """Read only actually transported context bodies bound to this exact turn.
@@ -50,54 +50,13 @@ def verified_runtime_contexts(s,task,blob_get,*,live=False):
             'delivery_sequence':delivery['sequence']})
     return result
 
-def seconds(at):
-    return int(datetime.fromisoformat(at.replace('Z','+00:00')).timestamp())
+from pmrh.domain.native_settlement import seconds as seconds
 
-def policy(s,iid):
-    value={**DEFAULT_POLICY,**s['instances'][iid].get('research_audit_policy',{})}
-    require(all(type(v) is int and v>0 for v in value.values()),'AUDIT_POLICY_INVALID','Audit intervals must be positive integer seconds')
-    return value
+from pmrh.domain.native_settlement import policy as policy
 
-def phase(s,iid):
-    instance=s['instances'][iid];control=instance.get('run_control',{})
-    mission=s.get('missions',{}).get(instance.get('current_mission_id'),{})
-    if instance.get('status')!='ACTIVE':
-        reason=control.get('state') if control.get('state') in {'WAITING_HUMAN_AT_P14','WAITING_HUMAN_AT_D5','COMPLETE','OPEN_ENDED'} else instance.get('status')
-        return {'effective':False,'reason':reason,'active_request_ids':[]}
-    if control.get('state') in {'WAITING_HUMAN_AT_P14','WAITING_HUMAN_AT_D5','COMPLETE','OPEN_ENDED'}:
-        return {'effective':False,'reason':control['state'],'active_request_ids':[]}
-    if not mission or mission.get('status')!='ACTIVE':
-        return {'effective':False,'reason':'NO_ACTIVE_AUTHORIZATION','active_request_ids':[]}
-    requests=[r for r in s.get('requests',{}).values() if r.get('instance_id')==iid and r.get('mission_id')==mission['mission_id']]
-    active=sorted(r['request_id'] for r in requests if r.get('execution_state')=='SENT')
-    # The instance clock runs once, including MAIN/internal work and live stages.
-    if active:return {'effective':True,'reason':'ACTUAL_RESEARCH_IN_FLIGHT','active_request_ids':active}
-    if any(r.get('execution_state')=='UNKNOWN' for r in requests):
-        return {'effective':False,'reason':'TRANSPORT_UNCERTAIN','active_request_ids':[],'evidence_incomplete':True}
-    from .scheduler import budget_remaining,project_remaining
-    if min(budget_remaining(s,mission['budget_grant_id']),project_remaining(s))<=0:
-        return {'effective':False,'reason':'BUDGET_EXHAUSTED','active_request_ids':[]}
-    from .strategy import current
-    st=current(s,iid) or {};wait=st.get('wait_condition') or {}
-    if st.get('next_action')=='WAIT' or control.get('state')=='WAITING_CONDITION':
-        return {'effective':False,'reason':wait.get('kind') or 'EXPLICIT_WAIT','active_request_ids':[]}
-    if any(r.get('execution_state') in {'PREPARED','RESERVED'} for r in requests):
-        return {'effective':False,'reason':'RESOURCE_ADMISSION_WAIT','active_request_ids':[]}
-    return {'effective':False,'reason':'NO_OBSERVED_ACTIVE_RESEARCH','active_request_ids':[]}
+from pmrh.domain.native_settlement import phase as phase
 
-def _append_interval(clock,start,end,previous):
-    delta=max(0,seconds(end)-seconds(start))
-    if not delta:return
-    if previous.get('effective'):clock['effective_seconds']+=delta
-    row={'from':start,'to':end,'seconds':delta,'effective':previous.get('effective',False),
-        'reason':previous.get('reason'),'evidence_request_ids':previous.get('active_request_ids',[])}
-    if previous.get('evidence_incomplete'):
-        row['evidence_incomplete']=True
-        clock.setdefault('uncertainty_intervals',[]).append(deepcopy(row))
-    intervals=clock.setdefault('intervals',[])
-    if intervals and all(intervals[-1].get(k)==row.get(k) for k in ('effective','reason','evidence_request_ids','evidence_incomplete')) and intervals[-1]['to']==start:
-        intervals[-1]['to']=end;intervals[-1]['seconds']+=delta
-    else:intervals.append(row)
+from pmrh.domain.native_settlement import _append_interval as _append_interval
 
 def initial_clock(s,iid,at):
     return {'schema':'pmrs.research-clock/4.2.2','instance_id':iid,'started_at':at,'last_observed_at':at,
@@ -107,19 +66,9 @@ def initial_clock(s,iid,at):
         'policy':policy(s,iid),'pending_event_id':None,'deadline_effective_seconds':policy(s,iid)['full_audit_seconds']}
 
 def transition(s,iid,*,at=None):
-    """Pure reducer hook after an actual control or execution state change."""
+    from pmrh.domain.native_settlement import transition as native_transition
     if s['instances'][iid]['kind'] not in {'TRH','FDH'}:return None
-    at=at or now();clock=s.setdefault('research_clocks',{}).get(iid)
-    if not clock:return None  # First maintenance reconstructs the immutable journal.
-    if seconds(at)<seconds(clock['last_observed_at']):return clock
-    elapsed=seconds(at)-seconds(clock['last_observed_at'])
-    if elapsed>2*clock['policy']['observation_seconds']:
-        clock.setdefault('uncertainty_intervals',[]).append({'from':clock['last_observed_at'],'to':at,'seconds':elapsed,
-            'reason':'BACKEND_OBSERVATION_GAP','accounting':'Persisted research phase used; continuous process activity was not observed here.'})
-    _append_interval(clock,clock['last_observed_at'],at,clock['phase'])
-    clock['last_observed_at']=at;clock['phase']=phase(s,iid);clock['policy']=policy(s,iid)
-    clock['deadline_effective_seconds']=clock['last_full_audit_effective_seconds']+clock['policy']['full_audit_seconds']
-    return clock
+    return native_transition(s,iid,at=at or now())
 
 def bootstrap(store,s,iid,at):
     """Recover actual elapsed instance time from immutable journal boundaries."""
@@ -213,19 +162,7 @@ def context(s,iid,blob_get=None):
         'invalidated_checkpoint_refs':sorted(set(invalid)),'effective_guidance':effective_guidance(s,iid),
         'as_of_commit':s.get('knowledge_commit'),'authority':'RESEARCH_MEMORY_NOT_MATHEMATICAL_SUPPORT'}
 
-def authoring_schema():
-    text={'type':'string'};refs={'type':'array','items':text}
-    def obj(properties):return {'type':'object','additionalProperties':False,'properties':properties,'required':list(properties)}
-    assessment=obj({'route_key':text,'progress':{'enum':sorted(PROGRESS)},'before_pending':text,'after_pending':text,
-        'evidence_refs':refs,'decision':text,'reason':text,'decision_outcome':text,'unassessed':refs})
-    failure=obj({'classification':{'enum':['METHOD_FAILURE','STRONGER_CLAIM_FAILURE','ORIGINAL_TARGET_COUNTEREXAMPLE','CONDITIONAL_GAP','SOURCE_UNAVAILABLE','EXECUTION_FAILURE']},
-        'route_keys':refs,'attempt_refs':refs,'evidence_refs':refs,'shared_obstacle':text,'changed_basis':text,'next_decision':text})
-    return obj({'kind':{'const':'FULL_STRATEGIC_AUDIT'},'body':text,'basis_commit':text,'target_scope_refs':refs,
-        'method_version':text,'guidance_version':text,'covered_event_ids':refs,'route_assessments':{'type':'array','items':assessment},
-        'failure_synthesis':{'type':'array','items':failure},'known_results':refs,'conditional_results':refs,
-        'candidate_refs':refs,'unknown_comparisons':refs,'critical_obstacles':refs,'source_limitations':refs,
-        'invalidated_refs':refs,'active_task_ids':refs,'communication_account':text,'next_plan':text,
-        'decision_changers':refs,'uncovered_incremental_refs':refs})
+from pmrh.domain.native_response import audit_authoring_schema as authoring_schema
 
 def prepare(s,task,audit,*,supplied,known_sources,blobs,live=False,route_keys=(),runtime_contexts=()):
     if audit is None:return None

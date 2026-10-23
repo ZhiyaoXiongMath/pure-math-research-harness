@@ -67,7 +67,13 @@ class Extraction(unittest.TestCase):
             with self.assertRaises(ValueError):storage_scope.verify_sections(path,original,current+b'\nforbidden_extra_symbol = True\n')
         for directory in ('pmrh/domain','pmrh/ports','scripts/offline_guard'):
             for path in (BASE/directory).rglob('*'):
-                if path.is_file():self.assertEqual(path.read_bytes(),(ROOT/path.relative_to(BASE)).read_bytes())
+                if path.is_file():
+                    relative=path.relative_to(BASE).as_posix()
+                    current=(ROOT/relative).read_bytes()
+                    if relative=='pmrh/domain/contracts.py':
+                        from scripts import fastmath_scope
+                        current=fastmath_scope.preintegration(relative,current,ROOT)
+                    self.assertEqual(path.read_bytes(),current)
 
     def test_frozen_symbol_fingerprints_bind_exact_source_segments(self):
         import hashlib
