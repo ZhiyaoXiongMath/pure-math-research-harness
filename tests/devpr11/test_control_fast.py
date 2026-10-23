@@ -16,6 +16,7 @@ class ControlFastTests(unittest.TestCase):
         from pmrh.adapters.storage.journal import Journal, _apply_delta, _persistent
         from pmrh.ports.dto import enums as E, specs as S, wire as W
         original_read_json = D.read_json
+        original_read_ref = D.read_ref
         for factory in (NativeHarness, Harness):
             with self.subTest(profile=factory.__module__), tempfile.TemporaryDirectory() as tmp:
                 h = factory(tmp); h.authorize(1); prepared = h.prepare()
@@ -50,16 +51,17 @@ class ControlFastTests(unittest.TestCase):
                         self.assertEqual(oracle.exception.code, code)
                         selected = []
 
-                        def select_spec_blob(store, reference, project):
+                        def select_spec_blob(store, reference, project, *, maximum=D.MAX_JSON_BYTES):
                             if reference == prepared['spec_ref'] and not selected:
                                 selected.append(reference)
                                 # Inject only the reference at scan's first spec
-                                # conversion. Authenticate, parse and budget the
-                                # replacement using the actual read_json reader.
-                                return original_read_json(store, replacement, project)
-                            return original_read_json(store, reference, project)
+                                # conversion. Authenticate the replacement with
+                                # the actual read_ref reader; scan must still
+                                # parse, canonical-check, budget and decode it.
+                                return original_read_ref(store, replacement, project, maximum=maximum)
+                            return original_read_ref(store, reference, project, maximum=maximum)
 
-                        with patch.object(D, 'read_json', side_effect=select_spec_blob):
+                        with patch.object(D, 'read_ref', side_effect=select_spec_blob):
                             with self.assertRaises(W.ContractViolation) as caught:
                                 D.scan(journal, history, _apply_delta, combined=combined)
                         self.assertEqual(selected, [prepared['spec_ref']])
@@ -67,6 +69,140 @@ class ControlFastTests(unittest.TestCase):
                         self.assertEqual(caught.exception.code, oracle.exception.code)
                         self.assertEqual(str(caught.exception), str(oracle.exception))
                         self.assertEqual((h.store.root/'HEAD').read_bytes(), head_bytes)
+                self.assertEqual(Journal(h.store.root).read_snapshot(), expected)
+
+    def test_source42_spec_cache_uses_fresh_bytes_and_stays_scan_local(self):
+        import sys
+        from dataclasses import FrozenInstanceError
+        from unittest.mock import patch
+        from tests.devpr06.test_control import Harness as NativeHarness
+        from pmrh.adapters.storage.io import _ConfinedReader
+        from pmrh.adapters.storage.journal import Journal, _apply_delta, _persistent
+        from pmrh.ports.dto import specs as S, wire as W
+        read_ref, decode, identity = D.read_ref, W._decode_dto, S.AgentInvocationSpec.identity
+        for factory in (NativeHarness, Harness):
+            with self.subTest(profile=factory.__module__), tempfile.TemporaryDirectory() as tmp:
+                h = factory(tmp); h.authorize(1); prepared = h.prepare(); h.pause()
+                journal = Journal(h.store.root); expected = journal.read_snapshot()
+                history = journal.history(); combined = factory is Harness
+                head_bytes = (h.store.root/'HEAD').read_bytes()
+                good = prepared['spec'].to_wire(); good_raw = canonical(good)
+                alternate = dict(good, correlation_id='source42-alternate')
+                alternate_ref = h.blob('source42-alternate', alternate)
+                previous = []
+                with _ConfinedReader(h.store.root) as reader:
+                    store = Journal(h.store.root, reader=reader)
+                    for change_bytes in (False, False, True):
+                        reads, decoded, observed = [], [], []
+
+                        def read_current(store, reference, project, *, maximum=D.MAX_JSON_BYTES):
+                            # Observe this exact scan conversion, excluding the
+                            # independent public-decoder reads that must remain.
+                            if sys._getframe(1).f_code is not D.scan.__code__ or reference != prepared['spec_ref']:
+                                return read_ref(store, reference, project, maximum=maximum)
+                            before = (reader.remaining_files, reader.remaining_bytes)
+                            selected = alternate_ref if change_bytes and reads else reference
+                            raw = read_ref(store, selected, project, maximum=maximum)
+                            reads.append((raw, before, (reader.remaining_files, reader.remaining_bytes)))
+                            return raw
+
+                        def decode_current(cls, value):
+                            result = decode(cls, value)
+                            if cls is S.AgentInvocationSpec and sys._getframe(1).f_code is D.scan.__code__:
+                                decoded.append(result)
+                            return result
+
+                        def observe_identity(spec):
+                            if sys._getframe(1).f_code is D.scan.__code__: observed.append(spec)
+                            return identity(spec)
+
+                        with patch.object(D, 'read_ref', read_current), patch.object(W, '_decode_dto', decode_current), patch.object(S.AgentInvocationSpec, 'identity', observe_identity):
+                            index = D.scan(store, history, _apply_delta, combined=combined)
+                        self.assertEqual(len(reads), 2); self.assertEqual(len(observed), 2)
+                        self.assertEqual(len(decoded), 2 if change_bytes else 1)
+                        self.assertIs(observed[0], decoded[0])
+                        if change_bytes:
+                            self.assertIs(observed[1], decoded[1])
+                            self.assertIsNot(observed[0], observed[1])
+                            self.assertEqual(observed[1].correlation_id, alternate['correlation_id'])
+                        else:
+                            self.assertIs(observed[0], observed[1])
+                        self.assertEqual(reads[0][0], good_raw)
+                        self.assertEqual(reads[1][0], canonical(alternate) if change_bytes else good_raw)
+                        for raw, before, after in reads:
+                            self.assertEqual(before[0] - after[0], 1)
+                            self.assertEqual(before[1] - after[1], len(raw))
+                        # Even a second scan on the same reader must decode anew.
+                        for prior in previous: self.assertIsNot(observed[0], prior)
+                        previous.append(observed[0])
+                        with self.assertRaises(FrozenInstanceError): observed[0].owner_epoch = 0
+                        with self.assertRaises(FrozenInstanceError): observed[0].model_selection.model_id = 'caller-only'
+                        exported = observed[0].to_wire()
+                        exported['model_selection']['model_id'] = 'caller-only'
+                        exported['capability_requirements']['continuation'].append('caller-only')
+                        self.assertEqual(observed[0].to_wire(), good)
+                        self.assertEqual(index.states[history[-1][0]['commit']], _persistent(expected))
+                self.assertEqual((h.store.root/'HEAD').read_bytes(), head_bytes)
+                self.assertEqual(Journal(h.store.root).read_snapshot(), expected)
+
+    def test_source42_spec_cache_hit_preserves_corruption_and_read_quota_refusal(self):
+        import sys
+        from unittest.mock import patch
+        from tests.devpr06.test_control import Harness as NativeHarness
+        from pmrh.adapters.storage.io import _ConfinedReader, _Unavailable
+        from pmrh.adapters.storage.journal import Journal, _apply_delta
+        from pmrh.ports.dto import specs as S, wire as W
+        read_ref, decode = D.read_ref, W._decode_dto
+        for factory in (NativeHarness, Harness):
+            with self.subTest(profile=factory.__module__), tempfile.TemporaryDirectory() as tmp:
+                h = factory(tmp); h.authorize(1); prepared = h.prepare(); h.pause()
+                journal = Journal(h.store.root); expected = journal.read_snapshot()
+                history = journal.history(); combined = factory is Harness
+                blob_path = h.store.root/'blobs'/prepared['spec_ref']['sha256']
+                original = blob_path.read_bytes(); head_bytes = (h.store.root/'HEAD').read_bytes()
+                for failure in ('corruption', 'file-quota', 'byte-quota'):
+                    with self.subTest(failure=failure):
+                        reads, decoded = [], []
+
+                        def decode_current(cls, value):
+                            result = decode(cls, value)
+                            if cls is S.AgentInvocationSpec and sys._getframe(1).f_code is D.scan.__code__:
+                                decoded.append(result)
+                            return result
+
+                        def read_current(store, reference, project, *, maximum=D.MAX_JSON_BYTES):
+                            if sys._getframe(1).f_code is not D.scan.__code__ or reference != prepared['spec_ref']:
+                                return read_ref(store, reference, project, maximum=maximum)
+                            if reads:
+                                self.assertEqual(len(reads), 1)
+                                self.assertEqual(len(decoded), 1)  # A real entry is already cached.
+                                if failure == 'corruption': blob_path.write_bytes(original[:-1] + b' ')
+                                elif failure == 'file-quota': reader.remaining_files = 0
+                                else: reader.remaining_bytes = len(original) - 1
+                            row = [(reader.remaining_files, reader.remaining_bytes)]
+                            reads.append(row)
+                            try:
+                                return read_ref(store, reference, project, maximum=maximum)
+                            finally:
+                                row.append((reader.remaining_files, reader.remaining_bytes))
+
+                        try:
+                            with _ConfinedReader(h.store.root) as reader:
+                                store = Journal(h.store.root, reader=reader)
+                                with patch.object(D, 'read_ref', read_current), patch.object(W, '_decode_dto', decode_current):
+                                    with self.assertRaises(PMRSError if failure == 'corruption' else _Unavailable) as caught:
+                                        D.scan(store, history, _apply_delta, combined=combined)
+                            if failure == 'corruption': self.assertEqual(caught.exception.code, 'BLOB_CHANGED')
+                            else: self.assertEqual(caught.exception.reason, 'QUERY_READ_LIMIT')
+                            self.assertEqual(len(reads), 2); self.assertEqual(len(decoded), 1)
+                            self.assertEqual(reads[0][0][0] - reads[0][1][0], 1)
+                            self.assertEqual(reads[0][0][1] - reads[0][1][1], len(original))
+                            before, after = reads[1]
+                            self.assertEqual(before[0] - after[0], 0 if failure == 'file-quota' else 1)
+                            self.assertEqual(before[1] - after[1], len(original) if failure == 'corruption' else 0)
+                            self.assertEqual((h.store.root/'HEAD').read_bytes(), head_bytes)
+                        finally:
+                            if failure == 'corruption': blob_path.write_bytes(original)
                 self.assertEqual(Journal(h.store.root).read_snapshot(), expected)
 
     def test_source39_native_and_combined_replay_snapshot_isolation(self):

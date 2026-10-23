@@ -965,6 +965,8 @@ def scan(store, history, apply_delta, *, combined=False):
     # mutable checkpoint is cached, and new digests consume the same budget.
     native_records={}
     native_blobs=set()
+    # Only pure decoded values are reused within this scan; reads stay fresh.
+    specs_by_raw={}
     def native_blob(digest):
         if digest not in native_blobs:
             store.read_blob(digest)
@@ -1082,8 +1084,14 @@ def scan(store, history, apply_delta, *, combined=False):
         for request in state['requests'].values():
             call = request['admission']
             closure(call, iid);closure(request['execution_inbox'], iid)
-            # read_json already budgeted this fresh, unmodified wire value.
-            spec = _decode_dto(S.AgentInvocationSpec, read_json(store, call['spec_ref'], index.project))
+            spec_raw = read_ref(store, call['spec_ref'], index.project)
+            spec = specs_by_raw.get(spec_raw)
+            if spec is None:
+                spec_wire = loads(spec_raw, maximum=MAX_JSON_BYTES)
+                check(canonical(spec_wire) == spec_raw)
+                _wire_budget(spec_wire, wire=True)
+                spec = _decode_dto(S.AgentInvocationSpec, spec_wire)
+                specs_by_raw[spec_raw] = spec
             reservation = read_json(store, call['reservation_ref'], index.project); validate_record(reservation)
             check(reservation['kind'] == 'RESERVATION' and reservation['identity'] == spec.identity().to_wire())
             check(reservation['grant_ref'] == spec.budget_grant_ref.to_wire() and spec.reservation_ref.to_wire() == call['reservation_ref'])
