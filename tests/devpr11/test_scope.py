@@ -16,7 +16,7 @@ ROOT=Path(__file__).resolve().parents[2]
 class ScopeTests(unittest.TestCase):
     def test_source37_closed_storage_timeout_and_unchanged_other_selectors(self):
         from scripts.offline_fastmath import suite_timeout_seconds
-        self.assertEqual(suite_timeout_seconds('ci-storage'),3600)
+        self.assertEqual(suite_timeout_seconds('ci-storage'),1800)
         for selector in ('default','ci-core','source04-affected','source07-affected','source09-affected',
                 'source10-affected','source11-affected','source11-query','source12-permission',
                 'source13-core','source13-business','source16-small','source17-affected','source18-affected',

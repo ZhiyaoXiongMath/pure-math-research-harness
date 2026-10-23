@@ -953,6 +953,7 @@ def scan(store, history, apply_delta, *, combined=False):
             if prefix_entry[name]:
                 apply_delta(prefix_state, loads(store.read_blob(prefix_entry[name])))
         index.states[prefix_head['commit']] = deepcopy(prefix_state)
+    replay_prior_commit = history[first-1][0]['commit']
 
     raw_fields=frozenset('raw_output_ref raw_event_ref raw_event_refs raw_evidence_ref raw_evidence_refs evidence_refs request_evidence_refs termination_evidence_refs test_receipt_refs principal_ref authn_evidence_ref authority_ref producer_ref binding_ref backend_binding_ref runner_binding_ref reason_ref takeover_evidence_refs endpoint_ref credential_ref capture_ref'.split())
     closure_sizes={}
@@ -1003,7 +1004,7 @@ def scan(store, history, apply_delta, *, combined=False):
     for head, entry in history[first:]:
         validate_entry(entry, combined=combined)
         event = next(e for e in entry['events'] if e.get('type') != 'CHECKPOINT')
-        before = deepcopy(state)
+        before = index.states[replay_prior_commit]
         for name in ('knowledge_delta_ref', 'control_delta_ref', 'report_delta_ref', 'registry_delta_ref'):
             if entry[name]:
                 apply_delta(state, loads(store.read_blob(entry[name])))
@@ -1133,6 +1134,7 @@ def scan(store, history, apply_delta, *, combined=False):
         index.operations[event['operation_id']] = dict(command=bare, receipt=receipt, decision=decision)
         index.keys[event['idempotency_key']] = event['operation_id']
         index.states[head['commit']] = deepcopy(state)
+        replay_prior_commit = head['commit']
     return index
 
 

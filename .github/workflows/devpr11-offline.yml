@@ -23,7 +23,7 @@ jobs:
           - suite: ci-core
             timeout_minutes: 40
           - suite: ci-storage
-            timeout_minutes: 70
+            timeout_minutes: 40
     steps:
       - uses: actions/checkout@v4
         with:

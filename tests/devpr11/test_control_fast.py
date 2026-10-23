@@ -10,6 +10,111 @@ from .fixtures import Harness,six_entries,delta_for
 
 
 class ControlFastTests(unittest.TestCase):
+    def test_source39_native_and_combined_replay_snapshot_isolation(self):
+        from tests.devpr06.test_control import Harness as NativeHarness
+        from pmrh.adapters.storage.journal import Journal, _persistent
+        for factory, schema in ((NativeHarness, 'pmrh.commit/2'), (Harness, 'pmrh.control-fast.commit/1')):
+            with self.subTest(schema=schema), tempfile.TemporaryDirectory() as tmp:
+                h=factory(tmp)
+                observed=[h.store.read_snapshot(h.setup.heads[-1]), h.store.read_snapshot()]
+                h.authorize(3);observed.append(h.store.read_snapshot())
+                main=h.prepare();observed.append(h.store.read_snapshot())
+                h.send(main);h.dispatch(main,'SENT');h.pause()
+                observed.append(h.store.read_snapshot())
+                journal=Journal(h.store.root);current=journal.read_snapshot()
+                history=journal.history();index=journal._control_index
+                first=next(i for i,(_,entry) in enumerate(history) if entry['schema']==schema)
+                self.assertGreaterEqual(first,2)
+                self.assertEqual(len(index.states),len(history))
+                self.assertTrue(all(entry['schema']==schema for _,entry in history[first:]))
+                for expected in observed:
+                    commit=expected['knowledge_commit']
+                    self.assertEqual(index.states[commit],_persistent(expected))
+                    returned=journal.read_snapshot(commit)
+                    returned_index=journal._control_index
+                    self.assertEqual(returned,expected)
+                    returned['capabilities']['CAP-HUMAN']['actions'].append('caller-only')
+                    returned['instances'][h.iid]['mission_ids'].append('caller-only')
+                    self.assertEqual(index.states[commit],_persistent(expected))
+                    self.assertEqual(returned_index.states[commit],_persistent(expected))
+                for (prior,_),(head,entry) in zip(history[first-1:],history[first:]):
+                    before=index.states[prior['commit']];after=index.states[head['commit']]
+                    self.assertIsNot(before['instances'][h.iid]['run_control'],after['instances'][h.iid]['run_control'])
+                    event=next(e for e in entry['events'] if e.get('type')!='CHECKPOINT')
+                    saved_before=deepcopy(before);saved_after=deepcopy(after)
+                    D.validate_transition(before,after,event)
+                    self.assertEqual(before,saved_before);self.assertEqual(after,saved_after)
+                # A real PAUSE transition rejects a hidden authority change;
+                # its failure leaves the cached historical input untouched too.
+                bad=deepcopy(after);bad['capabilities']['CAP-HUMAN']['actions'].append('ungranted')
+                saved_bad=deepcopy(bad)
+                with self.assertRaises(PMRSError) as caught:D.validate_transition(before,bad,event)
+                self.assertEqual(caught.exception.code,'CAPABILITY_VIOLATION')
+                self.assertEqual(before,saved_before);self.assertEqual(bad,saved_bad)
+                current['instances'][h.iid]['run_control']['control_version']=-1
+                self.assertEqual(Journal(h.store.root).read_snapshot(),observed[-1])
+
+    def test_source39_combined_fast_replay_validators_preserve_prior_state(self):
+        from pmrh.adapters.storage.journal import Journal, _persistent
+        from pmrh.adapters.storage.fastmath import validate_effects
+        with tempfile.TemporaryDirectory() as tmp:
+            h=Harness(tmp);main,worker=h.running_pair();state=h.store.read_snapshot()
+            _,captured,_=h.capture_fast(worker,delta_for(state,worker['task'],six_entries(state,worker['task'])))
+            applied,_=h.apply_fast(captured['proposal_ref'],main)
+            expected=h.reopen();journal=Journal(h.store.root)
+            self.assertEqual(journal.read_snapshot(),expected)
+            index=journal._control_index;seen=[]
+            for head,entry in journal.history():
+                event=next(e for e in entry['events'] if e.get('type')!='CHECKPOINT')
+                if event.get('type') not in {'FAST_PROPOSAL_CAPTURED','FAST_DELTA_APPLIED'}:continue
+                seen.append(event['type'])
+                before=index.states[entry['previous_commit']['commit']];after=index.states[head['commit']]
+                saved_before=deepcopy(before);saved_after=deepcopy(after)
+                decision=D.read_json(journal,event['decision_ref'],h.project)
+                validate_effects(journal,before,after,event,decision)
+                self.assertEqual(before,saved_before);self.assertEqual(after,saved_after)
+                bad=deepcopy(after);bad['fast_receipts'][event['operation_id']]['outcome']='unpublished-outcome'
+                saved_bad=deepcopy(bad)
+                with self.assertRaises(FastMathError) as caught:validate_effects(journal,before,bad,event,decision)
+                self.assertEqual(caught.exception.code,'FAST_INTEGRITY_ERROR')
+                self.assertEqual(before,saved_before);self.assertEqual(bad,saved_bad)
+            self.assertEqual(seen,['FAST_PROPOSAL_CAPTURED','FAST_DELTA_APPLIED'])
+            captured_state=index.states[captured['commit']];applied_state=index.states[applied['commit']]
+            key=captured['proposal_ref']['sha256']
+            self.assertEqual(captured_state['fast_proposals'][key]['status'],'PENDING')
+            self.assertEqual(applied_state['fast_proposals'][key]['status'],'APPLIED')
+            self.assertIsNot(captured_state['fast_proposals'][key],applied_state['fast_proposals'][key])
+            self.assertEqual(applied_state,_persistent(expected))
+            historical=journal.read_snapshot(captured['commit'])
+            historical_index=journal._control_index
+            historical['fast_proposals'][key]['proposal_ref']['object_id']='caller-only'
+            self.assertEqual(captured_state['fast_proposals'][key]['proposal_ref'],captured['proposal_ref'])
+            self.assertEqual(historical_index.states[captured['commit']],captured_state)
+            self.assertEqual(Journal(h.store.root).read_snapshot(),expected)
+
+    def test_source39_native_and_combined_replay_reject_old_corruption(self):
+        from tests.devpr06.test_control import Harness as NativeHarness
+        from pmrh.adapters.storage.journal import Journal
+        for factory in (NativeHarness,Harness):
+            with self.subTest(profile=factory.__module__),tempfile.TemporaryDirectory() as tmp:
+                h=factory(tmp);h.authorize(2);h.pause()
+                journal=Journal(h.store.root);expected=journal.read_snapshot();history=journal.history()
+                first=next(i for i,(_,entry) in enumerate(history) if entry['schema'] in {'pmrh.commit/2','pmrh.control-fast.commit/1'})
+                old_path=h.store.root/history[first][0]['path']
+                source=next(iter(expected['sources'].values()))
+                blob_path=h.store.root/'blobs'/source['blob_hash']
+                head_bytes=(h.store.root/'HEAD').read_bytes()
+                for path,code in ((old_path,'COMMIT_CHANGED'),(blob_path,'BLOB_CHANGED')):
+                    with self.subTest(corruption=code):
+                        original=path.read_bytes()
+                        try:
+                            path.write_bytes(original+b' ')
+                            with self.assertRaises(PMRSError) as caught:Journal(h.store.root).read_snapshot()
+                            self.assertEqual(caught.exception.code,code)
+                            self.assertEqual((h.store.root/'HEAD').read_bytes(),head_bytes)
+                        finally:path.write_bytes(original)
+                        self.assertEqual(Journal(h.store.root).read_snapshot(),expected)
+
     def test_source28_prepare_malformed_delta_closed_and_current_authority(self):
         from pmrh.domain.fastmath.model import FastReadContext, MAX_REVISIONS
         with tempfile.TemporaryDirectory() as tmp:

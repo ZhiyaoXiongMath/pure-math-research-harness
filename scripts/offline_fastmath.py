@@ -23,7 +23,7 @@ SUITE_TIMEOUT_SECONDS = 1800
 def suite_timeout_seconds(suite):
     if type(suite) is not str or suite not in {'default','ci-core','ci-storage','source04-affected','source07-affected','source09-affected','source10-affected','source11-affected','source11-query','source12-permission','source13-core','source13-business','source16-small','source17-affected','source18-affected','source19-capacity','source20-final-remaining','source21-affected','p01-large','p01-256','p01-256-plus-one','fm13-pilot','fm13-native-pilot'}:
         raise ValueError('Unknown closed suite selector')
-    return 3600 if suite == 'ci-storage' else SUITE_TIMEOUT_SECONDS
+    return SUITE_TIMEOUT_SECONDS
 
 
 class ParentTestTimings:
