@@ -196,19 +196,22 @@ def preintegration(path,current,root=None):
     return original
 
 
-# Human-authorized step-2 entrypoints; no product or unknown path is exempt.
+# Human-authorized step-2/3 exact overlay; original kernel and unknown paths remain pinned.
 SKILL_ENTRYPOINT_SHA256 = {
     '.github/workflows/phase0-safe.yml': '9ce635625330fddc747c647282d927f35b7175656981e83dbb4d41728f96c19c',
-    'AGENTS.md': '3450b85efb361cb3e6f45a9ee86703647990bee155a7cf271b27704e203004a8',
-    'README.md': '8f5b9bef6498288e542d520abb996b9b305b5461293ae075f660b3b18457a01d',
-    'README.zh-CN.md': '08ca78c46f455b9d48ae7a776b1c9e07e4f488f0d3271291d5fc1586a68f90e4',
-    'docs/development/PROJECT-STATE.md': 'd091bbf49b0b561264fdc6184586ce82aaf83dca3e23a0ff6032b16e5d0094d9',
-    '.agents/skills/pmrh-kb/SKILL.md': 'f3a169c7822685ea8707e8c75da6cea2c1ee9d62354b84c12a910d0a48f258fc',
-    '.agents/skills/pmrh-summary/SKILL.md': '276336ce5c150c70aaa461f2429185b7df683e0f8d36ce4713aa87dcdd4f75af',
+    'AGENTS.md': '747f7fef7573944fb59ca7a83b61c62ecd62b5dbb1b948df6ad4c8b1ad56e580',
+    'README.md': 'cb72631b0528df065768c23329c0f4f15979fb6d22ebb10badf2c00a5990c5e4',
+    'README.zh-CN.md': '8fe0e27827e91a344f85a885c0ac7a0f915034d0feccd2a5ca369b375910ddf4',
+    'docs/development/PROJECT-STATE.md': '512f59316d7bb09fc98bf4dd75aaf2ada4761b11481dd6e5abd1dfb346fd251e',
+    '.agents/skills/pmrh-kb/SKILL.md': '4963a7923d4ac2c07e318f44900e3817ab6a230acee71eada305498019131540',
+    '.agents/skills/pmrh-summary/SKILL.md': '8fe3cf3d90358d2330639a5923f6669493a4a59ab3c4346e6238baf3f6e116d8',
     '.agents/skills/pmrh-trh/SKILL.md': 'd05f3000807c4a37e0274b74442ab72157608f223f3eaf60687c931099b28b76',
     '.agents/skills/pmrh-fdh/SKILL.md': 'a9c200f2b1943a9307e8d0b021b9752881b5e2ae066840a8d22d1e3274836a1e',
-    'docs/development/FOUR-SKILL-CORE.md': '235499edfb13a0968d875dd86643cdf0d8919d09b79c90e6169d1249fa33ba76',
-    'tests/skills/test_shared_calls.py': 'ca8c61fcb8d870db47ee3171d0b27eeeffc3336af74fff30b19fd3ce67a10fe5',
+    'docs/development/FOUR-SKILL-CORE.md': '460d1e492d120d9c2a1b1f3af2b4da142660b7134d4646063a318fcd6c40e270',
+    'tests/skills/test_shared_calls.py': 'cf564184e38ee4680b411142854aac248ab05f1c33db2ced43048145b76bb153',
+    'pmrh/application/kb_summary.py': '14302542b286c4dc7e74aeb284299d7b1d099d9179511c8b73842b9e1709e377',
+    'tests/skills/test_kb_summary.py': '95850a15919952adb709dffa3e657ac6302ae623e968cd5bc5ceb563bfe51460',
+    'docs/development/KB-SUMMARY.md': '1095fde8d364b42fae8824733aa2fb423ca82dc400bd620520e576af2d4536e0',
 }
 
 

@@ -1,6 +1,6 @@
 # 纯数学研究 Harness（PMRH）
 
-**当前开发：只读状态查询与仓库级 Skill 入口；完整科研执行尚未启用。** PMRH 保留原 Pure Math Research Studio 4.2.2-preview 的历史与兼容代码。新命令读取已有原生项目事实，不启动科研、不对账资源池、不刷新认证、不重建索引。帮助与版本入口保持无运行操作；控制命令仍不支持。[English](README.md)
+**当前开发：只读状态查询、四个原生 Skill 与合成 KB/Summary 持久化闭环；真实宿主写入和完整科研执行尚未启用。** PMRH 保留原 Pure Math Research Studio 4.2.2-preview 的历史与兼容代码。新命令读取已有原生项目事实，不启动科研、不对账资源池、不刷新认证、不重建索引。帮助与版本入口保持无运行操作；控制命令仍不支持。[English](README.md)
 
 在源码 checkout 根目录使用 Python 3.11+、POSIX/Linux，并禁用字节码写入；状态查询不需要原生程序、模型凭据或额外 Python 依赖：
 
@@ -16,9 +16,9 @@ python3 -B -m pmrh status ./existing-project --instance INSTANCE --json
 
 从本仓库 checkout 中运行 Codex，即可发现 `.agents/skills/` 下的四个 Skill。显式使用 `$pmrh-kb` 维护来源、版本与检索，`$pmrh-summary` 整理指定材料，`$pmrh-trh` 处理固定目标，`$pmrh-fdh` 处理表述发现。未显式指定时，Codex 根据 description 选择一个主 Skill；无需 Router Skill 或额外 KB Agent。
 
-例如，输入 `$pmrh-summary 总结所附论文的主要结果`，输出应是保留假设、精确引用和覆盖缺口的材料整理稿，不会启动科研或修改项目。Summary 替代面向用户的 Survey 名称；既有 `SURVEY` 记录保持可读且不改写。
+例如，输入 `$pmrh-summary 总结所附论文的主要结果`，输出应是保留假设、精确引用和覆盖缺口的材料整理稿，选择 Skill 本身不授予项目写入或继续研究的权限。Summary 替代面向用户的 Survey 名称；既有 `SURVEY` 记录保持可读且不改写。
 
-四个入口共用现有 Python 内核和证据。用户知识库导入/持久化适配与完整 TRH/FDH 运行闭环留给后续步骤；当前 Skill 明确报告缺口，不调用未支持命令。参见[共享服务与权限](docs/development/FOUR-SKILL-CORE.md)及[当前开发状态](docs/development/PROJECT-STATE.md)。Skill 从源码 checkout 发现，仅安装 Python 包不会安装这些仓库入口。
+四个入口共用现有 Python 内核和证据。KB/Summary 共享适配已能保存 UTF-8 文本、Markdown、TeX，接纳已有封存原生提取结果，并通过同一 Journal 交付带精确来源的 Markdown；相同输入和新版本中未受影响的原生对象可复用。**当前存储/宿主装配仅支持合成项目，真实项目写入仍不支持。**参见[简短使用说明](docs/development/KB-SUMMARY.md)。运行 `python3 -B -m tests.skills.test_kb_summary --example ../kb-summary-example`，使用尚不存在的输出目录：等比数列教学夹具会保存两个材料版本和 `summary-v1.md`、`summary-v2.md`；再次请求返回 `REUSED`，第二版新增 `q=1` 分支。所有模型输出均为固定合成夹具，不是真实模型研究。完整 TRH/FDH 运行闭环仍留待后续。参见[共享服务与权限](docs/development/FOUR-SKILL-CORE.md)及[当前开发状态](docs/development/PROJECT-STATE.md)。Skill 从源码 checkout 发现，仅安装 Python 包不会安装这些仓库入口。
 
 开发约束：[AGENTS](AGENTS.md) · [CONTRIBUTING](CONTRIBUTING.md) · [工作包规划](docs/development/ROADMAP.md)。以下保留原 PMRS 4.2.2-preview 历史说明，其运行能力陈述不代表 PMRH 验收。
 

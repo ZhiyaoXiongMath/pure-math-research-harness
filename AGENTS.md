@@ -6,7 +6,7 @@ Use [PROJECT-STATE](docs/development/PROJECT-STATE.md) for the short current ent
 - Share the existing Python services, Journal and evidence. Ordinary I/O calls those services directly, without extra KB/Summary agents or four separate systems. Load only the selected entry and needed references.
 - Research strategy stays with each TRH/FDH Research MAIN. Summary replaces the user-facing Survey entry while historical `SURVEY` kinds, events and schemas remain readable and unchanged. Skill selection grants no instance/evidence/control writes or research continuation.
 - Routine development uses one work session, minimal affected checks and valid evidence reuse; default extra audit agents are zero. This supersedes older routine full-role/repeated-audit requirements below. Necessary targeted risk checks and independent **scientific** qualification remain.
-- This development step adds entrypoints, not full KB/Summary or TRH/FDH execution. Preserve current authorization, isolation where execution requires it, PAUSED/UNKNOWN, cumulative budgets and formal evidence gates. No merge, release, real paid research or formal-project modification is authorized by a skill.
+- Step 2 entrypoints are integrated. Step 3 adds the shared synthetic KB/Summary persistence loop; authenticated production host assembly and TRH/FDH execution remain unavailable. Preserve current authorization, isolation where execution requires it, PAUSED/UNKNOWN, cumulative budgets and formal evidence gates. No merge, release, real paid research or formal-project modification is authorized by a skill.
 
 The dated governance and original evidence below remain historical sources; current explicit human amendments take precedence.
 
