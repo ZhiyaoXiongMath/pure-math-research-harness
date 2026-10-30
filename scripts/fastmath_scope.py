@@ -196,20 +196,42 @@ def preintegration(path,current,root=None):
     return original
 
 
+# Human-authorized step-2 entrypoints; no product or unknown path is exempt.
+SKILL_ENTRYPOINT_SHA256 = {
+    '.github/workflows/phase0-safe.yml': '9ce635625330fddc747c647282d927f35b7175656981e83dbb4d41728f96c19c',
+    'AGENTS.md': '3450b85efb361cb3e6f45a9ee86703647990bee155a7cf271b27704e203004a8',
+    'README.md': '8f5b9bef6498288e542d520abb996b9b305b5461293ae075f660b3b18457a01d',
+    'README.zh-CN.md': '08ca78c46f455b9d48ae7a776b1c9e07e4f488f0d3271291d5fc1586a68f90e4',
+    'docs/development/PROJECT-STATE.md': 'd091bbf49b0b561264fdc6184586ce82aaf83dca3e23a0ff6032b16e5d0094d9',
+    '.agents/skills/pmrh-kb/SKILL.md': 'f3a169c7822685ea8707e8c75da6cea2c1ee9d62354b84c12a910d0a48f258fc',
+    '.agents/skills/pmrh-summary/SKILL.md': '276336ce5c150c70aaa461f2429185b7df683e0f8d36ce4713aa87dcdd4f75af',
+    '.agents/skills/pmrh-trh/SKILL.md': 'd05f3000807c4a37e0274b74442ab72157608f223f3eaf60687c931099b28b76',
+    '.agents/skills/pmrh-fdh/SKILL.md': 'a9c200f2b1943a9307e8d0b021b9752881b5e2ae066840a8d22d1e3274836a1e',
+    'docs/development/FOUR-SKILL-CORE.md': '235499edfb13a0968d875dd86643cdf0d8919d09b79c90e6169d1249fa33ba76',
+    'tests/skills/test_shared_calls.py': 'ca8c61fcb8d870db47ee3171d0b27eeeffc3336af74fff30b19fd3ce67a10fe5',
+}
+
+
 def verify(root):
     root=Path(root);data=oracle(root)
     for relative,digest in data['baseline_file_sha256'].items():
         path=root/relative
         if path.is_symlink() or any(p.is_symlink() for p in path.parents):raise ValueError('Symlink candidate/source')
         raw=path.read_bytes()
-        if relative in data['files']:
+        if relative in SKILL_ENTRYPOINT_SHA256:
+            if hashlib.sha256(raw).hexdigest()!=SKILL_ENTRYPOINT_SHA256[relative]:
+                raise ValueError('Skill entrypoint overlay changed: '+relative)
+        elif relative in data['files']:
             verify_file(relative,base64.b64decode(data['files'][relative]['bytes_base64']),raw)
         elif hashlib.sha256(raw).hexdigest()!=digest:raise ValueError('Unowned baseline file changed: '+relative)
     for path in root.rglob('*'):
         relative=path.relative_to(root).as_posix()
         if any(p in {'.git','__pycache__'} for p in path.relative_to(root).parts):continue
         if path.is_symlink():raise ValueError('Symlink source: '+relative)
-        if path.is_file() and relative not in data['baseline_file_sha256'] and relative not in PATHS and relative!='scripts/fastmath_scope_preintegration.json':
+        if path.is_file() and relative in SKILL_ENTRYPOINT_SHA256:
+            if hashlib.sha256(path.read_bytes()).hexdigest()!=SKILL_ENTRYPOINT_SHA256[relative]:
+                raise ValueError('Skill entrypoint overlay changed: '+relative)
+        elif path.is_file() and relative not in data['baseline_file_sha256'] and relative not in PATHS and relative!='scripts/fastmath_scope_preintegration.json':
             raise ValueError('Unlisted source addition: '+relative)
     verify_native_moves(root,data)
     for path in PATHS:

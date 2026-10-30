@@ -18,9 +18,11 @@ Public Python CLI: read-only project status via the [README](../../README.md). D
 | Shared implementation | One existing Python core, Journal and evidence; no Router Skill, new database, extra KB Agent or duplicate runtime. Root AGENTS and both README languages document the native selection. |
 | Discovery | Actual Codex `skills/list` returned all four enabled skills with repository scope and exact paths, from both the repository root and its `pmrh/` subdirectory. Only initialize/initialized/skills/list were sent; no model turn was started. |
 | Trigger check | Same-session semantic check of 10 requests: four primary outcomes, summary-of-TRH, explicit selection and an unrelated request are distinguished. This is not an extra-model routing benchmark. |
-| Call smoke | Four offline unittest methods cover all four status entry uses, shared search/get/dependencies/history, forbidden exact refs, PAUSED/UNKNOWN, unchanged historical SURVEY, missing projects and unsupported CLI commands. The new tests are included in existing Phase0 CI. |
+| Call smoke | Five offline unittest methods cover all four status entry uses, shared search/get/dependencies/history, forbidden exact refs, PAUSED/UNKNOWN, unchanged historical SURVEY, missing projects, unsupported CLI commands and exact overlay/source tamper refusal. The new tests are included in existing Phase0 CI. |
 | Reused evidence | DEV11's original [run 39978666796](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39978666796) and scoped acceptance: 108 = 93 core + 15 storage; product bytes unchanged by step 2. This remains original PR CI, not a new merge-SHA run. |
-| Checks not claimed | No separate PR16 merge-SHA CI was dispatched or certified here; no new full-product audit or old heavy-suite rerun. Native discovery and direct service smoke do not establish complete research-loop operation. |
+| Checks not claimed | No separate PR16 merge-SHA CI was dispatched or certified here. Initial step-2 inherited CI failed on the old whole-tree guard; the fix admits only the exact authorized skill/documentation/CI/test bytes, keeping product and unknown-path guards. New PR CI follows repository triggers; no old failed run is retried. Native discovery and direct service smoke do not establish complete research-loop operation. |
+
+A direct local invocation of the inherited 21-method scope module retained **FAIL** in its process-denial test (`PermissionError not raised`): that invocation did not install the required sandbox audit hook. It is not a successful isolation check and will not be rerun unconfined. The new five-method smoke and exact legacy-scope check passed; hosted product checks use their established confined runner.
 
 ## Permissions and inheritance
 

@@ -6,6 +6,7 @@ is checked separately through Codex skills/list; this suite is not a router.
 from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
+import shutil
 from pathlib import Path
 import tempfile
 import unittest
@@ -81,6 +82,34 @@ class SharedCallSmoke(unittest.TestCase):
             self.assertEqual(json.loads(output.getvalue())['unavailable_reason'], 'NOT_FOUND')
             self.assertFalse(project.exists())
             self.assertEqual(footprint(root), before)
+
+    def test_scope_guard_accepts_only_the_exact_authorized_skill_overlay(self):
+        from scripts import fastmath_scope as guard
+        source = Path(__file__).resolve().parents[2]
+        self.assertEqual(guard.verify(source)['status'], 'PASS')
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / 'candidate'
+            shutil.copytree(source, root, ignore=shutil.ignore_patterns('.git', '__pycache__'))
+            for relative in ['README.md', '.github/workflows/phase0-safe.yml',
+                             '.agents/skills/pmrh-kb/SKILL.md']:
+                with self.subTest(tampered=relative):
+                    path = root / relative
+                    raw = path.read_bytes()
+                    path.write_bytes(raw + b'\nUNAUTHORIZED_CHANGE\n')
+                    with self.assertRaisesRegex(ValueError, 'Skill entrypoint overlay changed'):
+                        guard.verify(root)
+                    path.write_bytes(raw)
+            path = root / 'pmrh/domain/knowledge.py'
+            raw = path.read_bytes()
+            path.write_bytes(raw + b'\nUNRELATED_CHANGE = True\n')
+            with self.assertRaisesRegex(ValueError, 'Unowned baseline file changed'):
+                guard.verify(root)
+            path.write_bytes(raw)
+            path = root / '.agents/skills/pmrh-router/SKILL.md'
+            path.parent.mkdir()
+            path.write_text('Unrequested fifth skill')
+            with self.assertRaisesRegex(ValueError, 'Unlisted source addition'):
+                guard.verify(root)
 
     def test_skill_names_are_not_fake_research_cli_commands(self):
         for command in ['pmrh-kb', 'pmrh-summary', 'pmrh-trh', 'pmrh-fdh']:
