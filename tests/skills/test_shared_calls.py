@@ -91,7 +91,8 @@ class SharedCallSmoke(unittest.TestCase):
             root = Path(tmp) / 'candidate'
             shutil.copytree(source, root, ignore=shutil.ignore_patterns('.git', '__pycache__'))
             for relative in ['README.md', '.github/workflows/phase0-safe.yml',
-                             '.agents/skills/pmrh-kb/SKILL.md']:
+                             '.agents/skills/pmrh-kb/SKILL.md', 'pmrh/application/kb_summary.py',
+                             'docs/development/KB-SUMMARY.md']:
                 with self.subTest(tampered=relative):
                     path = root / relative
                     raw = path.read_bytes()

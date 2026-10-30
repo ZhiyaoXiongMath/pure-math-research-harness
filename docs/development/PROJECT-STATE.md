@@ -1,39 +1,51 @@
 # PMRH current development state
 
-Observed: **2026-10-30 20:12 Asia/Shanghai**. This page describes the four-skill delivery; it does not claim to inventory all preserved local development.
-
-- Actual main: [`2844fe8ca58e627d8e6e7b21d497259082ef60d0`](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/commit/2844fe8ca58e627d8e6e7b21d497259082ef60d0).
-- [PR #16](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/16) merged at **2026-10-30 18:39:03 Asia/Shanghai**. Its accepted HEAD was `ba9124145cffde7b061faf195f34f9372ba8898c`; local Git readback confirms the actual merge and candidate share tree `6c834e84710383f8cba27820bee4dafeb3aea622`.
-- Current development branch: `feat/four-skill-entrypoints`, based on that actual merge. The step-2 PR is for review; no permission to merge it or release follows.
+Observed: **2026-10-30 23:47 Asia/Shanghai**. Baseline: actual main
+[`ac2c1a7d7ac066d97cd2220fea5407180d213db9`](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/commit/ac2c1a7d7ac066d97cd2220fea5407180d213db9).
+[PR #17](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/pull/17) was
+verified merged at **23:27:04** before dependent work began. Its PR body still
+described the earlier open state; the live merged flag/merge commit take precedence.
+Current candidate: branch `feat/kb-summary-mvp`; no merge or release authorized.
 
 ## Available now
 
-Public Python CLI: read-only project status via the [README](../../README.md). DEV01–06 and DEV11 are merged; DEV11 acceptance remains limited to its frozen synthetic scope. In this development branch, Codex can discover and explicitly select four repository-local entrypoints: `pmrh-kb`, `pmrh-summary`, `pmrh-trh`, `pmrh-fdh`.
+- Public Python CLI: existing read-only status. Four native repository Skill
+  entrypoints remain discoverable; Summary does not require a prior KB invocation.
+- This candidate adds one shared **synthetic** material → native extraction →
+  persistence → cited Markdown loop, with exact reuse and incremental updates.
+  [Use and limits](KB-SUMMARY.md); [shared core](FOUR-SKILL-CORE.md).
 
 ## Current delivery
 
-| Item | Actual result / limit |
+| Item | Actual behavior / boundary |
 | --- | --- |
-| Step 2 | Four standard `.agents/skills/*/SKILL.md` files with distinct triggers, inputs/outputs, existing service calls and permission boundaries. |
-| Shared implementation | One existing Python core, Journal and evidence; no Router Skill, new database, extra KB Agent or duplicate runtime. Root AGENTS and both README languages document the native selection. |
-| Discovery | Actual Codex `skills/list` returned all four enabled skills with repository scope and exact paths, from both the repository root and its `pmrh/` subdirectory. Only initialize/initialized/skills/list were sent; no model turn was started. |
-| Trigger check | Same-session semantic check of 10 requests: four primary outcomes, summary-of-TRH, explicit selection and an unrelated request are distinguished. This is not an extra-model routing benchmark. |
-| Call smoke | Five offline unittest methods cover all four status entry uses, shared search/get/dependencies/history, forbidden exact refs, PAUSED/UNKNOWN, unchanged historical SURVEY, missing projects, unsupported CLI commands and exact overlay/source tamper refusal. The new tests are included in existing Phase0 CI. |
-| Reused evidence | DEV11's original [run 39978666796](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/actions/runs/39978666796) and scoped acceptance: 108 = 93 core + 15 storage; product bytes unchanged by step 2. This remains original PR CI, not a new merge-SHA run. |
-| Checks not claimed | No separate PR16 merge-SHA CI was dispatched or certified here. Initial step-2 inherited CI failed on the old whole-tree guard; the fix admits only the exact authorized skill/documentation/CI/test bytes, keeping product and unknown-path guards. New PR CI follows repository triggers; no old failed run is retried. Native discovery and direct service smoke do not establish complete research-loop operation. |
+| Material | UTF-8 text/Markdown/TeX originals, identity/version/import origin, exact selected ranges; same bytes under another name reuse the source. |
+| Knowledge | Existing native Context, Statement, Argument, Example and SourceEvidence, from one original sealed extraction; no synthetic Assessment or independent-proof claim. |
+| Persistence | Original-input/native capture admission and existing UoW observation evidence, on the same Journal/HEAD. Separate transactions retain their recovery positions. No second database. |
+| Summary | Deterministic Markdown from the same admitted bodies, exact source SHA/version and byte locations; current permissions/source/support status checked on reuse/export. |
+| Increment | Existing results/objects reused; changed source conditions and native dependent consumers listed for recheck; old sources and reports remain fixed. |
+| Validation | Five new synthetic integration methods cover first use/repeat/rename/version change, forbidden reads/cache, request identity, range refusal, missing UNKNOWN capture and native/output HEAD interruption recovery. Fourteen affected existing storage/native-admission methods passed. Skill/status smoke, scope and Phase0 checks are recorded in the PR. |
+| Real host | **NOT_EXECUTED**. No authenticated production storage/permit and sealed native request assembly is shipped. Synthetic guards remain intact; non-synthetic projects are refused. |
 
-A direct local invocation of the inherited 21-method scope module retained **FAIL** in its process-denial test (`PermissionError not raised`): that invocation did not install the required sandbox audit hook. It is not a successful isolation check and will not be rerun unconfined. The new five-method smoke and exact legacy-scope check passed; hosted product checks use their established confined runner.
+The re-runnable teaching example writes both material versions and Markdown
+outputs. Its repeat is `REUSED`; version 2 adds two records for `q=1` and reuses
+five. All model outputs/captures are fixed **SYNTHETIC_TEST_ONLY** fixtures. No
+actual model/paid research or formal research-project operation was started.
+Initial fixture checks failed because source delivery used the wrong coverage
+shape; the fixture was corrected to the existing native format. No guard was removed.
 
-## Permissions and inheritance
+## Current gap and stop
 
-Use the [shared core contract](FOUR-SKILL-CORE.md) and only the selected Skill plus needed evidence. Summary is the user-facing Survey entry; old SURVEY kinds, events, schemas and S0–S7 remain unchanged and readable. TRH/FDH strategy stays with each Research MAIN. No instance, evidence or control mutation, paid research, production activation, budget increase or paused-instance continuation is authorized merely by skill selection.
+The synthetic step-3 loop is implemented. A user-production MVP still requires
+the narrow real host assembly that binds authenticated project/principal scope,
+existing storage permits and a genuine frozen request/original capture. Complete
+one bounded real-host material-to-Summary check only when that supported binding
+is available and authorized. PDF/OCR, long-document batching and additional output
+formats remain unsupported by this adapter.
 
-Preserve original target/D0, precise assumptions/references, six native scientific records, evidence qualification, independent scientific review, single logical MAIN, budgets and PAUSED/UNKNOWN. Formal TRH completion retains TARGET_DUAL/P9/P12; FDH retains D4. A saved result, summary or passing engineering test is not proof.
-
-## One next task
-
-After review/integration of step 2, implement guide 03's first **Knowledge Base + Summary** chain: selected material → supported authorized persistence → exact retrieval → cited summary, including a duplicate-input case and a concrete failure case. Reuse the existing services; stop when that first chain works. No step-3 implementation or TRH/FDH research dispatch began in this delivery.
-
-## History
-
-The former long status is preserved in [Git history at the merged baseline](https://github.com/ZhiyaoXiongMath/pure-math-research-harness/blob/2844fe8ca58e627d8e6e7b21d497259082ef60d0/docs/development/PROJECT-STATE.md). Its October 22 archive-pending labels and the [DEV11 delivery](DEV-PR-11-DELIVERY.md)'s source31 heading are dated snapshots; the later source25 addendum records completed DEV06 formal handoff and PR16 contains source43's final success and retained timeout failures. [DEVELOPMENT-LEDGER.json](DEVELOPMENT-LEDGER.json) remains dated evidence. Existing private control records and paused out-of-scope work were not modified.
+Stop this step after its scoped PR and checks. Do not start TRH/FDH development,
+merge, tag or Release. Historical `SURVEY` identity/schema/events/readers remain
+unchanged. Existing scientific qualification, PAUSED/UNKNOWN and real-project
+boundaries remain binding. Routine work used one session and no extra review agent;
+this offline engineering batch is bounded to 90 minutes from 23:29, with no model
+or research allocation. Earlier history remains in Git and its original evidence.
