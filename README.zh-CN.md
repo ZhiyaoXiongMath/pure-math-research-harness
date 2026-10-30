@@ -1,6 +1,6 @@
 # 纯数学研究 Harness（PMRH）
 
-**当前开发：只读状态查询 MVP，尚未发布科研运行时。** PMRH 保留原 Pure Math Research Studio 4.2.2-preview 的历史与兼容代码。新命令读取已有原生项目事实，不启动科研、不对账资源池、不刷新认证、不重建索引。帮助与版本入口保持无运行操作；控制命令仍不支持。[English](README.md)
+**当前开发：只读状态查询与仓库级 Skill 入口；完整科研执行尚未启用。** PMRH 保留原 Pure Math Research Studio 4.2.2-preview 的历史与兼容代码。新命令读取已有原生项目事实，不启动科研、不对账资源池、不刷新认证、不重建索引。帮助与版本入口保持无运行操作；控制命令仍不支持。[English](README.md)
 
 在源码 checkout 根目录使用 Python 3.11+、POSIX/Linux，并禁用字节码写入；状态查询不需要原生程序、模型凭据或额外 Python 依赖：
 
@@ -11,6 +11,14 @@ python3 -B -m pmrh status ./existing-project --instance INSTANCE --json
 已安装入口使用 `PYTHONDONTWRITEBYTECODE=1 pmrh status ./existing-project --instance INSTANCE --json`。`PROJECT` 是包含 `project.json` 与 `HEAD` 的原生项目目录，不是工作区目录。可选 `--as-of COMMIT` 指定已有完整 journal SHA-256。退出码：项目状态可读为 0，项目数据不可用为 1，参数错误为 2。例如，查询不存在的 `./missing-project`，JSON 包含 `"available": false, "unavailable_reason": "NOT_FOUND"`，该目录仍不存在。
 
 项目各投影共用一个提交；全局池有独立观测时间和原件摘要，池缺失时计数为 null。运行时、认证与配置均为未观测；此命令不核验报告文件。PAUSED、UNKNOWN 与精确科研范围保持原义。参见 [DEV03 合同与限制](docs/development/DEV-PR-03-CONTRACT.md)。
+
+## Codex Skill 入口
+
+从本仓库 checkout 中运行 Codex，即可发现 `.agents/skills/` 下的四个 Skill。显式使用 `$pmrh-kb` 维护来源、版本与检索，`$pmrh-summary` 整理指定材料，`$pmrh-trh` 处理固定目标，`$pmrh-fdh` 处理表述发现。未显式指定时，Codex 根据 description 选择一个主 Skill；无需 Router Skill 或额外 KB Agent。
+
+例如，输入 `$pmrh-summary 总结所附论文的主要结果`，输出应是保留假设、精确引用和覆盖缺口的材料整理稿，不会启动科研或修改项目。Summary 替代面向用户的 Survey 名称；既有 `SURVEY` 记录保持可读且不改写。
+
+四个入口共用现有 Python 内核和证据。用户知识库导入/持久化适配与完整 TRH/FDH 运行闭环留给后续步骤；当前 Skill 明确报告缺口，不调用未支持命令。参见[共享服务与权限](docs/development/FOUR-SKILL-CORE.md)及[当前开发状态](docs/development/PROJECT-STATE.md)。Skill 从源码 checkout 发现，仅安装 Python 包不会安装这些仓库入口。
 
 开发约束：[AGENTS](AGENTS.md) · [CONTRIBUTING](CONTRIBUTING.md) · [工作包规划](docs/development/ROADMAP.md)。以下保留原 PMRS 4.2.2-preview 历史说明，其运行能力陈述不代表 PMRH 验收。
 

@@ -52,3 +52,4 @@ jobs:
           export XDG_DATA_HOME="$SAFE_DIR/data"
           export TMPDIR="$SAFE_DIR/tmp"
           python3 -B -m unittest discover -s tests/phase0 -p 'test_*.py' -v
+          python3 -B -m unittest discover -s tests/skills -p 'test_*.py' -v
