@@ -209,8 +209,8 @@ SKILL_ENTRYPOINT_SHA256 = {
     '.agents/skills/pmrh-fdh/SKILL.md': 'a9c200f2b1943a9307e8d0b021b9752881b5e2ae066840a8d22d1e3274836a1e',
     'docs/development/FOUR-SKILL-CORE.md': '460d1e492d120d9c2a1b1f3af2b4da142660b7134d4646063a318fcd6c40e270',
     'tests/skills/test_shared_calls.py': 'cf564184e38ee4680b411142854aac248ab05f1c33db2ced43048145b76bb153',
-    'pmrh/application/kb_summary.py': '14302542b286c4dc7e74aeb284299d7b1d099d9179511c8b73842b9e1709e377',
-    'tests/skills/test_kb_summary.py': '95850a15919952adb709dffa3e657ac6302ae623e968cd5bc5ceb563bfe51460',
+    'pmrh/application/kb_summary.py': '732f99322c21dec85fd312e9a8bbd9dcf65c897ea5ff7f0bf90a3fe879131b74',
+    'tests/skills/test_kb_summary.py': '55a03e909f0a389943d62304f0153ea160f64faff362f6f688d1e3ddfcadd096',
     'docs/development/KB-SUMMARY.md': '1095fde8d364b42fae8824733aa2fb423ca82dc400bd620520e576af2d4536e0',
 }
 

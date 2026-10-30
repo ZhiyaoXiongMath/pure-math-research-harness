@@ -169,6 +169,14 @@ class KnowledgeSummaryMVP(unittest.TestCase):
                          for ref in changed['plan']['needs_recheck_refs']}
         self.assertTrue({'Statement', 'Argument', 'Example'} <= recheck_kinds)
         self.assertIn('Context', {self.store.read_snapshot()['records'][ref]['kind'] for ref in changed['plan']['reuse']})
+        # New wording/audience may produce the SAME native content. Count the
+        # native admission receipt, not the number of production events.
+        another = self.prepare(request='Explain the same finite sum for advanced readers.')
+        before = deepcopy(self.store.read_snapshot()['records'])
+        same_content, _, _ = self.complete(another, 3)
+        self.assertEqual(same_content['result']['added_refs'], [])
+        self.assertEqual(len(same_content['result']['reused_refs']), 5)
+        self.assertEqual(self.store.read_snapshot()['records'], before)
         self.assertTrue(self.store.audit()['valid'])
 
     def test_current_permissions_prevent_direct_cached_and_indirect_leaks(self):

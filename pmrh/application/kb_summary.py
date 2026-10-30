@@ -276,6 +276,7 @@ class KnowledgeSummary:
                 all(op.get('op') in {'NEW', 'REVISE', 'LINK'} for op in change.get('operations', [])),
                 'AUTHORIZATION_REQUIRED', 'Extraction cannot create research obligations or change proof support')
         proposal = self.changes.validate_response(task, state, raw, 'live', self.store.read_blob)
+        added = set(proposal['receipt']['content_added'])
         require(all(r['kind'] in KINDS for r in proposal.get('records', {}).values()),
                 'AUTHORIZATION_REQUIRED', 'Extraction does not perform an independent Assessment')
         # Check the derived-output scope before native publication as well. A
@@ -307,8 +308,8 @@ class KnowledgeSummary:
         state = self._check(refs)
         result = dict(task_key=plan['task_key'], material_id=plan['material_id'], version=plan['version'],
                       source_ref=plan['source_ref'], request=plan['request'], reading=plan['locators'], bindings=bindings,
-                      request_id=request_id, capture_sha256=capture, reused_refs=sorted(set(bindings) - produced),
-                      added_refs=sorted(produced), classification='SYNTHETIC_TEST_ONLY',
+                      request_id=request_id, capture_sha256=capture, reused_refs=sorted(set(bindings) - added),
+                      added_refs=sorted(added), classification='SYNTHETIC_TEST_ONLY',
                       support_basis=self._support_basis(refs, state),
                       mathematical_qualification='SOURCE_EXTRACTION_ONLY; NO_INDEPENDENT_PROOF')
         result['markdown'] = self._render(result, state)
