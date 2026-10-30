@@ -1,3 +1,15 @@
+# Four-skill development amendment — human instruction (2026-10-30)
+
+Use [PROJECT-STATE](docs/development/PROJECT-STATE.md) for the short current entry and [FOUR-SKILL-CORE](docs/development/FOUR-SKILL-CORE.md) for shared service/permission boundaries.
+
+- Use Codex native selection from `.agents/skills/`: honor an explicit skill; otherwise choose one primary skill by its description. `pmrh-kb` maintains/retrieves knowledge; `pmrh-summary` writes selected-material or progress summaries; `pmrh-trh` pursues a fixed target; `pmrh-fdh` discovers formulations within D0. Do not build a fifth Router Skill.
+- Share the existing Python services, Journal and evidence. Ordinary I/O calls those services directly, without extra KB/Summary agents or four separate systems. Load only the selected entry and needed references.
+- Research strategy stays with each TRH/FDH Research MAIN. Summary replaces the user-facing Survey entry while historical `SURVEY` kinds, events and schemas remain readable and unchanged. Skill selection grants no instance/evidence/control writes or research continuation.
+- Routine development uses one work session, minimal affected checks and valid evidence reuse; default extra audit agents are zero. This supersedes older routine full-role/repeated-audit requirements below. Necessary targeted risk checks and independent **scientific** qualification remain.
+- This development step adds entrypoints, not full KB/Summary or TRH/FDH execution. Preserve current authorization, isolation where execution requires it, PAUSED/UNKNOWN, cumulative budgets and formal evidence gates. No merge, release, real paid research or formal-project modification is authorized by a skill.
+
+The dated governance and original evidence below remain historical sources; current explicit human amendments take precedence.
+
 # GOV-02 amendment — human program grant (2026-10-21)
 
 The explicit **HUMAN-PROGRAM-GRANT-20261021** is effective from the human decision on 2026-10-21. This governance delivery records it; review or merge of this delivery does not activate it. Its provenance, boundaries and role gates are in [PROGRAM-CONTROL](docs/development/PROGRAM-CONTROL.md). Read the latest [PROJECT-STATE](docs/development/PROJECT-STATE.md) and [development ledger](docs/development/DEVELOPMENT-LEDGER.json) as dated evidence, never as authorization tokens.
@@ -57,4 +69,3 @@ Reference evidence: [audit package](docs/reference/PMRS-Next_Phase1/README.md), 
 ## Research MAIN documentation inheritance — candidate 2026-10-15
 
 Before authoring the next **explicitly authorized** DEV-PR-04/11/12/13 task, the relevant Development MAIN must identify the **effective, approved** revision of [Research MAIN strategy](docs/architecture/RESEARCH-MAIN-STRATEGY.md) and its [acceptance/work-package mapping](docs/development/ACCEPTANCE-ADDENDUM-04-11-12.md). While the documentation PR remains unreviewed/unmerged, both texts are *candidates*, not approved implementation authority. Future task prompts must name the applicable RMAIN-REQ clauses, inherited K/O/S/GUIDE cases, actual software responsibility and non-goals; merely linking a draft is insufficient. Do **not** modify the original 58+46 test definitions or presume a document merge authorizes DEV04/11/12, real research, a new MAIN/Goal or a budget. Preserve all existing scientific and human-control invariants.
-

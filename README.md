@@ -1,6 +1,6 @@
 # Pure Math Research Harness (PMRH)
 
-**Current development: a read-only status MVP; not a released research runtime.** PMRH preserves the Pure Math Research Studio 4.2.2-preview history and compatibility code. The new command reads existing native project facts without starting research, reconciling resources, refreshing authentication or rebuilding indexes. Help/version remain inert; control commands remain unsupported. [简体中文](README.zh-CN.md)
+**Current development: read-only status and repository-local skill entrypoints; full research execution is not enabled.** PMRH preserves the Pure Math Research Studio 4.2.2-preview history and compatibility code. The new command reads existing native project facts without starting research, reconciling resources, refreshing authentication or rebuilding indexes. Help/version remain inert; control commands remain unsupported. [简体中文](README.zh-CN.md)
 
 From this checkout, use Python 3.11+ on POSIX/Linux with bytecode writes disabled; no native binary, model credentials or additional Python dependencies are needed for status:
 
@@ -11,6 +11,14 @@ python3 -B -m pmrh status ./existing-project --instance INSTANCE --json
 For an installed entrypoint, use `PYTHONDONTWRITEBYTECODE=1 pmrh status ./existing-project --instance INSTANCE --json`. `PROJECT` is the native project directory containing `project.json` and `HEAD`, not a workspace directory. Optional `--as-of COMMIT` selects an existing full journal SHA-256. Exit codes are 0 for readable project status, 1 for unavailable project data and 2 for invalid arguments. For example, querying an absent `./missing-project` returns JSON containing `"available": false, "unavailable_reason": "NOT_FOUND"` and leaves it absent.
 
 Project projections share one commit. The global pool has an independent observation time and byte digest; missing pool counts are null. Runtime/authentication/configuration are unobserved, and report files are not verified by this command. PAUSED, UNKNOWN and exact scientific scope are preserved. See the [DEV03 contract and limits](docs/development/DEV-PR-03-CONTRACT.md).
+
+## Codex skill entrypoints
+
+Run Codex from this repository checkout; it discovers the four skills in `.agents/skills/`. Explicitly invoke `$pmrh-kb` for source/version maintenance and retrieval, `$pmrh-summary` for selected-material writing, `$pmrh-trh` for a fixed target, or `$pmrh-fdh` for formulation discovery. Without an explicit selection, Codex uses their descriptions and chooses one primary skill. No Router Skill or extra KB Agent is required.
+
+For example, input `$pmrh-summary Summarize the main results of the supplied paper` requests a cited synthesis of that material with its hypotheses and coverage gaps. It does not start research or modify a project. Summary replaces the user-facing Survey name; existing `SURVEY` records remain readable and unchanged.
+
+All four share the existing Python core and evidence. The user KB import/persistence adapter and full TRH/FDH execution loops are later work; the skills report those gaps rather than invoke unsupported commands. See [shared services and permissions](docs/development/FOUR-SKILL-CORE.md) and [current development state](docs/development/PROJECT-STATE.md). Skills are discovered from the checkout, not installed by installing the Python package alone.
 
 Development controls: [AGENTS.md](AGENTS.md) · [CONTRIBUTING.md](CONTRIBUTING.md) · [Phase 0 provenance](docs/development/PHASE0-PROVENANCE.md) · [18 planned work packages](docs/development/ROADMAP.md) · [reference audit documents](docs/reference/PMRS-Next_Phase1/README.md).
 
