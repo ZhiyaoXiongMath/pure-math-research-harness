@@ -1,12 +1,13 @@
 """DEV05 exact owned symbols; preserves the original and DEV03/04 baselines."""
 import ast
+import base64
 import hashlib
 import json
 from pathlib import Path
 try:
-    from scripts import control_scope
+    from scripts import control_scope, fastmath_scope
 except ModuleNotFoundError:
-    import control_scope
+    import control_scope, fastmath_scope
 
 BASE = '2c65af1a407c159d6768867bf25c03566c4657c1'
 TREE = '2b141b07ea297aa37d6ffb2d85b21e8b6c07bd5c'
@@ -235,6 +236,15 @@ def verify_sections(path, original, current):
     def outside(tree):
         return [dump(n) for n in tree.body if name(n) not in SYMBOLS[path] and dump(n) not in approved]
     boundary = _precontrol_boundary(path, original) if path in PRECONTROL_PATHS else None
+    # Original segment/hash/boundary diagnostics precede the newer stage.
+    # Exact historical boundaries remain valid inputs to this direct API.
+    if current != boundary and path in fastmath_scope.SYMBOLS:
+        data = fastmath_scope.oracle()
+        parent = base64.b64decode(data['files'][path]['bytes_base64'], validate=True)
+        if current != parent:
+            fastmath_scope.verify_file(path, parent, current)
+        current = parent
+        after = ast.parse(current)
     inherited = ast.parse(boundary) if boundary is not None else after
     if outside(before) != outside(inherited):
         raise ValueError('Outside DEV05 exact symbols changed: '+path)
@@ -279,3 +289,9 @@ QUERY_TARGETS = ['pmrh/adapters/storage/__init__.py',
  'research_studio/util.py']
 QUERY_LEGACY_REACH = {'pmrh/__main__.py': ['research_studio/readonly_query.py', 'research_studio/util.py'],
  'pmrh/cli.py': ['research_studio/readonly_query.py', 'research_studio/util.py']}
+
+
+def verify_dev11_sections(path, original, current, root=None):
+    """Explicit final-to-parent composition; historical callers stay unchanged."""
+    parent = fastmath_scope.preintegration(path, current, root)
+    return verify_sections(path, original, parent)

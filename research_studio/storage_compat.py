@@ -84,7 +84,7 @@ class LegacyWriters:
 
     def _typed_commit(self, event, apply, allowed, category):
         require(apply is None, 'CAPABILITY_VIOLATION', 'Reducers are selected by trusted assembly only')
-        if self.history()[-1][1]['schema'] == 'pmrh.commit/2':
+        if self.history()[-1][1]['schema'] in ('pmrh.commit/2', 'pmrh.control-fast.commit/1'):
             actions = {'Control':'CONTROL_APPLIED', 'research_studio.strategy':'STRATEGY_APPLIED',
                        'research_studio.communication':'COMMUNICATION_APPLIED'}
             require(category in actions, 'UNSUPPORTED_CAPABILITY', 'Raw native writer is not available on the control profile')
@@ -101,7 +101,7 @@ class LegacyWriters:
             state, head = self.read()
             # Activation may have won the writer lock after the initial format
             # dispatch. Do not let a native no-change/duplicate escape its gate.
-            require(self._commit_record(head)['schema'] != 'pmrh.commit/2',
+            require(self._commit_record(head)['schema'] not in ('pmrh.commit/2', 'pmrh.control-fast.commit/1'),
                     'UNSUPPORTED_CAPABILITY', 'Control activation requires a fresh gated native command')
             payload=event.get('payload',{})
             if event.get('event_type')=='AUTHORIZE_MISSION':
@@ -132,7 +132,7 @@ class LegacyWriters:
         from .workflow_instances import apply_control
         from .research_audit import MAPS as AUDIT_MAPS
         result=self._typed_commit(event, None, CONTROL_MAPS | AUDIT_MAPS, 'Control')
-        if self.history()[-1][1]['schema'] != 'pmrh.commit/2' and event.get('event_type')=='HUMAN_DECISION' and event.get('payload',{}).get('action') in {'END','END_WITHOUT_ADOPTION'}:
+        if self.history()[-1][1]['schema'] not in ('pmrh.commit/2', 'pmrh.control-fast.commit/1') and event.get('event_type')=='HUMAN_DECISION' and event.get('payload',{}).get('action') in {'END','END_WITHOUT_ADOPTION'}:
             from .rounds import record
             record(self,event['instance_id'])
         return result
@@ -186,7 +186,7 @@ class LegacyWriters:
 
     def _control_guard(self, category):
         """Native direct writers cannot use CAP-HOST/HUMAN to bypass /2."""
-        if self.history()[-1][1]['schema'] == 'pmrh.commit/2':
+        if self.history()[-1][1]['schema'] in ('pmrh.commit/2', 'pmrh.control-fast.commit/1'):
             require(False, 'AUTHORIZATION_REQUIRED' if category in
                     {'Control', 'Execution', 'Science', 'research_studio.strategy', 'research_studio.communication'}
                     else 'UNSUPPORTED_CAPABILITY', 'Use the authenticated closed control command service')
@@ -439,7 +439,7 @@ class ControlNativeBridge:
                     'INPUT_DELIVERY_INVALID', 'Capture must seal the actual input manifest')
         return execution.apply_event(state, execution.event('CAPTURE', payload), self.store.read_blob)
 
-    def science(self, state, request_id, capture):
+    def science(self, state, request_id, capture, *, at=None):
         from . import changes
         request = state['requests'][request_id]; task = state['tasks'][request['task_id']]
         require(request['capture_ref'] == capture.sha256 and request['execution_kind'] == 'SYNTHETIC_TEST_ONLY',
@@ -458,3 +458,43 @@ class ControlNativeBridge:
         event = strategy.event('HUMAN_DIRECTION_SUBMITTED', dict(instance_id=direction['instance_id'],
             mission_id=direction['mission_id'], direction=direction))
         return strategy.apply_event(state, event, self.store.read_blob)
+
+
+class CombinedSyntheticSetup(SyntheticSetup):
+    """One-use new-root setup, never an adoption of an existing profile."""
+    def __init__(self, root, **kwargs):
+        from pmrh.adapters.storage.control_fast import CAPABILITY
+        super().__init__(root, **kwargs)
+        self.combined_capability = deepcopy(CAPABILITY)
+
+
+class CombinedNativeBridge(ControlNativeBridge):
+    def science(self,state,request_id,capture,*,at=None):
+        from pmrh.adapters.storage.control_fast import rejection_effects
+        after=rejection_effects(self.store,state,request_id,capture.to_wire(),at)
+        if after is not None:return after,[]
+        return super().science(state,request_id,capture,at=at)
+
+    def __init__(self, store, *, setup=None):
+        from pmrh.adapters.storage.control_fast import CAPABILITY
+        super().__init__(store, setup=setup)
+        self.combined_capability = deepcopy(CAPABILITY)
+
+    def verify_combined_setup(self):
+        from pmrh.adapters.storage.control_fast import CAPABILITY
+        require(type(self.setup) is CombinedSyntheticSetup and self.setup.combined_capability == CAPABILITY,
+                'AUTHORIZATION_REQUIRED', 'One-use combined setup object required')
+        self.setup.verify(self.store)
+
+    def activate(self, state):
+        self.verify_combined_setup()
+        return deepcopy(state)
+
+
+def assemble_fastmath(control):
+    """Trusted host assembly; it adds no public DTO or worker write endpoint."""
+    from pmrh.adapters.storage.control_fast import CombinedControlStorage
+    from pmrh.application.fastmath import FastMathService
+    require(type(control.storage) is CombinedControlStorage and control.storage.service is control,
+            'AUTHORIZATION_REQUIRED', 'Combined concrete control storage required')
+    return FastMathService(control.storage.fast, control)

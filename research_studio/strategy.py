@@ -8,11 +8,11 @@ from .util import canonical, identity, require, sha, now, PMRSError
 from .research_audit import MAPS as AUDIT_MAPS
 
 SCHEMA='pmrs.strategy/1'
-PROPOSAL_SCHEMA='pmrs.strategy-proposal/1'
+from pmrh.domain.native_response import PROPOSAL_SCHEMA as PROPOSAL_SCHEMA
 MAPS=frozenset({'strategies','research_routes','strategy_triggers','strategy_proposals',
                 'human_directions','main_replies','strategy_events','consumer_controls','live_main_dispatches','main_execution_recoveries',
                 'obligations','retry_grants','execution_events','instances','missions','visits','requests','round_accounts','round_deliveries','main_decisions','retired_consumers'}) | AUDIT_MAPS
-ROUTE_STATES={'PROPOSED','ACTIVE','PARKED','EXHAUSTED','REFUTED_ON_SCOPE','SUPERSEDED'}
+from pmrh.domain.native_response import ROUTE_STATES as ROUTE_STATES
 MAIN_STAGES={'MAIN_TRH','MAIN_FDH'}
 
 def event(kind,payload):
@@ -300,41 +300,9 @@ def request_sent(s,task):
     for did in task.get('strategy_context',{}).get('direction_ids',[]):
         d=s['human_directions'][did];d['status']='DELIVERED';d['delivery_basis']='FROZEN_INPUT_SENT';d['task_id']=task['task_id']
 
-def _schema_obj(properties,required=None):
-    return {'type':'object','additionalProperties':False,'properties':properties,'required':list(properties) if required is None else required}
+from pmrh.domain.native_response import _schema_obj as _schema_obj
 
-def authoring_schema(task=None):
-    text={'type':'string'};refs={'type':'array','items':text}
-    route=_schema_obj({'route_key':text,'status':{'enum':sorted(ROUTE_STATES)},'origin':text,'mechanism':text,
-        'target_relation':text,'sufficient_chain':text,'unproved_arrows':refs,'extra_assumptions':refs,
-        'decisive_probe':text,'failure_evidence_refs':refs,'reactivation_condition':text,'allocation_rationale':text,
-        'reason':text,'evidence_refs':refs,'previous_pending_statement':text,'next_pending_statement':text,
-        'key_premise_refs':refs,'counterevidence_refs':refs,'decision_outcome':text,'progress_state':{'enum':['SIGNIFICANT','LIMITED_REAL','NO_REAL_PROGRESS','NOT_EVALUATED','INSUFFICIENT_EVIDENCE','IN_PROGRESS']},
-        'mechanism_difference':text,'unknown_comparisons':refs,'candidate_refs':refs},
-        ['route_key','status','origin','mechanism','target_relation','sufficient_chain','unproved_arrows','extra_assumptions','decisive_probe','failure_evidence_refs','reactivation_condition','allocation_rationale','reason','evidence_refs'])
-    work=_schema_obj({'key':text,'stage_id':text,'role':text,'purpose':text,'obligation_type':text,
-        'question':text,'success_criterion':text,'target_refs':refs,'input_refs':refs,'source_refs':refs,
-        'depends_on':refs,'route_key':text,'communication_group':{'type':['string','null']},
-        'argument_ref':{'type':['string','null']},'entry_basis':{'type':'object'},'priority':{'type':'integer'},'selection_reason':text,'allow_independence_loss':{'type':'boolean'}},
-        ['key','stage_id','role','purpose','obligation_type','question','success_criterion','target_refs','input_refs','source_refs','depends_on','route_key','communication_group'])
-    account=_schema_obj({'summary':text,'record_refs':refs,'remaining_difficulties':refs,'scope_limitations':refs,
-        'failed_or_unperformed':refs,'covered_binding_ids':refs,'frontier_complete':{'type':'boolean'}})
-    answer=_schema_obj({'direction_id':text,'answer':text,'record_refs':refs,'work_keys':refs,'needs_human':{'type':'boolean'}})
-    inp=_schema_obj({'work_key':text,'source_ref':text,'ranges':{'type':'array','items':_schema_obj({'start':{'type':'integer','minimum':0},'end':{'type':'integer','minimum':1}})},'reason':text})
-    from .research_audit import authoring_schema as audit_schema
-    return _schema_obj({'schema':{'const':PROPOSAL_SCHEMA},'base_strategy_revision':{'type':'integer','minimum':0},
-        'trigger_refs':refs,'route_updates':{'type':'array','maxItems':16,'items':route},
-        'work_items':{'type':'array','maxItems':8,'items':work},'input_plan_proposals':{'type':'array','items':inp},
-        'progress_account':account,'direction_answers':{'type':'array','items':answer},
-        'next_action':{'enum':['CONTINUE','WAIT','DELIVER','P14','COMPLETE']},'human_decision_needed':refs,'no_change_reason':{'type':['string','null']},
-        'wait_condition':{'anyOf':[{'type':'null'},_schema_obj({'kind':{'enum':['WAIT_FOR_TASKS','WAIT_FOR_INPUT','WAIT_FOR_RESOURCE','WAIT_FOR_USER']},'refs':refs,'reason':text})]},
-        'task_controls':{'type':'array','items':_schema_obj({'binding_id':text,'action':{'enum':['KEEP','PRIORITIZE','PARK','RESUME','CANCEL_UNSENT']},'priority':{'type':'integer'},'reason':text})},
-        'main_followup':{'type':'boolean'},
-        'research_audit':{'anyOf':[{'type':'null'},audit_schema()]},
-        'guidance_summary':{'anyOf':[{'type':'null'},_schema_obj({'guidance_version':text,'direction_ids':refs,'body':text})]},
-        'p13_report':{'anyOf':[{'type':'null'},_schema_obj({'report_body':text})]},
-        'p14_decision':{'anyOf':[{'type':'null'},_schema_obj({'action':{'enum':['CONTINUE','COMPLETE','WAIT']},'rationale':text,'report_body':text,'completion_evidence':refs})]}},
-        ['schema','base_strategy_revision','trigger_refs','route_updates','work_items','input_plan_proposals','progress_account','direction_answers','next_action','human_decision_needed','no_change_reason'])
+from pmrh.domain.native_response import strategy_authoring_schema as authoring_schema
 
 def prompt_sections(task):
     if task.get('actor_kind')!='MAIN':return {}

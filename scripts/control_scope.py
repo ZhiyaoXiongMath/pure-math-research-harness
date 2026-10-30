@@ -45,4 +45,7 @@ def outside(raw, allowed):
 
 def verify_sections(path, original, current):
     if outside(original, SYMBOLS[path]) != outside(current, SYMBOLS[path]):
-        raise ValueError('Change outside exact approved DEV06 symbols: '+path)
+        from scripts import fastmath_scope
+        current = fastmath_scope.preintegration(path, current)
+        if outside(original, SYMBOLS[path]) != outside(current, SYMBOLS[path]):
+            raise ValueError('Change outside exact approved DEV06 symbols: '+path)

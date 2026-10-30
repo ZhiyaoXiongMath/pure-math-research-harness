@@ -137,7 +137,7 @@ class Journal:
                     'knowledge_delta_ref', 'control_delta_ref', 'report_delta_ref',
                     'registry_delta_ref', 'accepted_request_bindings', 'events', 'actor', 'at'}
         require(set(entry) == required, 'JOURNAL_INVALID', 'Unknown commit fields')
-        require(entry['schema'] in (COMMIT_SCHEMA, 'pmrh.commit/1', 'pmrh.commit/2'),
+        require(entry['schema'] in (COMMIT_SCHEMA, 'pmrh.commit/1', 'pmrh.commit/2', 'pmrh.control-fast.commit/1'),
                 'UNSUPPORTED_SCHEMA_VERSION', 'Unknown commit format')
         require(entry['sequence'] == head['sequence'], 'JOURNAL_INVALID', 'Sequence differs')
         require(head['path'] == f"journal/{entry['sequence']:012d}-{head['commit']}.json" and canonical(entry) == raw,
@@ -146,6 +146,8 @@ class Journal:
         validate_entry(entry)
         from .control import validate_entry as validate_control_entry
         validate_control_entry(entry)
+        from .control_fast import validate_entry as validate_fast_entry
+        validate_fast_entry(entry)
         previous = entry['previous_commit']
         require(previous is None and entry['sequence'] == 1 or isinstance(previous, dict) and
                 previous['sequence'] == entry['sequence']-1, 'JOURNAL_INVALID', 'Noncontiguous journal')
@@ -153,7 +155,17 @@ class Journal:
 
     def read_snapshot(self, commit=None):
         marker = self._marker()
-        published_history = self.history()
+        cached = getattr(self, '_validated_query_history', None)
+        token = getattr(self, '_query_replay_token', None)
+        reuse = (commit is not None and token is not None and cached is not None and
+                 cached[0] is token and cached[1] is self._reader and self._reader.fd is not None and
+                 cached[2] == self._reader.fd and cached[3] == self._read_head and
+                 cached[5] is self._last_index and cached[6] is self._control_index)
+        if reuse:
+            published_history = cached[4]
+        else:
+            self._validated_query_history = None
+            published_history = self.history()
         head = deepcopy(published_history[-1][0])
         if commit is not None:
             while head['commit'] != commit:
@@ -211,15 +223,27 @@ class Journal:
                 'SYNTHETIC_BOUNDARY_CHANGED', 'Test provenance cannot be relabelled')
         _native_only(state)
         policy(state['language_policy'])
-        from .format import scan
-        self._last_index = scan(self, published_history, _apply_delta,
-                                allow_missing_envelopes=getattr(self, '_allow_event_gaps', False))
-        from .control import scan as control_scan
-        self._control_index = control_scan(self, published_history, _apply_delta)
+        if not reuse:
+            from .format import scan
+            self._last_index = scan(self, published_history, _apply_delta,
+                                    allow_missing_envelopes=getattr(self, '_allow_event_gaps', False))
+            from .control import scan as control_scan
+            if published_history[-1][1]['schema'] == 'pmrh.control-fast.commit/1':
+                from .control_fast import scan as control_scan
+            self._control_index = control_scan(self, published_history, _apply_delta)
+        # Even when ancestry was verified by this query's current read, the
+        # selected/fallback checkpoint and delta path above are read and checked
+        # again, then compared with the complete native control replay below.
         if self._control_index is not None:
             replayed = self._control_index.states.get(selected_head['commit'])
             if replayed is not None:
                 require(state == replayed, 'CHECKPOINT_CHANGED', 'Control snapshot differs from complete replay')
+        if commit is None and token is not None and self._reader is not None and self._control_index is not None:
+            # Only a completed current validation can seed reuse. The index
+            # already owns bounded history states; no second snapshot cache or
+            # cross-query registry is created. Returned state is independent.
+            self._validated_query_history = (token, self._reader, self._reader.fd,
+                deepcopy(self._read_head), published_history, self._last_index, self._control_index)
         state['knowledge_commit'] = selected_head['commit']
         state['_head'] = selected_head
         state['_snapshot_sequence'] = selected_head['sequence']
@@ -271,7 +295,7 @@ class Journal:
             wrapper = b'{"commit":' + canonical(digest) + b',"state":' + state_raw + b',"state_sha256":' + canonical(sha(state_raw)) + b'}'
             immutable(self.root/'checkpoints'/f'{digest}.json', wrapper)
         head = {'sequence': sequence, 'commit': digest, 'path': path}
-        if schema in (EXTENDED_SCHEMA, 'pmrh.commit/2'):
+        if schema in (EXTENDED_SCHEMA, 'pmrh.commit/2', 'pmrh.control-fast.commit/1'):
             self._preflight_extended_head(head)
         self._fault('before_head')
         atomic(self.root/'HEAD', canonical(head))
@@ -490,10 +514,10 @@ class Journal:
             if not extended and entry['schema'] == 'pmrh.commit/1':
                 require(any(e.get('type') == 'PMRH_PORT_SCOPE_BOUND' for e in entry['events']),
                         'JOURNAL_INVALID', 'Extension must begin with an explicit scope binding')
-            if not extended and entry['schema'] == 'pmrh.commit/2':
+            if not extended and entry['schema'] in ('pmrh.commit/2', 'pmrh.control-fast.commit/1'):
                 require(any(e.get('type') == 'ACTIVATED' for e in entry['events']),
                         'JOURNAL_INVALID', 'Control lineage requires exact activation')
-            if entry['schema'] in ('pmrh.commit/1', 'pmrh.commit/2'):
+            if entry['schema'] in ('pmrh.commit/1', 'pmrh.commit/2', 'pmrh.control-fast.commit/1'):
                 extended = entry['schema']
         if extended:
             require(len(rows) <= 4096 and sum(len(canonical(e)) for _, e in rows) <= 128 * 1024**2,

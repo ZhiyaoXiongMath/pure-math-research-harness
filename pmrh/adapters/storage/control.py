@@ -106,7 +106,7 @@ def record(kind, **values):
     return result
 
 
-def validate_record(value):
+def validate_record(value, *, combined=False):
     check(type(value) is dict and value.get('kind') in RECORD_FIELDS)
     kind = value['kind']
     fields(value, {'schema', 'kind', *RECORD_FIELDS[kind].split()})
@@ -150,7 +150,11 @@ def validate_record(value):
     if kind == 'PROFILE':
         check(value['profile'] == 'SYNTHETIC_TEST_ONLY' and value['resource_policy'] == 'COMPAT_8_20_SURVEY1')
     elif kind == 'DECISION':
-        check(value['action'] in {*PAYLOAD_FIELDS, 'RECOVER_RECEIPT'})
+        allowed_actions = set(PAYLOAD_FIELDS) | {'RECOVER_RECEIPT'}
+        if combined:
+            from .control_fast import FAST_PAYLOAD_FIELDS
+            allowed_actions.update(FAST_PAYLOAD_FIELDS)
+        check(value['action'] in allowed_actions)
         check(timestamp(value['issued_at']) < timestamp(value['expires_at']))
     elif kind == 'RESERVATION':
         check(value['unit'] == 'AGENT_INVOCATION')
@@ -170,11 +174,15 @@ def validate_record(value):
     return value
 
 
-def command(value, *, published=False):
+def command(value, *, published=False, combined=False):
     fields(value, EVENT_FIELDS if published else EVENT_FIELDS - {'decision_ref'})
-    check(value['schema'] == EVENT_SCHEMA, 'UNSUPPORTED_SCHEMA_VERSION')
+    event_schema = EVENT_SCHEMA; payload_fields = PAYLOAD_FIELDS
+    if combined:
+        from .control_fast import EVENT_SCHEMA as event_schema, FAST_PAYLOAD_FIELDS
+        payload_fields = {**PAYLOAD_FIELDS, **FAST_PAYLOAD_FIELDS}
+    check(value['schema'] == event_schema, 'UNSUPPORTED_SCHEMA_VERSION')
     kind = value['type']
-    check(kind in PAYLOAD_FIELDS, 'UNSUPPORTED_CAPABILITY')
+    check(kind in payload_fields, 'UNSUPPORTED_CAPABILITY')
     _wire_budget(value, wire=True)
     for name in ('operation_id', 'idempotency_key'):
         string(value[name])
@@ -184,7 +192,7 @@ def command(value, *, published=False):
     if published:
         ref(value['decision_ref'], boundary.project_id)
     p = value['payload']
-    fields(p, PAYLOAD_FIELDS[kind])
+    fields(p, payload_fields[kind])
     for name, v in p.items():
         if name.endswith('_refs'):
             check(type(v) is list and len(v) <= MAX_ITEMS)
@@ -484,13 +492,16 @@ def exact(store, project, object_id, value, *, raw=False):
                       revision='sha256:'+digest_value, sha256=digest_value).to_wire()
 
 
-def validate_entry(entry):
-    if entry['schema'] != SCHEMA:
+def validate_entry(entry, *, combined=False):
+    schema = SCHEMA
+    if combined:
+        from .control_fast import SCHEMA as schema
+    if entry['schema'] != schema:
         check(not any(e.get('schema') == EVENT_SCHEMA for e in entry['events']), 'JOURNAL_INVALID')
         return
     events = [e for e in entry['events'] if e.get('type') != 'CHECKPOINT']
     check(len(events) == 1 and entry['actor'] == 'SYNTHETIC_TEST_ONLY', 'JOURNAL_INVALID')
-    command(events[0], published=True)
+    command(events[0], published=True, combined=combined)
     check(entry['previous_commit'] is not None and
           events[0]['expected_head'] == entry['previous_commit']['commit'], 'JOURNAL_INVALID')
 
@@ -918,18 +929,55 @@ def validate_prefix(store, history):
     return state
 
 
-def scan(store, history, apply_delta):
+def scan(store, history, apply_delta, *, combined=False):
     """Replay the actual complete HEAD ancestry; never trust an as-of shortcut."""
     from .io import _ConfinedReader
-    if not any(entry['schema'] == SCHEMA for _, entry in history):
+    schema = SCHEMA
+    if combined:
+        from .control_fast import SCHEMA as schema
+    if not any(entry['schema'] == schema for _, entry in history):
         return None
     if store._reader is None:
         with _ConfinedReader(store.root) as reader:
             from .journal import Journal
             confined = Journal(reader.root, reader=reader)
             check(confined.history() == history)
-            return scan(confined, history, apply_delta)
-    first = next(i for i, (_, entry) in enumerate(history) if entry['schema'] == SCHEMA)
+            return scan(confined, history, apply_delta, combined=combined)
+    from pmrh.ports.dto.wire import _decode_dto
+
+    def copy_snapshot(value, memo):
+        # Replay states are JSON graphs. Keep every mutable snapshot detached,
+        # with one fresh memo per snapshot; no cross-state structural sharing.
+        kind = type(value)
+        if kind in (str, int, float, bool, type(None)):
+            return value
+        key = id(value)
+        if key in memo:
+            return memo[key]
+        if kind is dict:
+            result = {}; memo[key] = result
+            for name, item in value.items():
+                result[name if type(name) is str else deepcopy(name, memo)] = copy_snapshot(item, memo)
+            return result
+        if kind is list:
+            result = []; memo[key] = result
+            result.extend(copy_snapshot(item, memo) for item in value)
+            return result
+        return deepcopy(value, memo)
+
+    checked_json = set()
+    def read_scan_json(wire):
+        # Reads and debits are never cached. Reparse even a hit so no mutable
+        # JSON container is shared with another caller or historical state.
+        raw = read_ref(store, wire, index.project)
+        value = loads(raw, maximum=MAX_JSON_BYTES)
+        if raw not in checked_json:
+            check(canonical(value) == raw)
+            _wire_budget(value, wire=True)
+            checked_json.add(raw)
+        return value
+
+    first = next(i for i, (_, entry) in enumerate(history) if entry['schema'] == schema)
     state = validate_prefix(store, history[:first])
     index = ControlIndex(state['project_id'])
     index.states = {}
@@ -938,16 +986,40 @@ def scan(store, history, apply_delta):
         for name in ('knowledge_delta_ref', 'control_delta_ref', 'report_delta_ref', 'registry_delta_ref'):
             if prefix_entry[name]:
                 apply_delta(prefix_state, loads(store.read_blob(prefix_entry[name])))
-        index.states[prefix_head['commit']] = deepcopy(prefix_state)
+        index.states[prefix_head['commit']] = copy_snapshot(prefix_state, {})
+    replay_prior_commit = history[first-1][0]['commit']
 
     raw_fields=frozenset('raw_output_ref raw_event_ref raw_event_refs raw_evidence_ref raw_evidence_refs evidence_refs request_evidence_refs termination_evidence_refs test_receipt_refs principal_ref authn_evidence_ref authority_ref producer_ref binding_ref backend_binding_ref runner_binding_ref reason_ref takeover_evidence_refs endpoint_ref credential_ref capture_ref'.split())
     closure_sizes={}
     parsed_closure=set()
+    # These facts live only for this complete scan and its actual reader. A
+    # first safe read authenticates each immutable native object; every replay
+    # state still has to match the exact authenticated record. No authority or
+    # mutable checkpoint is cached, and new digests consume the same budget.
+    native_records={}
+    native_blobs=set()
+    # Only pure decoded values are reused within this scan; reads stay fresh.
+    specs_by_raw={}
+    # A cached ExactRef is pure metadata, never closure/authority evidence.
+    # Add at most one signature per actual successful closure byte read.
+    checked_refs={}
+    ref_names=('schema_version', 'dto_type', 'project_id', 'object_id', 'revision', 'sha256')
+    def native_blob(digest):
+        if digest not in native_blobs:
+            store.read_blob(digest)
+            native_blobs.add(digest)
     def closure(value, iid, raw_reference=False):
         if isinstance(value, dict):
             if value.get('dto_type') == 'ExactRef':
-                r = ref(value, index.project)
-                key = canonical(value)
+                signature = (tuple(value[name] for name in ref_names)
+                    if type(value) is dict and len(value) == len(ref_names) and
+                    all(type(value.get(name)) is str for name in ref_names) else None)
+                known = checked_refs.get(signature) if signature is not None else None
+                if known is None:
+                    r = ref(value, index.project)
+                    key = canonical(value)
+                else:
+                    r, key = known
                 check(index.refs.get(key, iid) == iid, 'AUTHORIZATION_REQUIRED')
                 index.refs[key] = iid
                 if r.sha256 in index.closure:
@@ -955,6 +1027,8 @@ def scan(store, history, apply_delta):
                     if raw_reference or r.sha256 in parsed_closure:return
                 index.closure.add(r.sha256)
                 raw = store._read_blob(r.sha256, 1024**2 if raw_reference else MAX_JSON_BYTES)
+                if signature is not None and known is None:
+                    checked_refs[signature] = (r, key)
                 closure_sizes[r.sha256]=len(raw)
                 if raw_reference:return
                 parsed_closure.add(r.sha256)
@@ -977,9 +1051,9 @@ def scan(store, history, apply_delta):
                 closure(item, iid, raw_reference)
 
     for head, entry in history[first:]:
-        validate_entry(entry)
+        validate_entry(entry, combined=combined)
         event = next(e for e in entry['events'] if e.get('type') != 'CHECKPOINT')
-        before = deepcopy(state)
+        before = index.states[replay_prior_commit]
         for name in ('knowledge_delta_ref', 'control_delta_ref', 'report_delta_ref', 'registry_delta_ref'):
             if entry[name]:
                 apply_delta(state, loads(store.read_blob(entry[name])))
@@ -989,7 +1063,11 @@ def scan(store, history, apply_delta):
         action = event['type']; p = event['payload']
         if index.profile is None:
             check(action == 'ACTIVATED' and event['owner_epoch'] == event['control_version'] == 0)
-            profile = read_json(store, p['profile_ref'], index.project); validate_record(profile)
+            profile = read_scan_json(p['profile_ref'])
+            if combined:
+                from .control_fast import unwrap_profile
+                profile = unwrap_profile(profile)
+            validate_record(profile)
             check(profile['kind'] == 'PROFILE' and profile['project_id'] == index.project)
             check(profile['genesis_commit'] == history[0][0]['commit'] and profile['setup_head'] == history[first-1][0]['commit'])
             index.profile = profile
@@ -999,26 +1077,37 @@ def scan(store, history, apply_delta):
         # Native scientific and frozen-input bytes share the same bounded
         # reader budget; new DTO refs cannot hide the underlying native closure.
         for reference in state.get('records', {}):
-            check(store.read_record(reference) == state['records'][reference])
+            if reference not in native_records:
+                record=store.read_record(reference)
+                native_records[reference]=record
+                native_blobs.add(record['body_sha256'])
+            check(native_records[reference] == state['records'][reference])
         for source in state.get('sources', {}).values():
-            store.read_blob(source['blob_hash'])
+            native_blob(source['blob_hash'])
         for obligation in state.get('obligations', {}).values():
-            store.read_blob(obligation['definition']['criterion_body_ref'])
+            native_blob(obligation['definition']['criterion_body_ref'])
         for task in state.get('tasks', {}).values():
             for field_name in ('input_packet_ref', 'model_packet_ref', 'prompt_ref'):
                 if task.get(field_name):
-                    store.read_blob(task[field_name])
+                    native_blob(task[field_name])
         for request in state.get('requests', {}).values():
             if request.get('capture_ref'):
-                store.read_blob(request['capture_ref'])
-        decision = read_json(store, event['decision_ref'], index.project); validate_record(decision)
+                native_blob(request['capture_ref'])
+        decision = read_scan_json(event['decision_ref']); validate_record(decision, combined=combined)
         check(decision['kind'] == 'DECISION' and decision['action'] == action and decision['scope'] == event['scope'])
         bare = {k: v for k, v in event.items() if k != 'decision_ref'}
         check(decision['payload_sha256'] == sha(canonical(bare)))
         check((decision['owner_epoch'], decision['control_version']) == (event['owner_epoch'], event['control_version']))
         check(event['operation_id'] not in index.operations and event['idempotency_key'] not in index.keys)
-        validate_transition(before, state, event)
+        if combined and action.startswith('FAST_'):
+            from .fastmath import validate_effects
+            validate_effects(store, before, state, event, decision)
+        else:
+            validate_transition(before, state, event)
         if action == 'SCIENCE_ADMITTED':
+            if combined:
+                from .control_fast import validate_rejection
+                validate_rejection(store,before,state,event,decision,entry['accepted_request_bindings'])
             original = before['requests'][p['request_id']]
             check(p['capture_ref']['sha256'] == original.get('capture_ref') and
                   not original['fenced'] and not original['admission']['evidence_conflict'] and
@@ -1041,8 +1130,15 @@ def scan(store, history, apply_delta):
         for request in state['requests'].values():
             call = request['admission']
             closure(call, iid);closure(request['execution_inbox'], iid)
-            spec = S.AgentInvocationSpec.from_wire(read_json(store, call['spec_ref'], index.project))
-            reservation = read_json(store, call['reservation_ref'], index.project); validate_record(reservation)
+            spec_raw = read_ref(store, call['spec_ref'], index.project)
+            spec = specs_by_raw.get(spec_raw)
+            if spec is None:
+                spec_wire = loads(spec_raw, maximum=MAX_JSON_BYTES)
+                check(canonical(spec_wire) == spec_raw)
+                _wire_budget(spec_wire, wire=True)
+                spec = _decode_dto(S.AgentInvocationSpec, spec_wire)
+                specs_by_raw[spec_raw] = spec
+            reservation = read_scan_json(call['reservation_ref']); validate_record(reservation)
             check(reservation['kind'] == 'RESERVATION' and reservation['identity'] == spec.identity().to_wire())
             check(reservation['grant_ref'] == spec.budget_grant_ref.to_wire() and spec.reservation_ref.to_wire() == call['reservation_ref'])
             check((call['owner_epoch'], call['control_version']) == (spec.owner_epoch, spec.expected_control_version) ==
@@ -1059,7 +1155,7 @@ def scan(store, history, apply_delta):
             if spec.role is E.AgentRole.MAIN:check(spec.logical_agent_id=='MAIN-'+request['instance_id'])
         if action=='CALL_PREPARED':
             validate_call_effects(store, index, before, state, event, decision)
-            task=read_json(store,p['task_ref'],index.project);request=state['requests'][task['request_id']]
+            task=read_scan_json(p['task_ref']);request=state['requests'][task['request_id']]
             check(state['tasks'][task['task_id']]==task and task['task_id'] not in before['tasks'])
             check(set(state['tasks'])==set(before['tasks'])|{task['task_id']})
             check(set(state['requests'])==set(before['requests'])|{task['request_id']})
@@ -1075,7 +1171,7 @@ def scan(store, history, apply_delta):
         if action == 'EXECUTION_RECEIVED':
             intake_index(index, store, p['receipt'])
         elif action == 'INBOX_PAGE_RECEIVED':
-            page = V.RunnerEventPage.from_wire(read_json(store, p['page_ref'], index.project))
+            page = V.RunnerEventPage.from_wire(read_scan_json(p['page_ref']))
             request = state['requests'][p['request_id']]
             previous = before['requests'][p['request_id']]['execution_inbox']['cursor']['after_sequence']
             current = request['execution_inbox']['cursor']['after_sequence']
@@ -1088,9 +1184,13 @@ def scan(store, history, apply_delta):
                     check(observed.sequence not in stream)
                     stream[observed.sequence] = (observed.envelope.event_id, observed.wire_digest())
         receipt = dict(commit=head['commit'], sequence=head['sequence'], outcome='COMMITTED', operation_id=event['operation_id'])
+        if combined and action.startswith('FAST_'):
+            from .fastmath import receipt_for
+            receipt = receipt_for(state, event, head)
         index.operations[event['operation_id']] = dict(command=bare, receipt=receipt, decision=decision)
         index.keys[event['idempotency_key']] = event['operation_id']
-        index.states[head['commit']] = deepcopy(state)
+        index.states[head['commit']] = copy_snapshot(state, {})
+        replay_prior_commit = head['commit']
     return index
 
 
@@ -1235,6 +1335,14 @@ def runner_receipt(store, request, observed, project):
 class ControlStorage:
     """One native writer, one static bridge, and original operation recovery."""
     validate_command = staticmethod(command)
+    validate_transition = staticmethod(validate_transition)
+    event_schema = EVENT_SCHEMA
+    combined = False
+
+    def decision_record(self, **values):
+        result = {'schema': RECORD_SCHEMA, 'kind': 'DECISION', **values}
+        validate_record(result, combined=self.combined)
+        return result
 
     def __init__(self, store, native):
         check(native.store is store, 'AUTHORIZATION_REQUIRED')
@@ -1375,7 +1483,7 @@ class ControlStorage:
         return auth, spec
 
     def execute(self, service, value, session, grant_ref, manifest_ref, *, boundary=None):
-        command(value)
+        self.validate_command(value)
         project, genesis, key = self._root(service, value['scope'])
         iid = value['scope']['instance_id']; action = value['type']
         if action == 'SEND_STARTED':
@@ -1419,17 +1527,23 @@ class ControlStorage:
                         plan, bound = visit_plan(state, candidate, index.visit_origins)
                         check(plan == verified['plan'] and bound == candidate, 'VERSION_CONFLICT')
                         task_visit_link(state, state['knowledge_commit'], task, candidate, plan)
-                    decision = record('DECISION', decision_id='decision:'+value['operation_id'], scope=value['scope'],
+                    decision_at=auth['issued_at']
+                    if self.combined and action=='SCIENCE_ADMITTED':
+                        # Bind this transaction's native rejection time in the
+                        # existing authenticated decision, not in a new schema.
+                        decision_at=service.registry.clock()
+                        check(auth['issued_at']<=decision_at<auth['expires_at'],'AUTHORIZATION_REQUIRED')
+                    decision = self.decision_record(decision_id='decision:'+value['operation_id'], scope=value['scope'],
                         principal_ref=auth['principal_ref'], authn_evidence_ref=auth['authn_evidence_ref'], authority_ref=auth['authority_ref'],
                         action=action, payload_sha256=sha(canonical(value)), owner_epoch=value['owner_epoch'], control_version=value['control_version'],
-                        issued_at=auth['issued_at'].isoformat().replace('+00:00', 'Z'), expires_at=auth['expires_at'].isoformat().replace('+00:00', 'Z'),
+                        issued_at=decision_at.isoformat().replace('+00:00', 'Z'), expires_at=auth['expires_at'].isoformat().replace('+00:00', 'Z'),
                         budget_grant_ref=grant_ref, capability_manifest_ref=manifest_ref)
                     decision_ref = exact(self.store, project, decision['decision_id'], decision)
                     event = {**deepcopy(value), 'decision_ref': decision_ref}
                     after, accepted = self.reduce(service, state, event, auth, spec, ledger, key)
                     if after == state:
                         return dict(commit=state['knowledge_commit'], sequence=state['_snapshot_sequence'], outcome='NO_CHANGE')
-                    validate_transition(state, after, event)
+                    self.validate_transition(state, after, event)
                     if action == 'CALL_PREPARED':
                         validation_index = ControlIndex(project, visit_origins=deepcopy(index.visit_origins))
                         validate_call_effects(self.store, validation_index, state, after, event, decision)
@@ -1463,7 +1577,7 @@ class ControlStorage:
 
     def acquire_slot(self, service, value, session, *, grant_ref, manifest_ref):
         """Persist HELD before project confirmation; either gap is recoverable."""
-        command(value); check(value['type'] == 'SLOT_CONFIRMED')
+        command(value, combined=self.combined); check(value['type'] == 'SLOT_CONFIRMED')
         project, genesis, key = self._root(service, value['scope'])
         with service.pool.egress(project, genesis, [value['scope']['instance_id']]):
             with service.pool.locked():
@@ -1502,7 +1616,7 @@ class ControlStorage:
         if previous is not None and previous['command']['type']=='SLOT_CONFIRMED':
             revision=previous['command']['payload']['pool_revision']
         value={k:deepcopy(frame[k]) for k in ('operation_id','idempotency_key','scope','expected_head','owner_epoch','control_version')}
-        value.update(schema=EVENT_SCHEMA,type='SLOT_CONFIRMED',payload=dict(request_id=request_id,
+        value.update(schema=self.event_schema,type='SLOT_CONFIRMED',payload=dict(request_id=request_id,
             pool_id=service.pool.pool_id,token=token,pool_revision=revision))
         return self.acquire_slot(service,value,frame['session'],grant_ref=frame['grant_ref'],manifest_ref=frame['manifest_ref'])
 
@@ -1564,9 +1678,15 @@ class ControlStorage:
         after = deepcopy(state); p = event['payload']; action = event['type']; iid = event['scope']['instance_id']
         instance = after['instances'][iid]; project = state['project_id']; accepted = []
         at = service.registry.clock().isoformat().replace('+00:00', 'Z')
+        if self.combined and action=='SCIENCE_ADMITTED':
+            at=read_json(self.store,event['decision_ref'],project)['issued_at']
         if action == 'ACTIVATED':
             after = self.native.activate(state); instance = after['instances'][iid]
-            profile = read_json(self.store, p['profile_ref'], project); validate_record(profile)
+            profile = read_json(self.store, p['profile_ref'], project)
+            if self.combined:
+                from .control_fast import unwrap_profile
+                profile = unwrap_profile(profile)
+            validate_record(profile)
             check(profile['kind'] == 'PROFILE' and profile['pool_id'] == service.pool.pool_id and profile['project_id'] == project)
             instance['ownership'] = record('OWNER', logical_main_id=None if instance['kind'] == 'SURVEY' else 'MAIN-'+iid,
                 owner_id=p['owner_id'], owner_epoch=1, backend_binding_ref=p['backend_binding_ref'], authorization_ref=event['decision_ref'])
@@ -1663,7 +1783,7 @@ class ControlStorage:
         elif action == 'SCIENCE_ADMITTED':
             request = after['requests'][p['request_id']]
             check(not request['admission']['evidence_conflict'] and request['execution_inbox']['state'] == 'OPEN', 'EXECUTION_UNRESOLVED')
-            after, accepted = self.native.science(after, p['request_id'], ref(p['capture_ref'], project))
+            after, accepted = self.native.science(after, p['request_id'], ref(p['capture_ref'], project), **({'at':at} if self.combined else {}))
             after['requests'][p['request_id']]['admission']['charge'] = 'SPENT_OR_SETTLED'
         elif action == 'GUIDANCE_SAVED':
             direction = read_json(self.store, p['direction_ref'], project)
